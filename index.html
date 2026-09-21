@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- 安全設定：只允許執行這個網站自己的程式，擋掉被塞進來的外部腳本 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>一個億的小目標</title>
+  <meta name="description" content="從出生到退休的人生模擬遊戲，目標是賺到一個億。">
+  <meta name="theme-color" content="#0f1636">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="一個億">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    html, body { height: 100%; margin: 0; }
+    body { background: #0f1636; overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+    #root {
+      display: flex; flex: 1; height: 100%;
+      max-width: 480px; margin: 0 auto;
+      background: #0f1636;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
+    }
+    noscript { display: block; padding: 24px 16px; font-family: sans-serif; }
+  </style>
+</head>
+<body>
+  <noscript>這個遊戲需要開啟 JavaScript 才能玩。</noscript>
+  <div id="root"></div>
+  <script src="app.js" defer></script>
+  <script src="register-sw.js" defer></script>
+</body>
+</html>
