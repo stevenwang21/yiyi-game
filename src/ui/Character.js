@@ -365,7 +365,7 @@ function CrashChart({ w, h, pct = 20 }) {
 }
 
 export function CharScene({
-  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct,
+  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn,
 }) {
   const cfg = KIND[kind] || KIND.desk;
   const pal = PAL[cfg.pal] || PAL.night;
@@ -375,21 +375,22 @@ export function CharScene({
   const bad = badIn != null ? badIn : !!cfg.bad;
   const face = mood || cfg.mood || '🙂';
   const other = gender === 'female' ? 'male' : 'female';
-  const z = full ? (stage === 'baby' ? 0.8 : 0.92) : ZOOM[stage];
+  const small = (compactIn != null ? compactIn : height < 110) && !full;
+  const z = full ? (stage === 'baby' ? 0.8 : 0.92) : small ? (stage === 'baby' ? 1.0 : ZOOM[stage] * 1.45) : ZOOM[stage];
   const heroH = height * z;
   const hid = cid(stage, gk(gender));
   const heroW = (heroH * SIZE[hid][0]) / SIZE[hid][1];
-  const topPad = stage === 'baby' ? height - heroH - 2 : height * (full ? 0.05 : 0.07);
+  const topPad = stage === 'baby' ? height - heroH - 2 : height * (full ? 0.05 : small ? 0.02 : 0.07);
   const withP = !!partner && stage !== 'baby';
   const crash = kind === 'crash' && !noProps;
-  const compact = height < 110;
-  const heroX = w * (compact ? 0.26 : withP ? 0.2 : crash ? 0.46 : 0.3) - heroW / 2;
+  const compact = compactIn != null ? compactIn : height < 110;
+  const heroX = w * (compact ? 0.24 : withP ? 0.2 : crash ? 0.46 : 0.3) - heroW / 2;
   const pid = cid(stage, gk(other));
   const pH = heroH * (SIZE[pid][1] / SIZE[hid][1]);
   const pW = (pH * SIZE[pid][0]) / SIZE[pid][1];
   const pX = w * 0.42 - pW / 2;
   const s = height / 150;
-  const bubble = Math.round(26 * Math.max(0.8, s));
+  const bubble = compact ? Math.round(Math.min(height * 0.26, 30)) : Math.round(26 * Math.max(0.8, s));
   const bg = WEB
     ? { backgroundImage: `radial-gradient(120% 90% at 25% 15%, ${pal[0]} 0%, ${pal[1]} 75%)` }
     : { backgroundColor: pal[1] };
@@ -406,7 +407,7 @@ export function CharScene({
           {!noProps ? (compact
             // 小卡（主畫面右上）：只放兩個大圖示在右半邊，人物留在左邊
             ? cfg.props.slice(0, 2).map(([e, , , , float], i) => (
-              <Prop key={`${kind}-${i}`} k={i} e={e} x={i ? 82 : 72} y={i ? 70 : 34} size={Math.round(height * (i ? 0.36 : 0.44))} float={float} delay={260 + i * 130} />
+              <Prop key={`${kind}-${i}`} k={i} e={e} x={i ? 84 : 68} y={i ? 72 : 34} size={Math.round(height * (i ? 0.5 : 0.6))} float={float} delay={260 + i * 130} />
             ))
             : cfg.props.map(([e, x, y, size, float], i) => (
               <Prop key={`${kind}-${i}`} k={i} e={e} x={x} y={y} size={Math.round(size * 1.6 * Math.max(0.72, s))} float={float} delay={260 + i * 130} />

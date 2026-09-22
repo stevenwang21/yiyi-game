@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bar, Button, Card, Chip } from './components';
 import { RollingNumber, SmoothBar, FadeIn, TabItem, GroupHead, BLUR } from './ios';
@@ -281,13 +281,25 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                   </Text>
                 ) : <Text style={[styles.heroDelta, { color: C.muted, fontWeight: '400' }]}>目標 1 億</Text>}
               </View>
+              {/* 右半邊留給插圖 */}
+              <View style={{ width: '44%', height: 100 }} />
+            </View>
+            {/* 插圖貼齊卡片右上，佔滿整個右半邊，左邊淡出 */}
+            <View
+              pointerEvents="none"
+              style={[
+                { position: 'absolute', top: 0, right: 0, width: '54%', height: 130 },
+                Platform.OS === 'web' ? { maskImage: 'linear-gradient(to right, transparent 0%, #000 22%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, #000 22%)' } : null,
+              ]}
+            >
               <CharScene
                 key={`${stageOf(s.age)}-${sceneForState(s)}`}
                 kind={sceneForState(s)} age={s.age} gender={s.gender}
                 partner={castFor(sceneForState(s), s).partner}
                 mood={s.stats.happy < 30 ? '😞' : undefined}
-                height={104} radius={14} style={{ width: 150 }}
+                height={130} radius={0} compact
               />
+              {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 26, backgroundImage: `linear-gradient(to bottom, rgba(27,34,86,0), ${C.card})` }} /> : null}
             </View>
             <View style={styles.heroBar}>
               <SmoothBar value={progress} color={progress >= 1 ? C.gold : C.primary} height={6} />
@@ -632,7 +644,7 @@ const styles = StyleSheet.create({
   menu: { fontSize: 16, color: C.muted },
   subText: { fontSize: 12, color: C.muted, marginTop: 1 },
 
-  hero: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginTop: 10 },
+  hero: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginTop: 10, overflow: 'hidden' },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   heroDelta: { fontSize: 13, fontWeight: '600', marginTop: 4, fontVariant: ['tabular-nums'] },
   moreBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.page, alignItems: 'center', justifyContent: 'center' },
