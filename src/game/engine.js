@@ -15,7 +15,7 @@ import { ROUTES } from './routes.js';
 import { WORLD_EVENTS, INDEX_META } from './world.js';
 import { perksOf } from './perks.js';
 import { currentType, partnerIncome, PARTNER_TYPES } from './partners.js';
-import { makeMates, mateYear, ranking, myRank, rankMode, reunionText, REUNION_AGES, START_AGE as MATE_START } from './mates.js';
+import { makeMates, mateYear, ranking, myRank, rankMode, reunionText, selectedClassmates, REUNION_AGES, START_AGE as MATE_START } from './mates.js';
 import { makeTargets, canAcquire, MAX_GROUP, groupCount, meetsReq, synergy, rollValue, AUCTION_BIDS } from './mna.js';
 import { LEGENDS, legendById, availableLegend } from './legends.js';
 import { lifePoints } from './meta.js';
@@ -44,9 +44,9 @@ export { LEGENDS, legendById };
 export { ROUTES, HOUSES, ASSETS, BUSINESSES, DOWN_PAYMENT, INVEST_MIN_AGE, MAX_BIZ, MAX_KIDS };
 export { currentType, PARTNER_TYPES };
 export const perkOf = (s) => (s.perk ? s.perk : perksOf(s));
-export { ranking, myRank, rankMode };
+export { ranking, myRank, rankMode, selectedClassmates };
 export { MAX_GROUP, canAcquire, meetsReq, synergy, AUCTION_BIDS, DEAL_KINDS } from './mna.js';
-export const mateList = (s) => s.mates || [];
+export const mateList = (s) => selectedClassmates(s);
 
 export const SAVE_VERSION = 3;
 export const BASE_FOCUS_SLOTS = 3; // 每年最多可以選幾個重點

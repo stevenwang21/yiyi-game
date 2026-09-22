@@ -82,6 +82,8 @@ export function sceneForState(s) {
 // ───────── 依事件內容決定要配哪張圖 ─────────
 const RULES = [
   [/抓周/, 'zhuazhou'],
+  // 只有「主角自己在經營」作品帳號／頻道時才出現手機（同學的職稱「小網紅」之類不算）
+  [/作品帳號|開了.{0,4}帳號|經營頻道|你的頻道|你的帳號|你的粉絲|粉絲專頁|訂閱數|開直播|當直播主|你的貼文/, 'social'],
   [/結婚|求婚|婚禮|喜宴/, 'wedding'],
   [/弟弟|妹妹|爸媽|媽媽|爸爸|阿嬤|阿公|家人|孩子|小孩|生一個|懷孕/, 'family'],
   [/同學會|慶祝|生日|party|尾牙/i, 'party'],
@@ -125,6 +127,7 @@ const talentArt = (text, s) => {
 
 export function artForEvent(pending, s) {
   if (!pending) return 'desk';
+  if (/同學會/.test(pending.title || '')) return 'party';
   if (pending.art && (XML[pending.art] || PHOTO[pending.art])) return pending.art;
   const text = `${pending.title || ''}${pending.text || ''}`;
   for (const [re, id] of RULES) if (re.test(text)) return id === 'talent' ? talentArt(text, s) : id;

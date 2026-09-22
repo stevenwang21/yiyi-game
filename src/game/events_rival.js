@@ -1,7 +1,7 @@
 // 同學會、收購機會
 import { addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { addSkill, addPoints, netWorth, diffOf } from './actions.js';
-import { reunionText, ranking } from './mates.js';
+import { reunionText, ranking, lockClassmates } from './mates.js';
 import { BUSINESSES } from './data.js';
 import { MAX_GROUP, synergy } from './mna.js';
 
@@ -31,13 +31,13 @@ function settleRival(s) {
   s.flags.rivalLoss = streak;
   const mult = Math.min(4, 2 ** (streak - 1)); // 1、2、4、4 倍
   const d = addStats(s, { happy: -6 * mult, hp: -3 * mult });
-  return `上次你說要超過「${name}」，五年過去，他還是在你前面（${formatMoney(rival.nw)} 對 ${formatMoney(me.nw)}）。${streak > 1 ? `這已經是連續第 ${streak} 次輸給他了，你整晚沒吃幾口。` : '你笑著敬酒，心裡很悶。'}${d}\n\n`;
+  return `上次你說要超過「${name}」，五年過去，他還是在你前面。${streak > 1 ? `這已經是連續第 ${streak} 次輸給他了，你整晚沒吃幾口。` : '你笑著敬酒，心裡很悶。'}${d}\n\n`;
 }
 
 export const REUNION_EVENT = {
   id: 'reunion', minAge: 20, maxAge: 99, weight: 0, // 由引擎在固定年紀觸發
   title: '同學會',
-  before: (s) => { s.flags.rivalResult = settleRival(s); },
+  before: (s) => { lockClassmates(s); s.flags.rivalResult = settleRival(s); },
   text: (s) => `${s.flags.rivalResult || ''}${reunionText(s, netWorth(s))}`,
   choices: [
     {

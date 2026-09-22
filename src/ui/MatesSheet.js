@@ -5,7 +5,7 @@ import { Card } from './components';
 import { C } from './theme';
 import * as E from '../game/engine';
 import { Avatar } from './art';
-import { Head } from './Character';
+import { Head, MateFace } from './Character';
 import { mateStory, MONEY_RANK_AGE } from '../game/mates';
 
 export default function MatesSheet({ visible, onClose, game }) {
@@ -21,11 +21,11 @@ export default function MatesSheet({ visible, onClose, game }) {
       </Text>
       <Card style={{ marginTop: 10, paddingVertical: 6 }}>
         {list.map((x) => {
-          const m = mates.find((q) => q.name === x.name);
+          const m = mates.find((q) => q.id === x.id);
           return (
-            <View key={x.name} style={[styles.row, x.me && styles.me]}>
+            <View key={x.id || x.name} style={[styles.row, x.me && styles.me]}>
               <Text style={[styles.rank, x.rank === 1 && { color: C.goldInk }]}>{x.rank === 1 ? '👑' : x.rank}</Text>
-              {x.me ? <Head age={s.age} gender={s.gender} size={34} /> : <Avatar name={x.name} gender={x.gender} age={s.age} size={34} />}
+              {x.me ? <Head age={s.age} gender={s.gender} size={34} /> : s.reunionMates && x.characterAsset ? <MateFace asset={x.characterAsset} size={34} /> : <Avatar name={x.name} gender={x.gender} age={s.age} size={34} />}
               <View style={{ flex: 1 }}>
                 <Text style={[styles.name, x.me && { color: C.primaryInk }]}>
                   {x.name}{x.me ? '（你）' : `（${x.title}）`}

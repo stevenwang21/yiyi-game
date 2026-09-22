@@ -35,6 +35,7 @@ export function makeMates(rng, n = 5) {
     while (used.has(who.name) && guard++ < 20) who = randomPerson(rng);
     used.add(who.name);
     out.push({
+      id: `c${i + 1}${Math.floor(rng() * 1e6).toString(36)}`,
       name: who.name,
       gender: who.gender,
       // 小時候的樣子：成績、努力程度、家裡有沒有事業
@@ -128,6 +129,78 @@ export function mateYear(s, rng) {
     m.nw = Math.max(-500 * WAN, Math.round(m.nw * (1 + r) + save));
     if (m.nw > m.peak) m.peak = m.nw;
   }
+  // 每年記一筆資產（同學會「拚一下」畫折線圖用）
+  for (const m of s.mates) { m.hist = m.hist || {}; m.hist[s.age] = m.nw; }
+}
+
+// ───────── 本次同學會的五位同學（唯一資料來源）─────────
+// 排名名單、同學會畫面、事件文字都從這裡拿，不會重新抽。
+// 每位同學有固定的 id 和人物圖 characterAsset，第一次同學會時決定，之後存檔保留、永遠不變。
+// 人物素材（全身、透明背景）：
+//   男 engineer_m 工程師｜founder_m 創業家｜owner_m 餐廳老闆｜photo_m 攝影師｜sales_m 業務
+//   女 civil_f 公務員｜designer_f 設計師｜nurse_f 護理師｜teacher_f 老師
+// 職業 → 優先使用的素材（前面的先用；被別人用走了就換下一個）
+export const ASSET_BY_PATH = {
+  civil: [['sales_m', 'engineer_m'], ['civil_f', 'teacher_f']],
+  teacher: [['engineer_m', 'sales_m'], ['teacher_f', 'civil_f']],
+  engineer: [['engineer_m', 'founder_m'], ['designer_f', 'civil_f']],
+  doctor: [['engineer_m', 'sales_m'], ['nurse_f', 'civil_f']],
+  founder: [['founder_m', 'sales_m'], ['designer_f', 'civil_f']],
+  influencer: [['photo_m', 'founder_m'], ['designer_f', 'nurse_f']],
+  sales: [['sales_m', 'founder_m'], ['civil_f', 'designer_f']],
+  realtor: [['sales_m', 'founder_m'], ['civil_f', 'designer_f']],
+  chef: [['owner_m', 'photo_m'], ['designer_f', 'nurse_f']],
+  trader: [['founder_m', 'engineer_m'], ['civil_f', 'designer_f']],
+  heir: [['founder_m', 'sales_m'], ['designer_f', 'civil_f']],
+  drifter: [['photo_m', 'owner_m'], ['teacher_f', 'designer_f']],
+};
+export const ASSETS_M = ['engineer_m', 'founder_m', 'owner_m', 'photo_m', 'sales_m'];
+export const ASSETS_F = ['civil_f', 'designer_f', 'nurse_f', 'teacher_f'];
+const ALL_ASSETS = [...ASSETS_M, ...ASSETS_F];
+
+// 依 s.mates 的固定順序（不是排名順序）分配，結果每次都一樣
+function planAssets(mates) {
+  const used = new Set();
+  const out = mates.map((m) => (m.characterAsset && ALL_ASSETS.includes(String(m.characterAsset).replace('*', '')) ? m.characterAsset : null));
+  out.forEach((a) => a && used.add(a));
+  mates.forEach((m, i) => {
+    if (out[i]) return;
+    const pref = ASSET_BY_PATH[m.path];
+    const list = pref ? pref[m.gender === 'female' ? 1 : 0] : [];
+    const k = list.find((x) => !used.has(x));
+    if (k) { out[i] = k; used.add(k); }
+  });
+  mates.forEach((m, i) => {
+    if (out[i]) return;
+    const pool = m.gender === 'female' ? ASSETS_F : ASSETS_M;
+    let k = pool.find((x) => !used.has(x));
+    // 同性別的素材都用完了（例如 5 位都是女生）：用同一個人的「換裝版」（左右翻轉＋換衣服顏色）
+    if (!k) k = `${pool.find((x) => !used.has(`${x}*`)) || pool[0]}*`;
+    out[i] = k; used.add(k);
+  });
+  return out;
+}
+const idOf = (m, i) => m.id || `c${i + 1}_${m.name}`;
+
+// 引擎用：把 id / avatar 寫進存檔（同學會開始時呼叫一次）
+export function lockClassmates(s) {
+  if (!s.mates) return [];
+  const av = planAssets(s.mates);
+  s.mates.forEach((m, i) => { m.id = idOf(m, i); m.characterAsset = av[i]; delete m.avatar; });
+  s.reunionMates = s.mates.map((m) => m.id);
+  return s.mates;
+}
+
+// 畫面用（不改存檔）：本次同學會的五位同學，順序固定
+export function selectedClassmates(s) {
+  const mates = (s && s.mates) || [];
+  const av = planAssets(mates);
+  const all = mates.map((m, i) => ({ ...m, id: idOf(m, i), characterAsset: av[i] }));
+  if (s && s.reunionMates && s.reunionMates.length) {
+    const pick = s.reunionMates.map((id) => all.find((m) => m.id === id)).filter(Boolean);
+    if (pick.length) return pick;
+  }
+  return all;
 }
 
 // 現在是比什麼：小時候比成績，出社會比資產
@@ -137,8 +210,8 @@ export const rankMode = (s) => (s.age < MONEY_RANK_AGE ? 'grade' : 'nw');
 export function ranking(s, myNw) {
   const mode = rankMode(s);
   const list = [
-    ...(s.mates || []).map((m) => ({
-      name: m.name, title: m.title || '同學', nw: m.nw, grade: m.grade ?? 60, gender: m.gender || 'male', me: false,
+    ...selectedClassmates(s).map((m) => ({
+      id: m.id, characterAsset: m.characterAsset, name: m.name, title: m.title || '同學', nw: m.nw, grade: m.grade ?? 60, gender: m.gender || 'male', path: m.path || null, hist: m.hist || null, me: false,
     })),
     { name: s.name, title: '你', nw: myNw, grade: s.stats ? s.stats.int : 60, gender: s.gender || 'male', me: true },
   ];
@@ -164,15 +237,9 @@ export const mateStory = (m) => {
 export const REUNION_AGES = [25, 30, 35, 40, 45, 50, 55, 60, 65];
 
 export function reunionText(s, myNw) {
-  const list = ranking(s, myNw);
-  const lines = list.map((x) => `${x.rank}. ${x.me ? `${x.name}（你）` : `${x.name}（${x.title}）`}　${x.label}`);
-  const me = list.find((x) => x.me);
-  const head = me.rank === 1
-    ? '你是全場最有錢的那個，大家都圍過來跟你敬酒。'
-    : me.rank <= 2
-      ? '你排在前面，但還有人比你更狠。'
-      : `你排第 ${me.rank} 名，看著前面的人有點不是滋味。`;
-  return `${s.age} 歲的同學會，大家聊著這些年做了什麼。\n\n${lines.join('\n')}\n\n${head}`;
+  // 不列排名、不秀資產：只說誰來了、大家在做什麼（跟畫面同一份名單、同一個順序）
+  const others = selectedClassmates(s).map((x) => `${x.name}（${x.title || '同學'}）`);
+  return `${s.age} 歲的同學會，${others.join('、')}都來了，大家聊著這些年做了什麼。`;
 }
 
 export const luckyBump = (rng) => 0.9 + rng() * 0.3;

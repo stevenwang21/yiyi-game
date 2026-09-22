@@ -5,7 +5,8 @@ import { C, STAT_META, toneColor } from './theme';
 import { Button } from './components';
 import { formatMoney } from '../game/engine';
 import { artForEvent } from './art';
-import { CharScene, castFor, Head } from './Character';
+import * as E from '../game/engine';
+import { CharScene, castFor, Head, SocialPhone, ReunionStage } from './Character';
 
 // 選完之後的結果：讓玩家看到自己的選擇換來了什麼，再繼續
 export function ResultSheet({ result, onContinue, game }) {
@@ -15,11 +16,14 @@ export function ResultSheet({ result, onContinue, game }) {
   const main = r.items[0];
   const good = main && (main.tone === 'good' || main.tone === 'milestone');
   const bad = main && main.tone === 'bad';
+  const reunion = /同學會/.test(r.title || '') && !!(game && game.mates);
   return (
     <Sheet visible onClose={onContinue} clear>
-      {game ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
-      {/* 事件名稱直接疊在背景插圖上 */}
-      <View style={styles.resTitleWrap} pointerEvents="none">
+      {game && !reunion ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
+      {reunion ? <ReunionStage key={r.choice} choice={r.choice} game={game} style={{ marginBottom: 6 }} /> : null}
+      {game ? <ResultPhone r={r} game={game} /> : null}
+      {/* 事件名稱直接疊在背景插圖上（有手機的話留高一點，文字不會壓到手機） */}
+      <View style={[styles.resTitleWrap, game && isSocial(r, game) && { height: 206 }, reunion && { height: 'auto', marginTop: 4 }]} pointerEvents="none">
         <Text style={styles.resTitle} numberOfLines={2}>{r.title}</Text>
       </View>
 
@@ -68,8 +72,20 @@ function ResultBackdrop({ r, game, good, bad }) {
         key={`${r.title}-${r.choice}`}
         kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
         mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
-        height={250} radius={18}
+        height={250} radius={18} name={game.name} hidePhone
       />
+    </View>
+  );
+}
+
+const isSocial = (r, game) => artForEvent({ title: r.title, text: `${r.title || ''}${r.choice || ''}${(r.items || []).map((l) => l.text).join('')}` }, game) === 'social';
+
+// 作品帳號／網紅事件：結果卡右邊直接放一支清楚的手機（不跟背景一起變淡）
+function ResultPhone({ r, game }) {
+  if (!isSocial(r, game)) return null;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', right: 14, top: 6, zIndex: 3 }}>
+      <SocialPhone age={game.age} gender={game.gender} name={game.name} height={196} />
     </View>
   );
 }
@@ -80,10 +96,13 @@ function EventScene({ p, game }) {
   const h = p.choices.length >= 5 ? 104 : p.choices.length >= 4 ? 124 : 156;
   if (!game) return null;
   const cast = castFor(kind, game, `${p.title || ''}${p.text || ''}`);
+  if (/同學會/.test(p.title || '') && game.mates) {
+    return <ReunionStage game={game} style={{ marginBottom: 10 }} />;
+  }
   return (
     <CharScene
       key={`${p.id || p.title}-${game.age}`}
-      kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
+      kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby} name={game.name}
       crashPct={(() => { const m = /ETF\s*-(\d+)%/.exec(p.text || ''); return m ? Number(m[1]) : undefined; })()}
       height={h} radius={18} style={{ marginBottom: 10 }}
     />
