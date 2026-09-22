@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, Rect, Stop, Text as SvgText } from 'react-native-svg';
-import { Avatar } from './art';
+import { Sprite, HEAD, spriteId, SPRITE_SIZE, stageOf } from './Character';
 
 const ND = Platform.OS !== 'web';
 
@@ -18,17 +18,11 @@ export function lifeStage(age) {
   return 'old';
 }
 
-const SCALE = { baby: 0.5, toddler: 0.58, kinder: 0.66, pupil: 0.76, teen: 0.9, college: 0.97, adult: 1, old: 0.95 };
 const SKY = {
   baby: ['#ffd6e8', '#fff1d6'], toddler: ['#ffd6e8', '#fff1d6'], kinder: ['#bfe6ff', '#fff4d6'],
   pupil: ['#8fd3ff', '#e6f7ff'], teen: ['#6fb8ff', '#d7efff'], college: ['#5a8cff', '#c9dcff'],
   adult: ['#3b4a9e', '#8aa2ff'], old: ['#ff9a6b', '#ffd6a3'],
 };
-const CLOTHES = {
-  baby: '#ffd76a', toddler: '#ff9fc4', kinder: '#ffb547', pupil: '#ffffff', teen: '#ffffff',
-  college: '#6a5cff', adult: '#2d3570', old: '#8a6e55',
-};
-const PANTS = { baby: '#ffd76a', toddler: '#7db4ff', kinder: '#3ddc97', pupil: '#2e4a9e', teen: '#223a7a', college: '#34405f', adult: '#1b2140', old: '#5b5b66' };
 
 // ── 背景道具（每個階段一組，畫在 0..w 的範圍，會重複兩份一起捲動）──
 function Props({ stage, w, h, ground, offset }) {
@@ -89,50 +83,6 @@ function Props({ stage, w, h, ground, offset }) {
   return <G transform={`translate(${offset},0)`}>{items}</G>;
 }
 
-// ── 主角的身體（頭用 Avatar 疊上去）──
-function Body({ stage, frame, female, s = 1 }) {
-  const clothes = CLOTHES[stage];
-  const pants = PANTS[stage];
-  const swing = stage === 'old' ? 10 : 22;
-  const a = frame ? swing : -swing;
-  if (stage === 'baby') {
-    // 爬行：身體橫的，手腳一前一後
-    return (
-      <Svg width={80} height={60} viewBox="0 0 80 60">
-        <Ellipse cx={42} cy={34} rx={20} ry={11} fill={clothes} />
-        <G transform={`rotate(${frame ? 18 : -10} 28 40)`}><Rect x={25} y={38} width={6} height={16} rx={3} fill="#ffdbb4" /></G>
-        <G transform={`rotate(${frame ? -12 : 16} 52 40)`}><Rect x={49} y={38} width={7} height={16} rx={3} fill="#ffdbb4" /></G>
-        <Ellipse cx={42} cy={56} rx={22} ry={3} fill="rgba(0,0,0,0.18)" />
-      </Svg>
-    );
-  }
-  const skirt = female && (stage === 'teen' || stage === 'pupil');
-  return (
-    <Svg width={60 * s} height={100 * s} viewBox="0 0 60 100">
-      <Ellipse cx={30} cy={97} rx={16} ry={3} fill="rgba(0,0,0,0.2)" />
-      {/* 後面的手 */}
-      <G transform={`rotate(${a} 16 38)`}><Rect x={13} y={36} width={6} height={24} rx={3} fill={stage === 'adult' || stage === 'old' || stage === 'college' ? clothes : '#ffdbb4'} /></G>
-      {/* 書包 */}
-      {stage === 'pupil' || stage === 'kinder' ? <Rect x={34} y={36} width={16} height={22} rx={4} fill={stage === 'pupil' ? '#ff5d52' : '#7db4ff'} /> : null}
-      {stage === 'teen' ? <Rect x={36} y={38} width={13} height={20} rx={3} fill="#2d3570" /> : null}
-      {/* 腳 */}
-      <G transform={`rotate(${a} 26 62)`}><Rect x={23} y={60} width={7} height={30} rx={3} fill={pants} /><Ellipse cx={27} cy={91} rx={6} ry={3} fill="#1b1b24" /></G>
-      <G transform={`rotate(${-a} 34 62)`}><Rect x={31} y={60} width={7} height={30} rx={3} fill={pants} /><Ellipse cx={35} cy={91} rx={6} ry={3} fill="#1b1b24" /></G>
-      {/* 身體 */}
-      <Rect x={17} y={32} width={26} height={32} rx={8} fill={clothes} stroke="rgba(0,0,0,0.12)" strokeWidth={1} />
-      {skirt ? <Polygon points="16,58 44,58 48,72 12,72" fill="#2e4a9e" /> : null}
-      {stage === 'teen' || stage === 'pupil' ? <Polygon points="26,34 30,44 34,34" fill="#2e4a9e" /> : null}
-      {stage === 'adult' ? <Polygon points="28,33 30,52 32,33" fill="#ff5d52" /> : null}
-      {/* 前面的手（上班族拿公事包、老人拿拐杖） */}
-      <G transform={`rotate(${-a} 44 38)`}>
-        <Rect x={41} y={36} width={6} height={24} rx={3} fill={stage === 'adult' || stage === 'old' || stage === 'college' ? clothes : '#ffdbb4'} />
-        {stage === 'adult' ? <Rect x={37} y={58} width={16} height={12} rx={2} fill="#6b4a2e" /> : null}
-      </G>
-      {stage === 'old' ? <Line x1={50} y1={52} x2={54} y2={96} stroke="#6b4a2e" strokeWidth={3} strokeLinecap="round" /> : null}
-    </Svg>
-  );
-}
-
 function GradCap({ size }) {
   return (
     <Svg width={size} height={size * 0.6} viewBox="0 0 50 30">
@@ -179,10 +129,6 @@ export default function LifeWalk({ age, name, gender, width, height = 210, grad,
 
   const g = height - 26; // 地面
   const sky = SKY[stage];
-  const s = SCALE[stage];
-  const headSize = Math.round(stage === 'baby' ? 36 : 46 * Math.max(0.78, s));
-  const bodyH = stage === 'baby' ? 60 : 100 * s;
-  const bodyW = stage === 'baby' ? 80 : 60 * s;
 
   return (
     <View style={{ width, height, borderRadius: 20, overflow: 'hidden' }}>
@@ -206,19 +152,30 @@ export default function LifeWalk({ age, name, gender, width, height = 210, grad,
           {Array.from({ length: 24 }).map((_, i) => <Rect key={i} x={i * (width / 12)} y={g + 10} width={width / 24} height={3} fill="rgba(255,255,255,0.35)" />)}
         </Svg>
       </Animated.View>
-      {/* 主角 */}
-      <Animated.View
-        style={{
-          position: 'absolute', left: width / 2 - bodyW / 2, top: g - bodyH + (stage === 'baby' ? 4 : 2), width: bodyW, alignItems: 'center',
-          transform: [{ translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, stage === 'baby' ? -1 : -3] }) }],
-        }}
-      >
-        <Body stage={stage} frame={frame} female={gender === 'female'} s={s} />
-        <View style={{ position: 'absolute', top: stage === 'baby' ? -6 : 32 * s - headSize * 0.86, left: stage === 'baby' ? -2 : bodyW / 2 - headSize / 2, alignItems: 'center' }}>
-          {grad ? <View style={{ position: 'absolute', top: -headSize * 0.12, zIndex: 2 }}><GradCap size={headSize * 0.7} /></View> : null}
-          <Avatar name={name} gender={gender} age={Math.max(8, age)} size={headSize} style={{ backgroundColor: 'transparent' }} />
-        </View>
-      </Animated.View>
+      {/* 主角：正式人物母版，依年齡自動換階段 */}
+      {(() => {
+        const st = stageOf(age);
+        const id = spriteId(age, gender);
+        const hh = height * (st === 'baby' ? 0.4 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
+        const ww = (hh * SPRITE_SIZE[id][0]) / SPRITE_SIZE[id][1];
+        const hx = ww * HEAD[id][0];
+        const hs = hh * HEAD[id][1];
+        return (
+          <Animated.View
+            style={{
+              position: 'absolute', left: width / 2 - ww / 2, top: g - hh + 4, width: ww, height: hh,
+              transform: [
+                { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, st === 'baby' ? -2 : -3] }) },
+                { rotate: playing ? (frame ? '1.6deg' : '-1.6deg') : '0deg' },
+              ],
+            }}
+          >
+            <View style={{ position: 'absolute', left: ww * 0.1, right: ww * 0.1, bottom: -3, height: 6, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.18)' }} />
+            <Sprite age={age} gender={gender} height={hh} />
+            {grad ? <View style={{ position: 'absolute', left: hx - hs * 0.42, top: -hs * 0.22 }}><GradCap size={hs * 0.84} /></View> : null}
+          </Animated.View>
+        );
+      })()}
     </View>
   );
 }

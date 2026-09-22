@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { DarkBackdrop, GLASS } from './StartScreen';
-import { Avatar } from './art';
+import { Head } from './Character';
 import { DIFFICULTIES, GENDERS } from '../game/engine';
 
 export default function CreateScreen({ onBack, onStart }) {
@@ -27,7 +27,7 @@ export default function CreateScreen({ onBack, onStart }) {
           {/* 角色預覽 */}
           <View style={[styles.hero, GLASS]}>
             <View style={styles.avatarRing}>
-              <Avatar name={preview || '?'} gender={gender} age={22} size={88} />
+              <Head gender={gender} age={22} size={88} />
             </View>
             <Text style={[styles.previewName, !ready && { color: 'rgba(255,255,255,0.4)' }]}>{ready ? preview : '請輸入名字'}</Text>
           </View>

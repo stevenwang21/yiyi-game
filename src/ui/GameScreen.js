@@ -13,7 +13,8 @@ import Sheet from './Sheet';
 import Tutorial from './Tutorial';
 import MatesSheet from './MatesSheet';
 import YearSummary from './YearSummary';
-import { Art, sceneForState, Avatar } from './art';
+import { sceneForState } from './art';
+import { CharScene, Head, castFor, stageOf } from './Character';
 import * as E from '../game/engine';
 import { familyById } from '../game/data';
 import { routeLabel } from '../game/routes';
@@ -218,7 +219,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         {/* 上方：名字、身分、點數 */}
         <View style={styles.top}>
           <View style={styles.nameRow}>
-            <Avatar name={s.name} gender={s.gender} age={s.age} size={44} mood={s.stats.happy < 30 ? 'bad' : 'ok'} />
+            <Head age={s.age} gender={s.gender} size={44} />
             <View style={{ flex: 1 }}>
               <Text style={styles.name} numberOfLines={1}>{s.name}</Text>
               <Text style={styles.subText} numberOfLines={2}>{sub}</Text>
@@ -254,7 +255,13 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                   </Text>
                 ) : <Text style={[styles.heroDelta, { color: C.muted, fontWeight: '400' }]}>目標 1 億</Text>}
               </View>
-              <Art id={sceneForState(s)} height={92} pad={4} radius={14} style={{ width: 124 }} />
+              <CharScene
+                key={`${stageOf(s.age)}-${sceneForState(s)}`}
+                kind={sceneForState(s)} age={s.age} gender={s.gender}
+                partner={castFor(sceneForState(s), s).partner}
+                mood={s.stats.happy < 30 ? '😞' : undefined}
+                height={92} radius={14} style={{ width: 124 }}
+              />
             </View>
             <View style={styles.heroBar}>
               <SmoothBar value={progress} color={progress >= 1 ? C.gold : C.primary} height={6} />
@@ -495,7 +502,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       </View>
 
       <EventSheet pending={result ? null : s.pending} onChoose={choose} game={s} />
-      <ResultSheet result={result} onContinue={() => setResult(null)} />
+      <ResultSheet result={result} onContinue={() => setResult(null)} game={s} />
       <InvestSheet visible={showInvest && !s.pending} onClose={() => { setShowInvest(false); setInvestTab(null); }} game={s} setGame={setGame} initialTab={investTab} />
       <HealthSheet visible={showHealth && !s.pending} onClose={() => setShowHealth(false)} game={s} setGame={setGame} />
       <FamilySheet visible={showFamily && !s.pending} onClose={() => setShowFamily(false)} game={s} setGame={setGame} />

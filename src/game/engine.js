@@ -1389,7 +1389,11 @@ function selectPending(s, rng) {
     s.flags.score18 = examScore(s, rng);
     return openDef(s, rng, 'milestone', 'exam18', MILESTONES.exam18);
   }
-  if (s.studying && s.age === 22 - sk && !s.flags.inMaster) return openDef(s, rng, 'milestone', 'grad22', MILESTONES.grad22);
+  // 用 >=：同一年被其他里程碑（例如練習生合約到期）佔掉時，隔年還是會畢業
+  if (s.studying && s.age >= 22 - sk && !s.flags.inMaster && !s.seen.grad22) {
+    s.seen.grad22 = true;
+    return openDef(s, rng, 'milestone', 'grad22', MILESTONES.grad22);
+  }
 
   // 1.5 同學會（每 5 年一次）
   if (s.mates && REUNION_AGES.includes(s.age) && s.age >= MATE_START && !s.seen[`reunion${s.age}`]) {

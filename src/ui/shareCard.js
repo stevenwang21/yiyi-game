@@ -2,7 +2,7 @@
 import { Platform, Share } from 'react-native';
 import * as E from '../game/engine';
 import { PHOTO } from './art/photos';
-import { artForEnd } from './art';
+import { spriteId, SPRITE_SIZE } from './Character';
 
 const W = 1080;
 const H = 1920;
@@ -61,9 +61,14 @@ export async function makeShareCard(game, meta) {
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
-  const [scene, face, logo] = await Promise.all([
-    loadImg(uriOf(artForEnd(sum))),
-    loadImg(uriOf(game.gender === 'female' ? 'face_girl' : 'face_boy')),
+  const endAge = game.ended ? game.ended.age : game.age;
+  const other = game.gender === 'female' ? 'male' : 'female';
+  const heroId = spriteId(endAge, game.gender);
+  const mateId = game.spouse ? spriteId(endAge, other) : null;
+  const [hero, mate, face, logo] = await Promise.all([
+    loadImg(uriOf(`char_${heroId}`)),
+    mateId ? loadImg(uriOf(`char_${mateId}`)) : null,
+    loadImg(uriOf(`head_${heroId}`)),
     loadImg(uriOf('logo')),
   ]);
   const gold = '#ffd76a';
@@ -95,7 +100,18 @@ export async function makeShareCard(game, meta) {
   const ix = 70; const iy = 220; const iw = W - 140; const ih = 600;
   ctx.save();
   roundRect(ctx, ix, iy, iw, ih, 44); ctx.clip();
-  if (scene) drawCover(ctx, scene, ix, iy, iw, ih); else { ctx.fillStyle = '#26306e'; ctx.fillRect(ix, iy, iw, ih); }
+  // 背景＋主角立繪（正式人物母版）
+  const sky = ctx.createLinearGradient(0, iy, 0, iy + ih);
+  if (sum.achieved) { sky.addColorStop(0, '#c9784f'); sky.addColorStop(1, '#3a2a6a'); } else { sky.addColorStop(0, '#34409a'); sky.addColorStop(1, '#161d52'); }
+  ctx.fillStyle = sky; ctx.fillRect(ix, iy, iw, ih);
+  const put = (img, id, cx) => {
+    if (!img) return;
+    const [w0, h0] = SPRITE_SIZE[id];
+    const hh = ih * 1.02; const ww = (hh * w0) / h0;
+    ctx.drawImage(img, cx - ww / 2, iy + ih * 0.06, ww, hh);
+  };
+  if (mate) put(mate, mateId, ix + iw * 0.8);
+  put(hero, heroId, ix + iw * (mate ? 0.6 : 0.7));
   const shade = ctx.createLinearGradient(0, iy + ih * 0.5, 0, iy + ih);
   shade.addColorStop(0, 'rgba(10,14,45,0)'); shade.addColorStop(1, 'rgba(10,14,45,0.85)');
   ctx.fillStyle = shade; ctx.fillRect(ix, iy, iw, ih);
@@ -106,11 +122,12 @@ export async function makeShareCard(game, meta) {
   // 頭像＋名字（壓在插圖左下）
   const fx = 110; const fy = iy + ih - 150; const fs = 190;
   ctx.save(); ctx.beginPath(); ctx.arc(fx + fs / 2, fy + fs / 2, fs / 2, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
-  if (face) drawCover(ctx, face, fx, fy, fs, fs); else { ctx.fillStyle = '#3b4a8f'; ctx.fillRect(fx, fy, fs, fs); }
+  ctx.fillStyle = game.gender === 'female' ? '#4b3a8f' : '#1e2d6b'; ctx.fillRect(fx, fy, fs, fs);
+  if (face) drawCover(ctx, face, fx, fy, fs, fs);
   ctx.restore();
   ctx.strokeStyle = gold; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(fx + fs / 2, fy + fs / 2, fs / 2, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'left';
-  fitText(ctx, game.name, 560, 64, 900);
+  fitText(ctx, game.name, 380, 64, 900);
   ctx.fillText(game.name, fx + fs + 30, iy + ih - 72);
   ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.font = f(34, 600);
   ctx.fillText(`${game.ended ? game.ended.age : game.age} 歲．${E.diffOf(game).name}難度`, fx + fs + 30, iy + ih - 18);

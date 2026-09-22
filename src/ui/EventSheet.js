@@ -4,10 +4,11 @@ import { Tag } from './components';
 import { C, STAT_META, toneColor } from './theme';
 import { Button } from './components';
 import { formatMoney } from '../game/engine';
-import { Art, artForEvent } from './art';
+import { artForEvent } from './art';
+import { CharScene, castFor, Head } from './Character';
 
 // 選完之後的結果：讓玩家看到自己的選擇換來了什麼，再繼續
-export function ResultSheet({ result, onContinue }) {
+export function ResultSheet({ result, onContinue, game }) {
   if (!result) return null;
   const r = result;
   const stats = STAT_META.filter((m) => r.stats[m.key]);
@@ -17,7 +18,9 @@ export function ResultSheet({ result, onContinue }) {
   return (
     <Sheet visible onClose={onContinue} clear>
       <View style={[styles.resHead, good && { backgroundColor: C.greenSoft }, bad && { backgroundColor: C.redSoft }]}>
-        <Text style={styles.resIcon}>{good ? '🎉' : bad ? '😣' : '📌'}</Text>
+        {game ? (
+          <Head key={r.title + r.choice} age={game.age} gender={game.gender} size={50} mood={good ? '😄' : bad ? '😣' : '🙂'} style={{ marginRight: 4 }} />
+        ) : <Text style={styles.resIcon}>{good ? '🎉' : bad ? '😣' : '📌'}</Text>}
         <View style={{ flex: 1 }}>
           <Text style={styles.resKicker}>{r.title}</Text>
           <Text style={styles.resChoice} numberOfLines={2}>你選了：{r.choice}</Text>
@@ -52,12 +55,27 @@ export function ResultSheet({ result, onContinue }) {
   );
 }
 
+// 事件插圖：主角（依年齡自動換階段）＋事件道具
+function EventScene({ p, game }) {
+  const kind = artForEvent(p, game);
+  const h = p.choices.length >= 5 ? 104 : p.choices.length >= 4 ? 124 : 156;
+  if (!game) return null;
+  const cast = castFor(kind, game, `${p.title || ''}${p.text || ''}`);
+  return (
+    <CharScene
+      key={`${p.id || p.title}-${game.age}`}
+      kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
+      height={h} radius={18} style={{ marginBottom: 10 }}
+    />
+  );
+}
+
 export default function EventSheet({ pending, onChoose, game }) {
   if (!pending) return null;
   const p = pending;
   return (
     <Sheet visible onClose={null} clear>
-      <Art id={artForEvent(p, game)} height={p.choices.length >= 5 ? 92 : p.choices.length >= 4 ? 115 : 150} pad={0} radius={18} style={{ marginBottom: 10 }} />
+      <EventScene p={p} game={game} />
       {p.tag ? <Tag text={p.tag} color={C.goldInk} bg={C.goldSoft} /> : null}
       <Text style={styles.title}>{p.title}</Text>
       {p.text ? (p.text.includes('（你）') ? (

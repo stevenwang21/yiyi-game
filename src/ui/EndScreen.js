@@ -10,7 +10,8 @@ import Sheet from './Sheet';
 import LineChart from './LineChart';
 import * as E from '../game/engine';
 import { TALENTS, learned } from '../game/talents';
-import { Art, artForEnd } from './art';
+import { artForEnd } from './art';
+import { CharScene } from './Character';
 
 export default function EndScreen({ game, meta, onAgain, onHome }) {
   const sum = E.summary(game);
@@ -58,7 +59,13 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
       <ScrollView contentContainerStyle={styles.body}>
         {!revealed ? <View style={{ height: 600 }} /> : (
         <>
-        <ZoomIn delay={T.art}><Art id={artForEnd(sum)} height={200} pad={8} style={{ marginBottom: 14 }} /></ZoomIn>
+        <ZoomIn delay={T.art}>
+          <CharScene
+            kind={artForEnd(sum)} age={game.ended ? game.ended.age : game.age} gender={game.gender}
+            partner={!!game.spouse} mood={sum.achieved ? '😆' : sum.nw < 0 ? '😢' : '😌'} bad={sum.nw < 0}
+            height={210} radius={20} style={{ marginBottom: 14 }}
+          />
+        </ZoomIn>
         <FadeIn delay={T.kicker}><Text style={styles.kicker}>人 生 結 算</Text></FadeIn>
         <ZoomIn delay={T.headline} from={0.6}><Text style={[styles.headline, sum.achieved ? { color: C.goldInk } : { color: C.ink }]}>{sum.headline}</Text></ZoomIn>
         <Stamp delay={T.badge}><View style={styles.badge}><Text style={styles.badgeText}>稱號：{sum.title}</Text></View></Stamp>

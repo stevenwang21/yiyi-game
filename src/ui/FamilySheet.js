@@ -5,6 +5,7 @@ import { Bar, Button, Card } from './components';
 import { C } from './theme';
 import * as E from '../game/engine';
 import { Avatar, Art } from './art';
+import { Head } from './Character';
 
 export default function FamilySheet({ visible, onClose, game, setGame }) {
   const s = game;
@@ -20,7 +21,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
       {s.married ? (
         <Card style={{ marginTop: 4 }}>
           <View style={styles.kidTop}>
-            <Avatar name={s.spouse.name} gender={s.gender === 'male' ? 'female' : 'male'} age={s.age} size={46} />
+            <Head gender={s.gender === 'male' ? 'female' : 'male'} age={s.age} size={46} />
             <View style={{ flex: 1 }}>
               <Text style={styles.h}>{E.partnerWord(s)}：{s.spouse.name}{ptype ? `（${ptype.title}）` : ''}</Text>
               <Text style={styles.muted}>結婚 {s.age - s.spouse.since} 年．Lv.{s.spouseLevel} {E.spouseInfo(s).title}</Text>
@@ -39,7 +40,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
       ) : s.partner ? (
         <Card style={{ marginTop: 4 }}>
           <View style={styles.kidTop}>
-            <Avatar name={s.partner.name} gender={s.gender === 'male' ? 'female' : 'male'} age={s.age} size={46} />
+            <Head gender={s.gender === 'male' ? 'female' : 'male'} age={s.age} size={46} />
             <View style={{ flex: 1 }}>
               <Text style={styles.h}>交往中：{s.partner.name}{ptype ? `（${ptype.title}）` : ''}</Text>
               <Text style={styles.muted}>在一起 {s.age - s.partner.since} 年．每年約會約花 {E.formatMoney((s.studying ? 1.5 : 5) * 10000 * s.priceIndex)}</Text>
