@@ -413,10 +413,11 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             </Card>
           </View>
 
-          {/* 今年的世界：預設收起來一行，點開才看詳細 */}
-          {s.world && s.age > 0 ? (
-            <Pressable onPress={() => setOpenWorld(!openWorld)}>
-              <Card style={[styles.world, s.world.crash && { backgroundColor: C.redSoft }]}>
+          {/* 今年的世界＋同屆排名：合成一張卡，上下兩段 */}
+          {(s.world && s.age > 0) || rank ? (
+            <Card style={[styles.world, { paddingVertical: 0, overflow: 'hidden' }]}>
+              {s.world && s.age > 0 ? (
+                <Pressable onPress={() => setOpenWorld(!openWorld)} style={[{ paddingVertical: 12 }, s.world.crash && { backgroundColor: C.redSoft, marginHorizontal: -14, paddingHorizontal: 14 }]}>
                 <View style={styles.between}>
                   <Text style={[styles.worldTitle, s.world.crash && { color: C.red }]} numberOfLines={1}>
                     {s.world.crash ? '⚠️' : '🌍'} {s.world.title}
@@ -445,14 +446,11 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                     ))}
                   </View>
                 )}
-              </Card>
-            </Pressable>
-          ) : null}
-
-          {/* 排名、工作、逆襲路線 */}
-          {rank ? (
-            <Pressable onPress={() => setShowMates(true)}>
-              <Card style={styles.rankCard}>
+                </Pressable>
+              ) : null}
+              {s.world && s.age > 0 && rank ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginHorizontal: -2 }} /> : null}
+              {rank ? (
+                <Pressable onPress={() => setShowMates(true)} style={{ paddingVertical: 12 }}>
                 <View style={styles.between}>
                   <Text style={styles.rankTitle}>
                     🏆 {rank.mode === 'grade' ? '班上排名' : '同屆排名'} <Text style={{ color: rank.rank === 1 ? C.goldInk : C.ink }}>{rank.rank}</Text> / {rank.total}
@@ -464,8 +462,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                     ? `你是${rank.mode === 'grade' ? '班上第一名' : '同屆最有錢的'}！第二名 ${E.ranking(s, nw)[1].name} ${E.ranking(s, nw)[1].label}`
                     : `第一名 ${rank.top.name}（${rank.top.title}）${rank.top.label}${rank.mode === 'nw' ? `．還差 ${E.formatMoney(rank.top.nw - nw)}` : ''}`}
                 </Text>
-              </Card>
-            </Pressable>
+                </Pressable>
+              ) : null}
+            </Card>
           ) : null}
 
           {s.job || s.bizs.length ? (
