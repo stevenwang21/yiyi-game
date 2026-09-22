@@ -286,7 +286,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                 kind={sceneForState(s)} age={s.age} gender={s.gender}
                 partner={castFor(sceneForState(s), s).partner}
                 mood={s.stats.happy < 30 ? '😞' : undefined}
-                height={92} radius={14} style={{ width: 124 }}
+                height={104} radius={14} style={{ width: 150 }}
               />
             </View>
             <View style={styles.heroBar}>

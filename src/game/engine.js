@@ -1013,7 +1013,7 @@ function openDef(s, rng, source, id, def, extra = {}) {
   if (def.before) def.before(s, rng);
   let list = def.choices
     .map((c, i) => ({ c, i }))
-    .filter(({ c }) => !c.cond || c.cond(s));
+    .filter(({ c }) => !c.cond || c.cond(s) || c.showLocked);
   // def.pick：從可選的項目裡隨機抽幾個出來（標了 always 的一定會出現）
   if (def.pick) {
     const always = list.filter(({ c }) => c.always);
@@ -1031,11 +1031,17 @@ function openDef(s, rng, source, id, def, extra = {}) {
     const txt = p >= 1 ? '一定成功' : `成功率約 ${Math.round(p * 100)}%`;
     return sub ? `${sub}（${txt}）` : txt;
   };
-  const choices = list.map(({ c, i }) => ({
-    label: typeof c.label === 'function' ? c.label(s) : c.label,
-    sub: withOdds(c, typeof c.sub === 'function' ? c.sub(s) : c.sub || ''),
-    ref: i,
-  }));
+  const choices = list.map(({ c, i }) => {
+    // showLocked：條件不夠也照樣列出來，但按不下去（讓玩家知道還差多少）
+    if (c.cond && c.showLocked && !c.cond(s)) {
+      return { label: typeof c.label === 'function' ? c.label(s) : c.label, sub: c.showLocked(s), ref: i, disabled: true };
+    }
+    return {
+      label: typeof c.label === 'function' ? c.label(s) : c.label,
+      sub: withOdds(c, typeof c.sub === 'function' ? c.sub(s) : c.sub || ''),
+      ref: i,
+    };
+  });
   s.pending = {
     source,
     id,
@@ -1521,7 +1527,7 @@ export function nextYear(s0, rng = Math.random) {
 
 export function resolveChoice(s0, idx, rng = Math.random) {
   const p = s0.pending;
-  if (!p || !p.choices[idx]) return s0;
+  if (!p || !p.choices[idx] || p.choices[idx].disabled) return s0;
   const s = clone(s0);
   const ch = s.pending.choices[idx];
   s.pending = null;

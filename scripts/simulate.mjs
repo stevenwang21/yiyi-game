@@ -37,6 +37,7 @@ function play(seed, mode, target, difficulty = 'normal') {
       } else if (p.id === 'exam18') {
         idx = 0;
       }
+      if (p.choices[idx] && p.choices[idx].disabled) idx = p.choices.findIndex((c) => !c.disabled);
       s = E.resolveChoice(s, idx, rng);
       continue;
     }

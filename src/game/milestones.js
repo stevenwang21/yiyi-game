@@ -223,8 +223,9 @@ export const MILESTONES = {
     text: (s) => `考試成績出來了：${s.flags.score18} 分。你想怎麼選？`,
     choices: [
       {
-        label: '頂尖大學', sub: '需要 78 分以上',
-        cond: (s) => s.flags.score18 >= 78,
+        label: '頂尖大學', sub: '需要 90 分以上',
+        cond: (s) => s.flags.score18 >= 90,
+        showLocked: (s) => `需要 90 分以上（還差 ${90 - s.flags.score18} 分）`,
         effect: (s) => { s.edu = 'topCollege'; addPoints(s, 3, '考上頂尖大學'); return good(`你考上了頂尖大學！全家都為你驕傲。${addStats(s, { happy: 10, int: 3 })}`); },
       },
       {

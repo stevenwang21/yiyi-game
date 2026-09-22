@@ -18,14 +18,9 @@ export function ResultSheet({ result, onContinue, game }) {
   return (
     <Sheet visible onClose={onContinue} clear>
       {game ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
-      <View style={[styles.resHead, good && { backgroundColor: 'rgba(21,57,63,0.82)' }, bad && { backgroundColor: 'rgba(61,29,51,0.82)' }]}>
-        {game ? (
-          <Head key={r.title + r.choice} age={game.age} gender={game.gender} size={50} mood={good ? '😄' : bad ? '😣' : '🙂'} style={{ marginRight: 4 }} />
-        ) : <Text style={styles.resIcon}>{good ? '🎉' : bad ? '😣' : '📌'}</Text>}
-        <View style={{ flex: 1 }}>
-          <Text style={styles.resKicker}>{r.title}</Text>
-          <Text style={styles.resChoice} numberOfLines={2}>你選了：{r.choice}</Text>
-        </View>
+      {/* 事件名稱直接疊在背景插圖上 */}
+      <View style={styles.resTitleWrap} pointerEvents="none">
+        <Text style={styles.resTitle} numberOfLines={2}>{r.title}</Text>
       </View>
 
       {r.items.length ? r.items.map((l, i) => (
@@ -89,6 +84,7 @@ function EventScene({ p, game }) {
     <CharScene
       key={`${p.id || p.title}-${game.age}`}
       kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
+      crashPct={(() => { const m = /ETF\s*-(\d+)%/.exec(p.text || ''); return m ? Number(m[1]) : undefined; })()}
       height={h} radius={18} style={{ marginBottom: 10 }}
     />
   );
@@ -129,14 +125,15 @@ export default function EventSheet({ pending, onChoose, game }) {
         {p.choices.map((c, i) => (
           <Pressable
             key={`${i}-${c.label}`}
-            onPress={() => onChoose(i)}
-            style={({ pressed }) => [styles.choice, pressed && styles.choicePressed]}
+            onPress={c.disabled ? undefined : () => onChoose(i)}
+            disabled={!!c.disabled}
+            style={({ pressed }) => [styles.choice, c.disabled && styles.choiceLocked, pressed && !c.disabled && styles.choicePressed]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.choiceLabel}>{c.label}</Text>
-              {c.sub ? <Text style={styles.choiceSub}>{c.sub}</Text> : null}
+              <Text style={[styles.choiceLabel, c.disabled && { color: C.muted }]}>{c.disabled ? '🔒 ' : ''}{c.label}</Text>
+              {c.sub ? <Text style={[styles.choiceSub, c.disabled && { color: C.red }]}>{c.sub}</Text> : null}
             </View>
-            <Text style={styles.arrow}>›</Text>
+            {c.disabled ? null : <Text style={styles.arrow}>›</Text>}
           </Pressable>
         ))}
       </View>
@@ -147,6 +144,8 @@ export default function EventSheet({ pending, onChoose, game }) {
 const styles = StyleSheet.create({
   resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(38,46,99,0.72)', borderRadius: 18, padding: 14, marginTop: 120 },
   resIcon: { fontSize: 30 },
+  resTitleWrap: { height: 150, justifyContent: 'flex-end', paddingHorizontal: 4 },
+  resTitle: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: 0.5, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   resKicker: { fontSize: 12.5, fontWeight: '500', color: C.muted },
   resChoice: { fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 2 },
   resText: { fontSize: 15.5, lineHeight: 25, marginTop: 14 },
@@ -169,6 +168,7 @@ const styles = StyleSheet.create({
   },
   choiceFirst: { backgroundColor: C.primarySoft, borderColor: '#9d8cff' },
   choiceLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
+  choiceLocked: { opacity: 0.55, borderStyle: 'dashed' },
   choicePressed: { backgroundColor: C.primary, transform: [{ scale: 0.98 }] },
   num: {
     width: 26, height: 26, borderRadius: 13, backgroundColor: C.primarySoft,
