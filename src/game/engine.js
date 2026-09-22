@@ -1650,7 +1650,7 @@ export function proposeInfo(s) {
 }
 
 // wedding = true 辦婚禮（花錢、快樂多）；false 登記就好
-export function propose(s0, wedding = true) {
+export function propose(s0, wedding = true, rng = Math.random) {
   const info = proposeInfo(s0);
   if (!info.ok) return fail(s0, info.reason);
   const s = clone(s0);

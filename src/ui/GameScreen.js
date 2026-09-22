@@ -195,20 +195,46 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const happened = s.log.filter((l) => l.age === s.age && l.tone !== 'money' && l.tone !== 'focus');
   const [showAllHappened, setShowAllHappened] = useState(false);
 
-  // 新手提示：只在真的需要的時候出現一行
-  const hint = (() => {
-    if (s.age >= 18 && (s.money < 0 || (invest > 0 && s.money < (s.lastYear ? s.lastYear.living : 0)))) {
-      return s.money < 0
-        ? `現金透支了 ${E.formatMoney(-s.money)}，每年會滾利息。點這裡到「貸款」分頁一鍵賣投資還清，或自己去「金融」賣一些。`
-        : '現金快不夠了。入不敷出會先記成透支（有利息）。點這裡到「貸款」分頁可以先看一下。';
+  // 新手提示：只在真的需要的時候出現一行；同一種提示出現過一次，之後幾年都不會再跳（不要一直通知）
+  const hintInfo = (() => {
+    const ly = s.lastYear;
+    const net = ly ? (ly.salary + ly.bizIncome + ly.rent + ly.spouse + (ly.filial || 0) + (ly.side || 0))
+      - (ly.living + ly.kids + ly.debtPay + (ly.dating || 0) + (ly.tax || 0)) : 0;
+    if (s.age >= 18 && s.money < 0) {
+      return { key: 'overdraft', amt: -s.money, text: `現金透支了 ${E.formatMoney(-s.money)}，每年會滾利息。點這裡到「貸款」分頁一鍵賣投資還清，或自己去「金融」賣一些。` };
     }
-    if (s.stats.hp < 32) return '健康快見底了！這一年選「運動」或「休息旅遊」，健康歸零人生就結束。';
-    if (s.partner && !s.married && E.proposeInfo(s).ok) return `你和「${s.partner.name}」的感情夠穩定了，點下面的「家庭」就可以求婚。`;
-    if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return '目前沒有工作。選「找工作」這一年就會有幾家公司讓你挑。';
-    if (invest === 0 && s.money > 30 * 10000 && s.age >= 12) return '現金放著只會被通膨吃掉。點下面的「投資」買一點 ETF，或設定定期定額。';
-    if (s.route && !s.route.done && s.job && s.age >= 22) return '想走「逆襲路線」翻身，多選「認真工作」或「經營事業」，劇情比較容易出現。';
+    // 照去年的收支，明年現金就會變負的才提醒
+    if (s.age >= 18 && invest > 0 && ly && s.money + net < 0) {
+      return { key: 'cash', text: '照去年的收支，明年現金會不夠用。入不敷出會先記成透支（有利息），可以先賣一點投資。點這裡看「貸款」分頁。' };
+    }
+    if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了！這一年選「運動」或「休息旅遊」，健康歸零人生就結束。' };
+    if (s.partner && !s.married && E.proposeInfo(s).ok) return { key: 'propose', text: `你和「${s.partner.name}」的感情夠穩定了，點下面的「家庭」就可以求婚。` };
+    if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return { key: 'nojob', text: '目前沒有工作。選「找工作」這一年就會有幾家公司讓你挑。' };
+    if (invest === 0 && s.money > 30 * 10000 && E.canInvest(s)) return { key: 'idle', text: '現金放著只會被通膨吃掉。點下面的「投資」買一點 ETF，或設定定期定額。' };
+    if (s.route && !s.route.done && s.job && s.age >= 22) return { key: 'route', text: '想走「逆襲路線」翻身，多選「認真工作」或「經營事業」，劇情比較容易出現。' };
     return null;
   })();
+  const seen = (s.flags && s.flags.hintSeen) || {};
+  const hintVisible = (() => {
+    if (!hintInfo) return false;
+    const last = seen[hintInfo.key];
+    if (!last) return true;
+    if (last.age === s.age) return !last.closed;
+    if (hintInfo.key === 'overdraft' && hintInfo.amt > (last.amt || 0) * 2) return true; // 透支變成兩倍以上才再提醒
+    return s.age - last.age >= (hintInfo.gap || 5);
+  })();
+  const hint = hintVisible ? hintInfo.text : null;
+  // 記下這一年已經提醒過
+  useEffect(() => {
+    if (!hintVisible || !hintInfo) return;
+    const last = seen[hintInfo.key];
+    if (last && last.age === s.age) return;
+    setGame((x) => ({ ...x, flags: { ...x.flags, hintSeen: { ...((x.flags && x.flags.hintSeen) || {}), [hintInfo.key]: { age: x.age, amt: hintInfo.amt || 0 } } } }));
+  }, [hintVisible, hintInfo && hintInfo.key, s.age]);
+  const closeHint = () => {
+    if (!hintInfo) return;
+    setGame((x) => ({ ...x, flags: { ...x.flags, hintSeen: { ...((x.flags && x.flags.hintSeen) || {}), [hintInfo.key]: { age: x.age, amt: hintInfo.amt || 0, closed: true } } } }));
+  };
 
 
   return (
@@ -326,8 +352,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
 
           {hint ? (
             <Pressable onPress={hint.includes('貸款') ? () => { setInvestTab(4); setShowInvest(true); } : undefined}>
-              <Card style={styles.hint}>
-                <Text style={styles.hintText}>💡 {hint}{hint.includes('貸款') ? ' ›' : ''}</Text>
+              <Card style={[styles.hint, { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }]}>
+                <Text style={[styles.hintText, { flex: 1 }]}>💡 {hint}{hint.includes('貸款') ? ' ›' : ''}</Text>
+                <Pressable onPress={closeHint} hitSlop={10}><Text style={{ color: C.muted, fontSize: 16, fontWeight: '700' }}>✕</Text></Pressable>
               </Card>
             </Pressable>
           ) : null}

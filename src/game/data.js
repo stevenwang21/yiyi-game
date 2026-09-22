@@ -156,7 +156,7 @@ export const ASSETS = [
   { key: 'crypto', name: '加密貨幣', short: '幣', risk: 5, desc: '可能翻好幾倍，也可能歸零' },
 ];
 
-export const INVEST_MIN_AGE = 0; // 從出生就可以投資（爸媽幫忙開戶）
+export const INVEST_MIN_AGE = 18; // 滿 18 歲才能自己開戶投資（之前的零用錢先存成現金）
 
 export const HOUSES = [
   { id: 'studio', name: '小套房', price: 800 * WAN, happy: 4 },

@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Sheet from './Sheet';
 import { Tag } from './components';
 import { C, STAT_META, toneColor } from './theme';
@@ -17,7 +17,8 @@ export function ResultSheet({ result, onContinue, game }) {
   const bad = main && main.tone === 'bad';
   return (
     <Sheet visible onClose={onContinue} clear>
-      <View style={[styles.resHead, good && { backgroundColor: C.greenSoft }, bad && { backgroundColor: C.redSoft }]}>
+      {game ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
+      <View style={[styles.resHead, good && { backgroundColor: 'rgba(21,57,63,0.82)' }, bad && { backgroundColor: 'rgba(61,29,51,0.82)' }]}>
         {game ? (
           <Head key={r.title + r.choice} age={game.age} gender={game.gender} size={50} mood={good ? '😄' : bad ? '😣' : '🙂'} style={{ marginRight: 4 }} />
         ) : <Text style={styles.resIcon}>{good ? '🎉' : bad ? '😣' : '📌'}</Text>}
@@ -52,6 +53,29 @@ export function ResultSheet({ result, onContinue, game }) {
 
       <Button title={r.hasNext ? '下一件事 ›' : '繼續'} style={{ marginTop: 18 }} onPress={onContinue} />
     </Sheet>
+  );
+}
+
+// 結果卡後面：剛剛那個事件的主角＋道具，半透明墊在底下
+function ResultBackdrop({ r, game, good, bad }) {
+  const text = `${r.title || ''}${r.choice || ''}${(r.items || []).map((l) => l.text).join('')}`;
+  const kind = artForEvent({ title: r.title, text }, game);
+  const cast = castFor(kind, game, text);
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        { position: 'absolute', top: 0, left: 0, right: 0, height: 250, opacity: 0.34 },
+        Platform.OS === 'web' ? { maskImage: 'linear-gradient(to bottom, #000 45%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, #000 45%, transparent 100%)' } : null,
+      ]}
+    >
+      <CharScene
+        key={`${r.title}-${r.choice}`}
+        kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
+        mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
+        height={250} radius={18}
+      />
+    </View>
   );
 }
 
@@ -121,7 +145,7 @@ export default function EventSheet({ pending, onChoose, game }) {
 }
 
 const styles = StyleSheet.create({
-  resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.page, borderRadius: 18, padding: 14 },
+  resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(38,46,99,0.72)', borderRadius: 18, padding: 14, marginTop: 120 },
   resIcon: { fontSize: 30 },
   resKicker: { fontSize: 12.5, fontWeight: '500', color: C.muted },
   resChoice: { fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 2 },

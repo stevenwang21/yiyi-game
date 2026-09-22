@@ -223,7 +223,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
       </Text>
 
       {locked ? (
-        <Card><Text style={styles.muted}>{E.INVEST_MIN_AGE} 歲以後才能開始投資。</Text></Card>
+        <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能自己開戶投資、買房和貸款（還差 {E.INVEST_MIN_AGE - s.age} 年）。在那之前，零用錢和紅包會先存成現金；小時候選「學理財」可以先把投資眼光練起來。</Text></Card>
       ) : null}
 
 

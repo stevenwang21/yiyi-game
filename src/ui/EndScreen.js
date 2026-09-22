@@ -9,14 +9,12 @@ import { C, toneColor } from './theme';
 import Sheet from './Sheet';
 import LineChart from './LineChart';
 import * as E from '../game/engine';
-import { TALENTS, learned } from '../game/talents';
 import { artForEnd } from './art';
 import { CharScene } from './Character';
 
 export default function EndScreen({ game, meta, onAgain, onHome }) {
   const sum = E.summary(game);
   const score = game.metaScore || E.lifeScore(game);
-  const talents = learned(game).map((id) => (TALENTS.find((t) => t.id === id) || {}).label).filter(Boolean);
   const [showLog, setShowLog] = useState(false);
   const canBuy = !!meta && Object.entries(E.META_UPGRADES).some(([k, u]) => (meta[k] || 0) < u.max && meta.points >= u.cost(meta[k] || 0));
 
@@ -131,33 +129,6 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
           <Text style={styles.axisNote}>紅色直條：疫情、戰爭、金融海嘯的年份（一生遇到 {sum.crashes} 次）</Text>
         </Card>
 
-        <View style={styles.grid}>
-          <KV k="出身" v={sum.family} />
-          <KV k="難度" v={E.diffOf(game).name} />
-          <KV k="最高學歷" v={sum.edu} />
-          <KV k="職業歷程" v={sum.careers} wide />
-          <KV k="最賺錢的決定" v={sum.best ? `${sum.best.age} 歲｜${sum.best.label}（+${E.formatMoney(sum.best.gain)}）` : '—'} wide />
-          <KV k="最大的失誤" v={sum.worst ? `${sum.worst.age} 歲｜${sum.worst.label}（${E.formatMoney(sum.worst.gain)}）` : '沒有明顯失誤'} wide />
-          <KV k="快樂指數" v={`${sum.happy} / 100`} />
-          {sum.mates ? (
-            <KV
-              k="同屆排名"
-              v={`${sum.mateRank} / ${sum.mates.length}　${sum.mateRank === 1 ? '同屆第一！' : `第一名：${sum.mates[0].name}（${sum.mates[0].title}）${sum.mates[0].label}`}`}
-              wide
-            />
-          ) : null}
-          {sum.group ? <KV k="收購的公司" v={`${sum.group} 家`} /> : null}
-          <KV k="學過的才藝" v={talents.length ? `${talents.length} 樣：${talents.join('、')}` : '沒有學過才藝'} wide />
-          <KV k="家庭" v={`${sum.married ? '已婚' : '單身'}．${sum.kids.length} 個孩子`} />
-          <KV k="另一半" v={sum.spouse ? `${sum.spouse.name}（Lv.${sum.spouse.level} ${sum.spouse.title}）` : '—'} />
-          <KV k="退休年紀" v={`${sum.endAge} 歲`} />
-          <KV k="養小孩總花費" v={sum.kids.length ? `${E.formatMoney(sum.kidSpent)}（${sum.kids.map((k) => `${k.name} ${E.formatMoney(k.spent)}`).join('、')}）` : '沒有小孩'} wide />
-          {sum.pets.length ? (
-            <KV k="寵物" v={`${sum.pets.map((p) => `${p.name}（${p.kind}）`).join('、')}．總共花了 ${E.formatMoney(sum.petSpent)}`} wide />
-          ) : null}
-          <KV k="通膨" v={`物價漲成出生時的 ${sum.priceIndex.toFixed(2)} 倍`} />
-          <KV k="換算出生時的購買力" v={E.formatMoney(sum.realNw)} />
-        </View>
 
         {sum.advice.length ? (
           <Card style={{ backgroundColor: C.goldSoft }}>
@@ -272,14 +243,6 @@ function ScoreTotal({ list, total, start }) {
   return <Text style={styles.scoreTotal}>+{n} 點</Text>;
 }
 
-function KV({ k, v, wide }) {
-  return (
-    <View style={[styles.kv, wide && { width: '100%' }]}>
-      <Text style={styles.kvK}>{k}</Text>
-      <Text style={styles.kvV}>{v}</Text>
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   scoreCard: { backgroundColor: C.goldSoft, marginTop: 14 },

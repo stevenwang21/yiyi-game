@@ -11,6 +11,13 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
   const s = game;
   const ptype = E.currentType(s);
   const pInfo = E.proposeInfo(s);
+  const [pMsg, setPMsg] = useState(null);
+  const doPropose = (wedding) => {
+    const r = E.propose(s, wedding);
+    if (r.error) { setPMsg(r.error); return; }
+    setPMsg(null);
+    setGame(r.state);
+  };
   const infos = s.kids.map((k) => ({ k, info: E.kidInfo(s, k) }));
   const yearly = infos.reduce((t, x) => t + x.info.yearly, 0);
   const pets = s.pets || [];
@@ -66,7 +73,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
                   title="求婚並辦婚禮"
                   sub={E.formatMoney(pInfo.cost)}
                   style={{ flex: 1 }}
-                  onPress={() => setGame(E.propose(s, true).state)}
+                  onPress={() => doPropose(true)}
                 />
                 <Button
                   small
@@ -74,9 +81,10 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
                   title="登記就好"
                   sub="不花錢"
                   style={{ flex: 1 }}
-                  onPress={() => setGame(E.propose(s, false).state)}
+                  onPress={() => doPropose(false)}
                 />
               </View>
+              {pMsg ? <Text style={[styles.muted, { marginTop: 8, color: C.red, fontWeight: '700' }]}>{pMsg}</Text> : null}
             </>
           ) : (
             <Text style={[styles.muted, { marginTop: 8, color: C.goldInk, fontWeight: '700' }]}>💍 求婚條件：{pInfo.reason}</Text>
