@@ -150,7 +150,7 @@ const KIND = {
   deal: { pal: 'night', mood: '😎', props: [['🤝', 74, 42, 32], ['📄', 88, 72, 24], ['🏢', 88, 22, 24]] },
   startup: { pal: 'warm', mood: '🤩', props: [['🚀', 74, 34, 34, 1], ['🏢', 88, 70, 26], ['💡', 62, 20, 20, 1]] },
   pet: { pal: 'green', mood: '🥰', props: [['🐶', 74, 74, 34, 1], ['🦴', 88, 46, 20], ['🐾', 64, 28, 18, 1]] },
-  crash: { pal: 'red', mood: '😰', bad: true, props: [['📉', 74, 40, 36, 1], ['💸', 88, 72, 24, 1], ['⚡', 62, 20, 20, 1]] },
+  crash: { pal: 'red', mood: '😰', bad: true, props: [['💸', 90, 70, 24, 1], ['⚡', 88, 24, 20, 1]] },
   broke: { pal: 'red', mood: '😵', bad: true, props: [['🪫', 74, 50, 30], ['💸', 88, 26, 22, 1], ['🍜', 88, 74, 22]] },
   bull: { pal: 'green', mood: '🤩', props: [['📈', 74, 40, 36, 1], ['💰', 88, 72, 26, 1], ['🚀', 62, 20, 20, 1]] },
   money: { pal: 'warm', mood: '😎', props: [['💰', 74, 52, 32, 1], ['📊', 88, 24, 24], ['🪙', 62, 74, 20, 1]] },
@@ -384,7 +384,7 @@ export function CharScene({
   const withP = !!partner && stage !== 'baby';
   const crash = kind === 'crash' && !noProps;
   const compact = compactIn != null ? compactIn : height < 110;
-  const heroX = w * (compact ? 0.24 : withP ? 0.2 : crash ? 0.46 : 0.3) - heroW / 2;
+  const heroX = w * (compact ? 0.24 : withP ? 0.2 : crash ? 0.66 : 0.3) - heroW / 2;
   const pid = cid(stage, gk(other));
   const pH = heroH * (SIZE[pid][1] / SIZE[hid][1]);
   const pW = (pH * SIZE[pid][0]) / SIZE[pid][1];
@@ -403,7 +403,7 @@ export function CharScene({
       <View pointerEvents="none" style={{ position: 'absolute', left: '-10%', right: '-10%', bottom: -height * 0.35, height: height * 0.6, borderRadius: height, backgroundColor: 'rgba(255,255,255,0.07)' }} />
       {w > 0 ? (
         <>
-          {crash ? <CrashChart w={Math.max(110, Math.min(w * 0.34, 220))} h={height - 20} pct={crashPct || 20} /> : null}
+          {crash ? <CrashChart w={Math.max(130, Math.min(w * 0.48, 300))} h={height - 20} pct={crashPct || 20} /> : null}
           {!noProps ? (compact
             // 小卡（主畫面右上）：只放兩個大圖示在右半邊，人物留在左邊
             ? cfg.props.slice(0, 2).map(([e, , , , float], i) => (
