@@ -328,6 +328,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                 {series ? (
                   <>
                     <LineChart series={series} height={140} marks={crashAges} format={(v) => String(Math.round(v))} />
+                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的指數和漲跌，左右滑動換年份</Text>
                     <Text style={styles.muted}>
                       {a.key === 'stock'
                         ? `大盤 ${Math.round(hist[hist.length - 1].etf)}．我的個股 ${Math.round(myNow)}${myNow >= hist[hist.length - 1].etf ? '，贏過大盤！' : '，輸給大盤。'}選股準不準看「投資眼光」。`
@@ -386,6 +387,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
               marks={crashAges}
               format={(v) => String(Math.round(v))}
             />
+            <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的數字，左右滑動換年份</Text>
             {s.world ? <Text style={styles.muted}>今年：{s.world.title}．通膨 {pct(s.inflation)}．物價是出生時的 {s.priceIndex.toFixed(2)} 倍</Text> : null}
           </Card>
           <Text style={[styles.muted, { marginTop: 10 }]}>
@@ -443,7 +445,9 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                 height={130}
                 marks={crashAges}
                 format={shortMoney}
+                tipFormat={(v) => E.formatMoney(v)}
               />
+              <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年投資總共值多少</Text>
             </Card>
           ) : null}
           </>
@@ -461,6 +465,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
               height={120}
               marks={crashAges}
             />
+            <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的房價指數和漲跌</Text>
           </Card>
           {s.houses.length ? (
             <Card>
