@@ -6,7 +6,7 @@ import { C } from './theme';
 import * as E from '../game/engine';
 import { Avatar, Art } from './art';
 import { Head, MateFace } from './Character';
-import { mateCareer, START_AGE } from '../game/mates';
+import { mateCareer, START_AGE, REUNION_AGES } from '../game/mates';
 
 export default function FamilySheet({ visible, onClose, game, setGame }) {
   const s = game;
@@ -23,9 +23,26 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
   const yearly = infos.reduce((t, x) => t + x.info.yearly, 0);
   const pets = s.pets || [];
   const [openPet, setOpenPet] = useState(null);
+  // 上面的分頁：左邊同學會、右邊家庭
+  const [tab, setTab] = useState('family');
+  const hasMates = s.age >= START_AGE && E.selectedClassmates(s).length > 0;
+  const view = hasMates ? tab : 'family';
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="家庭" tall>
+    <Sheet visible={visible} onClose={onClose} title={view === 'mates' ? '同學會' : '家庭'} tall>
+      {hasMates ? (
+        <View style={styles.tabs}>
+          <Pressable onPress={() => setTab('mates')} style={[styles.tab, view === 'mates' && styles.tabOn]}>
+            <Text style={[styles.tabText, view === 'mates' && styles.tabTextOn]}>🎓 同學會</Text>
+          </Pressable>
+          <Pressable onPress={() => setTab('family')} style={[styles.tab, view === 'family' && styles.tabOn]}>
+            <Text style={[styles.tabText, view === 'family' && styles.tabTextOn]}>👨‍👩‍👧 家庭</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {view === 'mates' ? <Classmates s={s} /> : (
+      <>
       {s.married ? (
         <Card style={{ marginTop: 4 }}>
           <View style={styles.kidTop}>
@@ -121,8 +138,6 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
           </View>
         ) : null}
       </Card>
-
-      <Classmates s={s} />
 
       {infos.map(({ k, info }) => (
         <Card key={k.uid}>
@@ -226,6 +241,8 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
         <Text style={styles.tip}>以上是「標準」的費用。窮養 ×0.55、富養 ×2.2，隨時可以改。</Text>
         <Text style={styles.tip}>22 歲獨立，之後不用再花錢，還會依成就每年給你孝親費（25 歲起，普通上班族 3 萬／專業人士 8 萬／很有成就 18 萬），富養的孩子出人頭地的機率高很多。</Text>
       </Card>
+      </>
+      )}
     </Sheet>
   );
 }
@@ -234,12 +251,15 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
 function Classmates({ s }) {
   const mates = s.age >= START_AGE ? E.selectedClassmates(s) : [];
   if (!mates.length) return null;
+  const next = REUNION_AGES.find((a) => a > s.age);
   return (
-    <Card>
+    <Card style={{ marginTop: 4 }}>
       <View style={styles.between}>
-        <Text style={styles.h}>同屆同學</Text>
-        <Text style={styles.muted}>每 5 年一次同學會</Text>
+        <Text style={styles.h}>從國小同班到現在的 {mates.length} 個人</Text>
       </View>
+      <Text style={[styles.muted, { marginBottom: 4 }]}>
+        {next ? `下次同學會在你 ${next} 歲（每 5 年一次）。` : '同學會已經辦完最後一次了。'}
+      </Text>
       {mates.map((m) => {
         const c = mateCareer(m);
         return (
@@ -304,6 +324,14 @@ const styles = StyleSheet.create({
   styleName: { fontSize: 13, fontWeight: '600', color: C.ink, marginTop: 2 },
   styleSub: { fontSize: 10.5, color: C.muted, marginTop: 1 },
   styleDesc: { fontSize: 11.5, color: C.muted, lineHeight: 17, marginTop: 8 },
+  tabs: {
+    flexDirection: 'row', gap: 6, backgroundColor: C.page,
+    borderRadius: 14, padding: 4, marginTop: 2, marginBottom: 6,
+  },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: 11 },
+  tabOn: { backgroundColor: C.primarySoft, borderWidth: 1.5, borderColor: C.primary },
+  tabText: { fontSize: 14.5, fontWeight: '600', color: C.muted },
+  tabTextOn: { color: C.ink, fontWeight: '700' },
   mateRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 10,
     paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line,
