@@ -9,6 +9,8 @@ import Sheet from './Sheet';
 import { Button } from './components';
 import { C } from './theme';
 import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf } from '../game/engine';
+import { APP_VERSION } from '../version';
+import { STUDIO_NAME } from './StudioIntro';
 
 const HOW = [
   { icon: '👶', title: '從 0 歲開始', text: '每按一次「過一年」就長一歲，一路活到退休。中間會遇到隨機事件，選項不同、結果就不同。' },
@@ -207,6 +209,9 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           <Tile img="tile_book" title="職業圖鑑" value={`${gotCount} / ${LEGENDS.length}`} onPress={() => setShowLegend(true)} />
           <Tile img="tile_crown" title="最佳紀錄" value={best ? formatMoney(best.nw) : '—'} onPress={() => setShowBest(true)} />
         </View>
+
+        {/* 版本號：手機上一眼就知道有沒有更新到 */}
+        <Text style={styles.credit}>{STUDIO_NAME}　{APP_VERSION}</Text>
       </ScrollView>
 
       {/* 底部 Tab Bar */}
@@ -404,6 +409,7 @@ const styles = StyleSheet.create({
   tileBadge: { position: 'absolute', top: 8, right: 8, backgroundColor: C.green, borderRadius: 999, paddingHorizontal: 6, paddingVertical: 2 },
   tileBadgeText: { fontSize: 10, color: '#fff', fontWeight: '700' },
 
+  credit: { marginTop: 18, textAlign: 'center', fontSize: 11, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.5 },
   tabBar: {
     position: 'absolute', bottom: 0, left: 0, flexDirection: 'row', paddingTop: 8, paddingHorizontal: 6,
     backgroundColor: 'rgba(12,18,50,0.85)', borderTopWidth: 1, borderTopColor: 'rgba(140,170,255,0.3)',

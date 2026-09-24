@@ -28,9 +28,21 @@ fs.mkdirSync(path.join(out, 'art'), { recursive: true });
 const arts = fs.readdirSync(path.join(root, 'public', 'art')).filter((f) => !f.startsWith('.')).sort();
 for (const f of arts) fs.copyFileSync(path.join(root, 'public', 'art', f), path.join(out, 'art', f));
 
-// 4. 離線快取：版本號每次都不一樣，手機才會抓新版
+// 4. 版本號：每次打包都不一樣
 const version = process.env.BUILD_ID || new Date().toISOString().replace(/\D/g, '').slice(0, 12);
-const files = ['./', 'index.html', 'app.js', 'register-sw.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png', ...arts.map((f) => `art/${f}`)];
+
+// index.html 裡的 app.js 換成帶版本的網址。
+// 不這樣做的話，網址永遠是同一個 app.js，手機和瀏覽器會拿快取裡的舊程式，
+// 明明已經部署新版了畫面卻沒變。加上 ?v= 之後每次改版都是新網址，一定會重抓。
+const appUrl = `app.js?v=${version}`;
+const swUrl = `register-sw.js?v=${version}`;
+const indexHtml = fs.readFileSync(path.join(root, 'web', 'index.html'), 'utf8')
+  .replace('src="app.js"', `src="${appUrl}"`)
+  .replace('src="register-sw.js"', `src="${swUrl}"`);
+fs.writeFileSync(path.join(out, 'index.html'), indexHtml);
+
+// 5. 離線快取：檔案清單要用同一組帶版本的網址，離線時才對得上
+const files = ['./', 'index.html', appUrl, swUrl, 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png', ...arts.map((f) => `art/${f}`)];
 const sw = fs.readFileSync(path.join(root, 'web', 'sw.js'), 'utf8')
   .replace('__CACHE__', `yiyi-${version}`)
   .replace('__FILES__', JSON.stringify(files));
@@ -39,4 +51,4 @@ fs.writeFileSync(path.join(out, 'sw.js'), sw);
 // GitHub Pages 不要用 Jekyll 處理
 fs.writeFileSync(path.join(out, '.nojekyll'), '');
 
-console.log(`網站組好了：_site/（版本 yiyi-${version}，${arts.length} 張插圖）`);
+console.log(`網站組好了：_site/（版本 yiyi-${version}，${arts.length} 張插圖，程式網址 ${appUrl}）`);
