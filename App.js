@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import StartScreen from './src/ui/StartScreen';
+import StudioIntro from './src/ui/StudioIntro';
 import CreateScreen from './src/ui/CreateScreen';
 import { setPageBase } from './src/ui/pageBg';
 import GameScreen from './src/ui/GameScreen';
@@ -13,6 +14,7 @@ import { clearSave, loadBest, loadBoard, loadLegendBook, loadMeta, loadSave, wri
 
 export default function App() {
   const [ready, setReady] = useState(false);
+  const [intro, setIntro] = useState(true); // 開場片頭，約 5 秒或點一下跳過
   const [screen, setScreen] = useState('start');
   const [game, setGameState] = useState(null);
   const [best, setBest] = useState(null);
@@ -136,10 +138,13 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={[styles.root, (screen === 'start' || screen === 'create') && { backgroundColor: '#0f1636' }]} edges={['top', 'left', 'right']}>
-        <StatusBar style="light" />
-        {content}
-      </SafeAreaView>
+      <View style={styles.root}>
+        <SafeAreaView style={[styles.root, (screen === 'start' || screen === 'create') && { backgroundColor: '#0f1636' }]} edges={['top', 'left', 'right']}>
+          <StatusBar style="light" />
+          {content}
+        </SafeAreaView>
+        {intro ? <StudioIntro onDone={() => setIntro(false)} /> : null}
+      </View>
     </SafeAreaProvider>
   );
 }
