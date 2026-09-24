@@ -1,4 +1,5 @@
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Sheet from './Sheet';
 import { Tag } from './components';
 import { C, STAT_META, toneColor } from './theme';
@@ -7,23 +8,44 @@ import { formatMoney } from '../game/engine';
 import { artForEvent } from './art';
 import * as E from '../game/engine';
 import { CharScene, castFor, Head, SocialPhone, ReunionStage } from './Character';
+import Clip, { hasClip, clipDelay } from './Clip';
 
 // 選完之後的結果：讓玩家看到自己的選擇換來了什麼，再繼續
 export function ResultSheet({ result, onContinue, game }) {
   if (!result) return null;
+  return <ResultBody result={result} onContinue={onContinue} game={game} />;
+}
+
+function ResultBody({ result, onContinue, game }) {
   const r = result;
   const stats = STAT_META.filter((m) => r.stats[m.key]);
   const main = r.items[0];
   const good = main && (main.tone === 'good' || main.tone === 'milestone');
   const bad = main && main.tone === 'bad';
   const reunion = /同學會/.test(r.title || '') && !!(game && game.mates);
+  const clip = hasClip(r.clip) ? r.clip : null;
+  // 動畫跑完才浮現「繼續」，而且按下去就鎖住，不會連點兩次
+  const [ready, setReady] = useState(false);
+  const [done, setDone] = useState(false);
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    setReady(false); setDone(false); fade.setValue(0);
+    const t = setTimeout(() => {
+      setReady(true);
+      Animated.timing(fade, { toValue: 1, duration: 320, easing: Easing.out(Easing.quad), useNativeDriver: Platform.OS !== 'web' }).start();
+    }, clip ? clipDelay(clip) : reunion ? 1400 : 650);
+    return () => clearTimeout(t);
+  }, [r.title, r.choice, reunion, clip]);
+  const go = () => { if (done) return; setDone(true); onContinue(); };
   return (
     <Sheet visible onClose={onContinue} clear>
-      {game && !reunion ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
+      {game && !reunion && !clip ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
       {reunion ? <ReunionStage key={r.choice} choice={r.choice} game={game} style={{ marginBottom: 6 }} /> : null}
-      {game ? <ResultPhone r={r} game={game} /> : null}
+      {/* 這個選擇有專屬的小動畫（例如裝回輔助輪），就直接播它 */}
+      {clip ? <Clip key={`${r.title}-${r.choice}`} name={clip} style={{ marginBottom: 6 }} /> : null}
+      {game && !clip ? <ResultPhone r={r} game={game} /> : null}
       {/* 事件名稱直接疊在背景插圖上（有手機的話留高一點，文字不會壓到手機） */}
-      <View style={[styles.resTitleWrap, game && isSocial(r, game) && { height: 206 }, reunion && { height: 'auto', marginTop: 4 }]} pointerEvents="none">
+      <View style={[styles.resTitleWrap, game && !clip && isSocial(r, game) && { height: 206 }, (reunion || clip) && { height: 'auto', marginTop: 4 }]} pointerEvents="none">
         <Text style={styles.resTitle} numberOfLines={2}>{r.title}</Text>
       </View>
 
@@ -50,7 +72,9 @@ export function ResultSheet({ result, onContinue, game }) {
         </View>
       ) : null}
 
-      <Button title={r.hasNext ? '下一件事 ›' : '繼續'} style={{ marginTop: 18 }} onPress={onContinue} />
+      <Animated.View style={{ opacity: ready ? fade : 0.35, transform: [{ translateY: ready ? fade.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) : 8 }] }}>
+        <Button title={r.hasNext ? '下一件事 ›' : '繼續'} style={{ marginTop: 18 }} disabled={!ready || done} onPress={go} />
+      </Animated.View>
     </Sheet>
   );
 }
@@ -96,6 +120,8 @@ function EventScene({ p, game }) {
   const h = p.choices.length >= 5 ? 104 : p.choices.length >= 4 ? 124 : 156;
   if (!game) return null;
   const cast = castFor(kind, game, `${p.title || ''}${p.text || ''}`);
+  // 這個事件有專屬動畫（例如學騎腳踏車）就播動畫，不用組合立繪
+  if (hasClip(p.clip)) return <Clip name={p.clip} style={{ marginBottom: 10 }} />;
   if (/同學會/.test(p.title || '') && game.mates) {
     return <ReunionStage game={game} style={{ marginBottom: 10 }} />;
   }
@@ -111,7 +137,20 @@ function EventScene({ p, game }) {
 
 export default function EventSheet({ pending, onChoose, game }) {
   if (!pending) return null;
+  return <EventBody key={pending.id || pending.title} pending={pending} onChoose={onChoose} game={game} />;
+}
+
+function EventBody({ pending, onChoose, game }) {
   const p = pending;
+  // 點了一個選項之後：全部按鈕鎖住，避免連點造成重複觸發
+  const [picked, setPicked] = useState(null);
+  const locked = picked !== null;
+  useEffect(() => { setPicked(null); }, [p.id, p.title]);
+  const choose = (i) => {
+    if (locked || p.choices[i].disabled) return;
+    setPicked(i);
+    setTimeout(() => onChoose(i), 420);
+  };
   return (
     <Sheet visible onClose={null} clear>
       <EventScene p={p} game={game} />
@@ -144,15 +183,21 @@ export default function EventSheet({ pending, onChoose, game }) {
         {p.choices.map((c, i) => (
           <Pressable
             key={`${i}-${c.label}`}
-            onPress={c.disabled ? undefined : () => onChoose(i)}
-            disabled={!!c.disabled}
-            style={({ pressed }) => [styles.choice, c.disabled && styles.choiceLocked, pressed && !c.disabled && styles.choicePressed]}
+            onPress={c.disabled || locked ? undefined : () => choose(i)}
+            disabled={!!c.disabled || locked}
+            style={({ pressed }) => [
+              styles.choice,
+              c.disabled && styles.choiceLocked,
+              locked && picked !== i && styles.choiceDimmed,
+              picked === i && styles.choicePicked,
+              pressed && !c.disabled && !locked && styles.choicePressed,
+            ]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={[styles.choiceLabel, c.disabled && { color: C.muted }]}>{c.disabled ? '🔒 ' : ''}{c.label}</Text>
+              <Text style={[styles.choiceLabel, c.disabled && { color: C.muted }, locked && picked !== i && { color: C.muted }]}>{c.disabled ? '🔒 ' : ''}{c.label}</Text>
               {c.sub ? <Text style={[styles.choiceSub, c.disabled && { color: C.red }]}>{c.sub}</Text> : null}
             </View>
-            {c.disabled ? null : <Text style={styles.arrow}>›</Text>}
+            {picked === i ? <Text style={styles.arrow}>✓</Text> : c.disabled || locked ? null : <Text style={styles.arrow}>›</Text>}
           </Pressable>
         ))}
       </View>
@@ -172,6 +217,8 @@ const styles = StyleSheet.create({
   deltaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   delta: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   deltaText: { fontSize: 13.5, fontWeight: '600' },
+  choiceDimmed: { opacity: 0.45 },
+  choicePicked: { borderColor: C.primary, borderWidth: 2, backgroundColor: C.primarySoft },
   title: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 8, letterSpacing: -0.2 },
   text: { fontSize: 15.5, lineHeight: 25, color: C.ink, marginTop: 8 },
   me: { backgroundColor: 'rgba(255,215,106,0.25)', color: '#ffd76a', fontWeight: '700', borderRadius: 6, paddingHorizontal: 4, alignSelf: 'flex-start' },

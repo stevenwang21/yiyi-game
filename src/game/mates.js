@@ -225,6 +225,27 @@ export function myRank(s, myNw) {
   return { rank: me ? me.rank : 1, total: list.length, top: list[0], mode: rankMode(s) };
 }
 
+// 同學現在做到哪裡（只有職涯，不含資產）：家庭頁的「同屆同學」用
+export function mateCareer(m) {
+  const drive = m.drive >= 1.15 ? '超級認真' : m.drive >= 0.9 ? '普通認真' : '不太念書';
+  if (!m.path || (m.stage && m.stage !== 'work')) {
+    return { working: false, title: m.title || STAGE_TITLE[m.stage] || '學生', note: `${drive}．成績 ${m.grade ?? 60}`, level: 0, total: 0, next: null };
+  }
+  const p = pathById(m.path);
+  const total = p.ladder.length;
+  const level = Math.max(0, Math.min(total - 1, m.level || 0));
+  return {
+    working: true,
+    field: p.title,
+    title: m.title || p.ladder[level],
+    note: p.story,
+    level,
+    total,
+    years: m.years || 0,
+    next: level < total - 1 ? p.ladder[level + 1] : null,
+  };
+}
+
 export const mateStory = (m) => {
   if (m.stage && m.stage !== 'work') {
     const drive = m.drive >= 1.15 ? '超級認真' : m.drive >= 0.9 ? '普通認真' : '不太念書';

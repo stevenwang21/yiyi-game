@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, Rect, Stop, Text as SvgText } from 'react-native-svg';
-import { Sprite, HEAD, spriteId, SPRITE_SIZE, stageOf } from './Character';
+import { Sprite, WalkFigure, canWalk, HEAD, spriteId, SPRITE_SIZE, stageOf } from './Character';
 
 const ND = Platform.OS !== 'web';
 
@@ -171,7 +171,7 @@ export default function LifeWalk({ age, name, gender, width, height = 210, grad,
             }}
           >
             <View style={{ position: 'absolute', left: ww * 0.1, right: ww * 0.1, bottom: -3, height: 6, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.18)' }} />
-            <Sprite age={age} gender={gender} height={hh} />
+            {canWalk(id) ? <WalkFigure id={id} width={ww} height={hh} walking={playing} speed={st === 'kid' ? 520 : 620} /> : <Sprite age={age} gender={gender} height={hh} />}
             {grad ? <View style={{ position: 'absolute', left: hx - hs * 0.42, top: -hs * 0.22 }}><GradCap size={hs * 0.84} /></View> : null}
           </Animated.View>
         );

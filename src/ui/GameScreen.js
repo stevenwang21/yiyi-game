@@ -107,6 +107,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
     haptic('tap');
     setResult({
       title: p.title, choice: p.choices[i].label, items, stats,
+      // 這個選項有專屬動畫就用它的，沒有就沿用事件本身的
+      clip: p.choices[i].clip || p.clip,
       nw: Math.abs(nwD) >= 1000 ? nwD : 0,
       hasNext: !!s2.pending && !s2.ended,
     });

@@ -550,7 +550,190 @@ const altLook = (a) => (isAlt(a) ? [{ transform: [{ scaleX: -1 }] }, WEB ? { fil
 const cmW = (a, h) => { const [w, hh] = CM[cmKey(a)]; return (h * w) / hh; };
 const cmHead = (a) => { const [, , cx, hw] = CM[cmKey(a)]; return { cx: isAlt(a) ? 1 - cx : cx, hw }; };
 
-function MateFigure({ asset, height }) {
+
+// ───────── 半骨架人物：把立繪切成「頭」和「身體」兩層，頭可以點頭、歪頭，身體會呼吸 ─────────
+// cut：脖子在身高的幾成｜ncx：脖子中心在寬度的幾成（旋轉的軸心）
+const RIG = {
+  baby_m: [0.5385, 0.478], baby_f: [0.6527, 0.663], kid_m: [0.2158, 0.528], kid_f: [0.2169, 0.495],
+  teen_m: [0.1733, 0.55], teen_f: [0.1728, 0.491], young_m: [0.1644, 0.557], young_f: [0.1642, 0.473],
+  mid_m: [0.1659, 0.517], mid_f: [0.1641, 0.413], old_m: [0.1639, 0.535], old_f: [0.1671, 0.35],
+  cm_civil_f: [0.1703, 0.457], cm_designer_f: [0.1641, 0.492], cm_engineer_m: [0.1625, 0.545],
+  cm_founder_m: [0.1516, 0.426], cm_nurse_f: [0.1828, 0.494], cm_owner_m: [0.1422, 0.439],
+  cm_photo_m: [0.1516, 0.484], cm_sales_m: [0.1516, 0.456], cm_teacher_f: [0.1516, 0.43],
+};
+
+// 用 translate → rotate → translate 回去，做出「繞著某個點旋轉」（RN 沒有 transformOrigin）
+const pivot = (x, y, rot) => [{ translateX: x }, { translateY: y }, { rotate: rot }, { translateX: -x }, { translateY: -y }];
+
+// mood：idle 站著呼吸｜cheer 歡呼點頭｜look 看向中間｜down 低頭
+export function RigFigure({ base, width, height, mood = 'idle', delay = 0, flip, style }) {
+  const g = RIG[base];
+  const sway = useLoop(mood === 'cheer' ? 420 : 1700, true);
+  const breathe = useLoop(2200, true);
+  if (!g) return <Pic src={PHOTO[base]} width={width} height={height} style={style} />;
+  const [cut, ncx] = g;
+  const headH = height * cut;
+  const px = width * ncx; const py = headH * 0.97;
+  const tilt = mood === 'cheer' ? ['-7deg', '4deg'] : mood === 'look' ? ['2deg', '8deg'] : mood === 'down' ? ['4deg', '9deg'] : ['-2.5deg', '2.5deg'];
+  const rot = sway.interpolate({ inputRange: [0, 1], outputRange: tilt });
+  return (
+    <View style={[{ width, height }, style]}>
+      {/* 身體：輕輕起伏（呼吸） */}
+      <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: [{ translateY: breathe.interpolate({ inputRange: [0, 1], outputRange: [0, -height * 0.006] }) }] }}>
+        <Pic src={PHOTO[`rig_${base}_body`]} width={width} height={height} style={flip ? { transform: [{ scaleX: -1 }] } : null} />
+      </Animated.View>
+      {/* 頭：繞著脖子轉 */}
+      <Animated.View style={{
+        position: 'absolute', left: 0, top: 0,
+        transform: [
+          { translateY: breathe.interpolate({ inputRange: [0, 1], outputRange: [0, -height * 0.009] }) },
+          ...pivot(px, py, rot),
+        ],
+      }}>
+        <Pic src={PHOTO[`rig_${base}_head`]} width={width} height={headH} style={flip ? { transform: [{ scaleX: -1 }] } : null} />
+      </Animated.View>
+    </View>
+  );
+}
+
+
+
+// ───────── 走路：髖＋膝兩個關節（大腿、小腿分開），加上身體起伏和落地 ─────────
+// [髖 x, 髖 y, 左膝 x, 左膝 y, 右膝 x, 右膝 y]（都是佔寬／高的比例）
+// 只有「兩腿之間真的有空隙」的立繪才切腿走路：穿裙子、寬褲或兩腿貼在一起的會切壞，
+// 那些改用原本的整張立繪（一樣會呼吸、點頭，只是腿不動）。
+const LEGS = {
+  kid_m: [0.555, 0.55, 0.355, 0.779, 0.682, 0.779],
+  teen_m: [0.565, 0.52, 0.329, 0.766, 0.641, 0.763],
+  teen_f: [0.354, 0.52, 0.365, 0.767, 0.676, 0.754],
+  young_m: [0.564, 0.52, 0.298, 0.766, 0.645, 0.755],
+  mid_m: [0.525, 0.52, 0.275, 0.765, 0.61, 0.753],
+};
+// 腰的位置（骨盆和肩膀分開轉用）：[腰中心 x, 腰 y]
+const WAIST = {
+  kid_m: [0.5, 0.42], teen_m: [0.457, 0.4], teen_f: [0.543, 0.4], young_m: [0.447, 0.4], mid_m: [0.407, 0.4],
+};
+export const canWalk = (id) => !!LEGS[id] || !!RIG[id];
+
+// 一條腿：大腿繞髖、小腿再繞膝蓋（小腿包在大腿的座標系裡，兩個旋轉會疊加）
+function Leg({ id, side, width, height, step, hipX, hipY, swing, bend }) {
+  const g = LEGS[id];
+  const kx = side === 'l' ? g[2] : g[4];
+  const ky = side === 'l' ? g[3] : g[5];
+  return (
+    <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: pivot(hipX, hipY, swing) }}>
+      <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: pivot(width * kx, height * ky, bend) }}>
+        <Pic src={PHOTO[`rig_${id}_shin${side}`]} width={width} height={height} />
+      </Animated.View>
+      <Pic src={PHOTO[`rig_${id}_thigh${side}`]} width={width} height={height} />
+    </Animated.View>
+  );
+}
+
+export function WalkFigure({ id, width, height, walking = true, speed = 620, style }) {
+  const g = LEGS[id];
+  const step = useLoop(speed, walking);
+  const head = RIG[id];
+  // 不能切腿的：整張立繪，只做呼吸和點頭
+  if (!g) return <RigFigure base={id} width={width} height={height} mood="idle" style={style} />;
+  if (!head) return <Pic src={PHOTO[`char_${id}`]} width={width} height={height} style={style} />;
+  const hipX = width * g[0]; const hipY = height * g[1];
+  // 一邊往前、一邊往後；膝蓋只在腿往後收的時候彎
+  const swing = (dir) => step.interpolate({ inputRange: [0, 1], outputRange: [`${-9 * dir}deg`, `${9 * dir}deg`] });
+  const bend = (dir) => step.interpolate({
+    inputRange: [0, 0.35, 0.7, 1],
+    outputRange: dir > 0 ? ['0deg', '-3deg', '-9deg', '-12deg'] : ['-12deg', '-9deg', '-3deg', '0deg'],
+  });
+  // 身體一個步伐上下兩次（走路本來就是這樣），落地那一下壓一點點
+  const bob = step.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [0, -height * 0.014, 0, -height * 0.014, 0] });
+  // 身體左右輕輕擺、骨盆跟腿同方向、肩膀反方向
+  const sway = step.interpolate({ inputRange: [0, 0.5, 1], outputRange: [-width * 0.008, width * 0.008, -width * 0.008] });
+  const w0 = WAIST[id] || [0.5, 0.4];
+  const wx = width * w0[0]; const wy = height * w0[1];
+  const hipTwist = step.interpolate({ inputRange: [0, 1], outputRange: ['-2.5deg', '2.5deg'] });
+  const chestTwist = step.interpolate({ inputRange: [0, 1], outputRange: ['4.5deg', '-1.5deg'] });
+  const headH = height * head[0];
+  return (
+    <View style={[{ width, height }, style]}>
+      <Leg id={id} side="l" width={width} height={height} step={step} hipX={hipX} hipY={hipY} swing={swing(-1)} bend={bend(-1)} />
+      <Leg id={id} side="r" width={width} height={height} step={step} hipX={hipX} hipY={hipY} swing={swing(1)} bend={bend(1)} />
+      {/* 骨盆：跟著腿一起轉 */}
+      <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: [{ translateY: bob }, { translateX: sway }, ...pivot(hipX, hipY, hipTwist)] }}>
+        <Pic src={PHOTO[`rig_${id}_hips`]} width={width} height={height} />
+      </Animated.View>
+      {/* 肩膀：跟骨盆反方向轉（走路時上下半身本來就是相反的），順便微微前傾 */}
+      <Animated.View style={{ position: 'absolute', left: 0, top: 0, transform: [{ translateY: bob }, { translateX: sway }, ...pivot(wx, wy, chestTwist)] }}>
+        <Pic src={PHOTO[`rig_${id}_chest`]} width={width} height={height} />
+      </Animated.View>
+      {/* 頭：跟著步伐點一下 */}
+      <Animated.View style={{
+        position: 'absolute', left: 0, top: 0,
+        transform: [{ translateY: bob }, { translateX: sway }, ...pivot(width * head[1], headH * 0.97, step.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['-2deg', '2deg', '-2deg'] }))],
+      }}>
+        <Pic src={PHOTO[`rig_${id}_head`]} width={width} height={headH} />
+      </Animated.View>
+    </View>
+  );
+}
+
+// ───────── 特效層：彩帶、閃光 ─────────
+function Confetti({ w, h, n = 16, on }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) return undefined;
+    v.setValue(0);
+    const a = Animated.timing(v, { toValue: 1, duration: 2600, easing: Easing.linear, useNativeDriver: ND });
+    const loop = Animated.loop(a);
+    loop.start();
+    return () => loop.stop();
+  }, [on]);
+  if (!on) return null;
+  const COL = ['#ffd76a', '#ff8a8a', '#7ce0a3', '#8fa3ff', '#ffb3e6'];
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width: w, height: h, zIndex: 9, overflow: 'hidden' }}>
+      {Array.from({ length: n }).map((_, i) => {
+        const x = ((i * 37) % 100) / 100 * w;
+        const d = (i % 5) * 0.12;
+        const sz = 4 + (i % 3) * 2;
+        return (
+          <Animated.View key={i} style={{
+            position: 'absolute', left: x, top: -10, width: sz, height: sz * 2, borderRadius: 1, backgroundColor: COL[i % COL.length],
+            opacity: v.interpolate({ inputRange: [0, 0.1 + d, 0.85, 1], outputRange: [0, 1, 1, 0] }),
+            transform: [
+              { translateY: v.interpolate({ inputRange: [0, 1], outputRange: [0, h + 20] }) },
+              { translateX: v.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, (i % 2 ? 12 : -12), 0] }) },
+              { rotate: v.interpolate({ inputRange: [0, 1], outputRange: ['0deg', `${(i % 2 ? 1 : -1) * 720}deg`] }) },
+            ],
+          }} />
+        );
+      })}
+    </View>
+  );
+}
+
+function FlashGlow({ w, h, on }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!on) return undefined;
+    v.setValue(0);
+    Animated.sequence([
+      Animated.delay(250),
+      Animated.timing(v, { toValue: 1, duration: 260, useNativeDriver: ND }),
+      Animated.timing(v, { toValue: 0, duration: 900, useNativeDriver: ND }),
+    ]).start();
+    return undefined;
+  }, [on]);
+  if (!on) return null;
+  return (
+    <Animated.View pointerEvents="none" style={[{ position: 'absolute', left: 0, top: 0, width: w, height: h, zIndex: 8, opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0, 0.55] }) },
+      WEB ? { backgroundImage: 'radial-gradient(circle at 50% 40%, rgba(255,226,150,0.9) 0%, rgba(255,200,90,0) 60%)' } : { backgroundColor: 'rgba(255,220,140,0.25)' }]}
+    />
+  );
+}
+
+function MateFigure({ asset, height, mood }) {
+  const k = cmKey(asset);
+  if (RIG[`cm_${k}`]) return <RigFigure base={`cm_${k}`} width={cmW(asset, height)} height={height} mood={mood} flip={isAlt(asset)} style={isAlt(asset) && WEB ? { filter: 'brightness(0.92) contrast(1.05)' } : null} />;
   return <Pic src={cmSrc(asset)} width={cmW(asset, height)} height={height} style={altLook(asset)} />;
 }
 
@@ -705,8 +888,8 @@ function StageActor({ p, hero, mode, order, act, game, top }) {
     }}>
       {top ? <View style={{ position: 'absolute', left: p.headX - p.x - 9, top: -20 }}><Emo e="👑" size={18} /></View> : null}
       {hero
-        ? <Sprite age={game.age} gender={game.gender} height={p.ih} />
-        : <View style={{ opacity: mode === 'quiet' ? 0.9 : 1 }}><MateFigure asset={p.m.characterAsset} height={p.ih} /></View>}
+        ? <RigFigure base={cid(stageOf(game.age), gk(game.gender))} width={p.iw} height={p.ih} mood={mode === 'treat' ? 'cheer' : mode === 'quiet' ? 'down' : mode === 'info' ? 'look' : 'idle'} />
+        : <View style={{ opacity: mode === 'quiet' ? 0.9 : 1 }}><MateFigure asset={p.m.characterAsset} height={p.ih} mood={mode === 'treat' ? 'cheer' : mode === 'info' ? 'look' : mode === 'quiet' ? 'down' : 'idle'} /></View>}
       {deco ? (
         <View style={{ position: 'absolute', left: p.headX - p.x - emo / 2 + (deco === '📱' ? p.headW * 0.5 : 0), top: deco === '📱' ? p.ih * 0.3 : -emo - 1 }}><Emo e={deco} size={emo} /></View>
       ) : null}
@@ -717,7 +900,8 @@ function StageActor({ p, hero, mode, order, act, game, top }) {
 const reunionMode = (choice) => (!choice ? 'intro' : /請客/.test(choice) ? 'treat' : /投資情報/.test(choice) ? 'info' : /拚/.test(choice) ? 'rival' : 'quiet');
 
 export function ReunionStage({ game, choice, style }) {
-  const [W, setW] = useState(0);
+  const [fullW, setW] = useState(0);
+  const W = Math.min(fullW, 430); // 桌機上不要整個放大，維持手機版的比例
   const inV = useRef(new Animated.Value(0)).current;
   const act = useRef(new Animated.Value(0)).current;
   const loop = useLoop(900, true);
@@ -755,15 +939,21 @@ export function ReunionStage({ game, choice, style }) {
   const farY = L ? L.T.e0 + 3 : 0;
   const nearY = farY + 25;
   return (
-    <View style={style} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
-      <Animated.View style={{ width: '100%', height: H || 220, borderRadius: 18, overflow: 'hidden', backgroundColor: '#15183d', opacity: inV }}>
+    <View style={[style, { alignItems: 'center' }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      <Animated.View style={{ width: W || '100%', height: H || 220, borderRadius: 18, overflow: 'hidden', backgroundColor: '#15183d', opacity: inV }}>
         {/* 固定的餐廳場景 */}
         <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: [{ scale: inV.interpolate({ inputRange: [0, 1], outputRange: [1.06, 1] }) }] }}>
           <Pic src={PHOTO.restaurant} width="100%" height="100%" cover />
         </Animated.View>
         {mode === 'quiet' ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(8,10,30,0.28)', zIndex: 1 }} /> : null}
         {L ? (
-          <>
+          <Animated.View style={{
+            position: 'absolute', left: 0, top: 0, width: W, height: H,
+            transform: [
+              { scale: mode === 'treat' ? act.interpolate({ inputRange: [0, 1], outputRange: [1, 1.05] }) : 1 },
+              { translateY: mode === 'treat' ? act.interpolate({ inputRange: [0, 1], outputRange: [0, 4] }) : 0 },
+            ],
+          }}>
             {/* 後排同學站在椅子後面：椅背（z 3）擋住腿 */}
             {L.people.filter((p) => p.seat.row === 'back').map((p) => (
               <View key={`ch${p.m.id}`} pointerEvents="none" style={{ position: 'absolute', zIndex: 3, left: p.cx - p.bw * 0.46, top: p.y + p.ih * 0.6 }}>
@@ -812,7 +1002,9 @@ export function ReunionStage({ game, choice, style }) {
                 <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#1b1b24' }}>💬 這支會漲嗎？</Text></View>
               </Animated.View>
             ) : null}
-          </>
+            <Confetti w={W} h={H} on={mode === 'treat'} />
+            <FlashGlow w={W} h={H} on={mode === 'treat'} />
+          </Animated.View>
         ) : null}
       </Animated.View>
       {/* 拚一下：座位不動，折線圖放在舞台下方 */}

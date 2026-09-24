@@ -122,9 +122,10 @@ export const BABY_EVENTS = [
   {
     id: 'b_bike', minAge: 4, maxAge: 6, weight: 3, once: true, title: '學騎腳踏車',
     text: '爸爸把輔助輪拆掉，在後面扶著你。',
+    clip: 'bike_cover',
     choices: [
-      { label: '摔了也要學會', sub: '健康↑↑', effect: (s) => good(`你摔了七次，膝蓋破皮，但第八次你自己騎了整條巷子。${addStats(s, { hp: 7, happy: 4 })}`) },
-      { label: '裝回輔助輪', sub: '安全就好', effect: (s) => `你決定慢慢來，輔助輪又多用了一年。${addStats(s, { hp: 1, happy: 1 })}` },
+      { label: '摔了也要學會', sub: '健康↑↑', clip: 'bike_ride', effect: (s) => good(`你摔了七次，膝蓋破皮，但第八次你自己騎了整條巷子。${addStats(s, { hp: 7, happy: 4 })}`) },
+      { label: '裝回輔助輪', sub: '安全就好', clip: 'bike_wheels', effect: (s) => `你決定慢慢來，輔助輪又多用了一年。爸爸蹲在地上把兩顆小輪子鎖回去，你坐在旁邊看。${addStats(s, { hp: 1, happy: 1 })}` },
     ],
   },
   {

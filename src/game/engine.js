@@ -1046,6 +1046,7 @@ function openDef(s, rng, source, id, def, extra = {}) {
       label: typeof c.label === 'function' ? c.label(s) : c.label,
       sub: withOdds(c, typeof c.sub === 'function' ? c.sub(s) : c.sub || ''),
       ref: i,
+      ...(c.clip ? { clip: c.clip } : {}),
     };
   });
   s.pending = {
@@ -1055,6 +1056,7 @@ function openDef(s, rng, source, id, def, extra = {}) {
     text: typeof def.text === 'function' ? def.text(s) : def.text || '',
     choices,
     ...(def.art ? { art: def.art } : {}),
+    ...(def.clip ? { clip: def.clip } : {}),
     ...extra,
   };
 }
@@ -1403,6 +1405,19 @@ function selectPending(s, rng) {
   if (s.studying && s.age === 13 - sk && !s.flags.club) return openDef(s, rng, 'milestone', 'club', MILESTONES.club);
   if (s.flags.idol >= 1 && s.flags.idol <= 3 && s.flags.idolEnd && s.age >= s.flags.idolEnd) {
     return openDef(s, rng, 'milestone', 'idolRenew', MILESTONES.idolRenew);
+  }
+  // 練習生／藝人：合約在身，學校已經不是重點，不考會考也不考學測
+  if (s.studying && underIdolContract(s) && (s.age === 15 - sk || s.age === 18 - sk)) {
+    if (s.age === 15 - sk) {
+      s.edu = 'senior';
+      s.flags.noExam = true;
+      log(s, '會考那天你人在公司錄音室。公司幫你安排了可以請假的高中，學籍掛著，重心全在練習室。', 'milestone');
+    } else {
+      s.studying = false;
+      s.flags.noExam = true;
+      log(s, '同學都在準備學測，你沒有報名。高中念完就直接進公司全職。', 'milestone');
+    }
+    return;
   }
   if (s.studying && s.age === 15 - sk) {
     s.flags.score15 = examScore(s, rng);

@@ -5,7 +5,8 @@ import { Bar, Button, Card } from './components';
 import { C } from './theme';
 import * as E from '../game/engine';
 import { Avatar, Art } from './art';
-import { Head } from './Character';
+import { Head, MateFace } from './Character';
+import { mateCareer, START_AGE } from '../game/mates';
 
 export default function FamilySheet({ visible, onClose, game, setGame }) {
   const s = game;
@@ -121,6 +122,8 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
         ) : null}
       </Card>
 
+      <Classmates s={s} />
+
       {infos.map(({ k, info }) => (
         <Card key={k.uid}>
           <View style={styles.kidTop}>
@@ -227,6 +230,52 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
   );
 }
 
+// 同學會的那幾位同學：只看他們現在做到哪裡，不顯示存款
+function Classmates({ s }) {
+  const mates = s.age >= START_AGE ? E.selectedClassmates(s) : [];
+  if (!mates.length) return null;
+  return (
+    <Card>
+      <View style={styles.between}>
+        <Text style={styles.h}>同屆同學</Text>
+        <Text style={styles.muted}>每 5 年一次同學會</Text>
+      </View>
+      {mates.map((m) => {
+        const c = mateCareer(m);
+        return (
+          <View key={m.id || m.name} style={styles.mateRow}>
+            {m.characterAsset ? <MateFace asset={m.characterAsset} size={40} /> : <Avatar name={m.name} gender={m.gender || 'male'} age={s.age} size={40} />}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.h}>
+                {m.name}
+                <Text style={styles.mateTitle}>　{c.title}</Text>
+              </Text>
+              <Text style={styles.muted}>
+                {c.working ? `${c.field}．在這個位子 ${c.years} 年` : c.note}
+              </Text>
+              {c.working ? (
+                <>
+                  <View style={styles.ladder}>
+                    {Array.from({ length: c.total }, (_, i) => (
+                      <View key={i} style={[styles.ladderSeg, i <= c.level && styles.ladderOn]} />
+                    ))}
+                  </View>
+                  <Text style={styles.mateNext}>
+                    {c.next ? `下一步：${c.next}` : '已經爬到這一行的頂端了'}
+                  </Text>
+                </>
+              ) : null}
+            </View>
+          </View>
+        );
+      })}
+      <Text style={[styles.muted, { marginTop: 8 }]}>
+        這裡只看大家現在做到哪個位子，不看存款。要比資產和名次，去排行榜那邊。
+      </Text>
+    </Card>
+  );
+}
+
 function Stat({ label, value }) {
   return (
     <View style={{ flex: 1, alignItems: 'center' }}>
@@ -255,6 +304,15 @@ const styles = StyleSheet.create({
   styleName: { fontSize: 13, fontWeight: '600', color: C.ink, marginTop: 2 },
   styleSub: { fontSize: 10.5, color: C.muted, marginTop: 1 },
   styleDesc: { fontSize: 11.5, color: C.muted, lineHeight: 17, marginTop: 8 },
+  mateRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    paddingVertical: 10, borderTopWidth: 1, borderTopColor: C.line,
+  },
+  mateTitle: { fontSize: 13, fontWeight: '600', color: C.goldInk },
+  mateNext: { fontSize: 11.5, color: C.primaryInk, marginTop: 4 },
+  ladder: { flexDirection: 'row', gap: 3, marginTop: 6 },
+  ladderSeg: { flex: 1, height: 5, borderRadius: 3, backgroundColor: C.line },
+  ladderOn: { backgroundColor: C.gold },
   row: { flexDirection: 'row' },
   between: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   h: { fontSize: 15, fontWeight: '700', color: C.ink },
