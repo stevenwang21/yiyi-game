@@ -750,12 +750,12 @@ export function MateFace({ asset, size = 34, style }) {
 }
 
 // 桌上的名牌（名字＋職業）
-function PlaceCard({ x, y, name, job, me, maxW }) {
+function PlaceCard({ x, y, name, job, me, maxW, k = 1 }) {
   return (
     <View pointerEvents="none" style={{ position: 'absolute', left: x - maxW / 2, top: y, width: maxW, alignItems: 'center' }}>
-      <View style={[{ backgroundColor: me ? '#ffe9a8' : '#ffffff', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, borderWidth: 1, borderColor: me ? '#c89a2e' : 'rgba(120,90,50,0.35)', alignItems: 'center', maxWidth: maxW }, WEB ? { boxShadow: '0 2px 3px rgba(60,40,20,0.35)' } : null]}>
-        <Text numberOfLines={1} style={{ color: '#1b1b24', fontSize: 9.5, fontWeight: '900' }}>{name}</Text>
-        {job ? <Text numberOfLines={1} style={{ color: '#5a5f7a', fontSize: 8 }}>{job}</Text> : null}
+      <View style={[{ backgroundColor: me ? '#ffe9a8' : '#ffffff', borderRadius: 4 * k, paddingHorizontal: 4 * k, paddingVertical: 1 * k, borderWidth: 1, borderColor: me ? '#c89a2e' : 'rgba(120,90,50,0.35)', alignItems: 'center', maxWidth: maxW }, WEB ? { boxShadow: '0 2px 3px rgba(60,40,20,0.35)' } : null]}>
+        <Text numberOfLines={1} style={{ color: '#1b1b24', fontSize: 9.5 * k, fontWeight: '900' }}>{name}</Text>
+        {job ? <Text numberOfLines={1} style={{ color: '#5a5f7a', fontSize: 8 * k }}>{job}</Text> : null}
       </View>
     </View>
   );
@@ -775,6 +775,9 @@ const SEATS = [
 const HERO_SEAT = { key: 'me', left: 0.40, top: 0.18, width: 0.20, z: 5, row: 'front' };
 const BOX_AR = 1.75;
 const STAGE_AR = 0.62; // 舞台高 = 寬 × 0.62：中後同學的臉在主角請客起身時也不會被擋住
+// 桌機上舞台變寬，比例照舊會變得太高（桌面空白一大片、選項被擠到看不到），
+// 所以寬度超過 480 之後慢慢壓扁，最扁 0.52（再扁玻璃轉盤就放不下了）
+const stageAR = (W) => (W <= 480 ? STAGE_AR : Math.max(0.52, STAGE_AR - (W - 480) * 0.00024));
 
 // 算出每個座位的圖片實際位置（contain＋靠上）與臉的位置
 function seatBox(seat, W, H, scale, img) {
@@ -901,7 +904,8 @@ const reunionMode = (choice) => (!choice ? 'intro' : /請客/.test(choice) ? 'tr
 
 export function ReunionStage({ game, choice, style }) {
   const [fullW, setW] = useState(0);
-  const W = Math.min(fullW, 430); // 桌機上不要整個放大，維持手機版的比例
+  const W = fullW; // 左右撐滿，桌機上圖就大一張
+  const k = Math.max(1, Math.min(2.4, W / 390)); // 名牌、碗、對話框跟著一起放大
   const inV = useRef(new Animated.Value(0)).current;
   const act = useRef(new Animated.Value(0)).current;
   const loop = useLoop(900, true);
@@ -913,7 +917,7 @@ export function ReunionStage({ game, choice, style }) {
   // 本次的五位同學（selectedClassmates，不重抽），依資產排名放進同學 1～5
   const mates = [...selectedClassmates(game).slice(0, 5)].sort((a, b) => (b.nw || 0) - (a.nw || 0));
   const heroId = cid(stageOf(game.age), gk(game.gender));
-  const H = Math.round(W * STAGE_AR);
+  const H = Math.round(W * stageAR(W));
   const L = W ? reunionLayout(mates, W, H, heroId) : null;
 
   let rivalData = null; let rivalId = null;
@@ -934,10 +938,10 @@ export function ReunionStage({ game, choice, style }) {
     }
   }
   const labelW = W * 0.21;
-  if (L) { const room = H - (L.T.e0 + 3 + 25 + 26); L.T.susanY = room >= 34 ? H - room / 2 : 0; }
+  if (L) { const room = H - (L.T.e0 + 3 * k + 25 * k + 26 * k); L.T.susanY = room >= 34 * k ? H - room / 2 : 0; }
   // 名牌放在桌上：後排一行、前排（含你）一行，不會蓋到任何人的臉
-  const farY = L ? L.T.e0 + 3 : 0;
-  const nearY = farY + 25;
+  const farY = L ? L.T.e0 + 3 * k : 0;
+  const nearY = farY + 25 * k;
   return (
     <View style={[style, { alignItems: 'center' }]} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
       <Animated.View style={{ width: W || '100%', height: H || 220, borderRadius: 18, overflow: 'hidden', backgroundColor: '#15183d', opacity: inV }}>
@@ -966,24 +970,24 @@ export function ReunionStage({ game, choice, style }) {
             {/* 名牌（z 7） */}
             {L.people.map((p) => (
               <View key={`pc${p.m.id}`} style={{ position: 'absolute', left: 0, top: 0, zIndex: 7 }}>
-                <PlaceCard x={p.cx} y={p.seat.row === 'back' ? farY : nearY} name={p.m.name} job={p.m.title || '同學'} maxW={labelW} />
+                <PlaceCard x={p.cx} y={p.seat.row === 'back' ? farY : nearY} name={p.m.name} job={p.m.title || '同學'} maxW={labelW} k={k} />
               </View>
             ))}
             <View style={{ position: 'absolute', left: 0, top: 0, zIndex: 7 }}>
-              <PlaceCard x={L.hero.cx} y={nearY} name="你" job={game.name} me maxW={labelW} />
+              <PlaceCard x={L.hero.cx} y={nearY} name="你" job={game.name} me maxW={labelW} k={k} />
             </View>
             {mode === 'quiet' ? [L.hero, ...L.people].map((p, i) => (
               // 低調吃飯：每個人面前一碗，冒熱氣
-              <View key={`bowl${i}`} pointerEvents="none" style={{ position: 'absolute', zIndex: 7, left: p.cx + (p.seat.row === 'back' ? labelW * 0.5 + 2 : -labelW * 0.5 - 24), top: (p.seat.row === 'back' ? farY : nearY) - 2 }}>
-                <Emo e={i % 2 ? '🍵' : '🍜'} size={24} />
-                <Animated.Text style={{ position: 'absolute', left: 7, top: -12, color: 'rgba(255,255,255,0.85)', fontSize: 12, opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.9] }), transform: [{ translateY: loop.interpolate({ inputRange: [0, 1], outputRange: [3, -5] }) }] }}>〰</Animated.Text>
+              <View key={`bowl${i}`} pointerEvents="none" style={{ position: 'absolute', zIndex: 7, left: p.cx + (p.seat.row === 'back' ? labelW * 0.5 + 2 * k : -labelW * 0.5 - 24 * k), top: (p.seat.row === 'back' ? farY : nearY) - 2 * k }}>
+                <Emo e={i % 2 ? '🍵' : '🍜'} size={24 * k} />
+                <Animated.Text style={{ position: 'absolute', left: 7 * k, top: -12 * k, color: 'rgba(255,255,255,0.85)', fontSize: 12 * k, opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.9] }), transform: [{ translateY: loop.interpolate({ inputRange: [0, 1], outputRange: [3, -5] }) }] }}>〰</Animated.Text>
               </View>
             )) : null}
             {mode === 'treat' ? (
               <>
                 {/* 拿出信用卡：在主角頭旁邊高舉 */}
                 <Animated.View style={{
-                  position: 'absolute', zIndex: 8, left: L.hero.headX + L.hero.headW * 0.7, top: Math.max(2, L.hero.y - 16),
+                  position: 'absolute', zIndex: 8, left: L.hero.headX + L.hero.headW * 0.7, top: Math.max(2, L.hero.y - 16 * k),
                   opacity: act,
                   transform: [
                     { translateY: act.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
@@ -992,14 +996,14 @@ export function ReunionStage({ game, choice, style }) {
                 }}>
                   <CreditCard w={Math.max(40, W * 0.13)} />
                 </Animated.View>
-                <Animated.View style={{ position: 'absolute', zIndex: 8, left: L.hero.headX - L.hero.headW * 0.7 - 104, top: Math.max(2, L.hero.y - 20), width: 100, alignItems: 'flex-end', opacity: act, transform: [{ scale: act }] }}>
-                  <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ fontWeight: '900', color: '#1b1b24', fontSize: 11 }}>今天我請客！</Text></View>
+                <Animated.View style={{ position: 'absolute', zIndex: 8, left: L.hero.headX - L.hero.headW * 0.7 - 104 * k, top: Math.max(2, L.hero.y - 20 * k), width: 100 * k, alignItems: 'flex-end', opacity: act, transform: [{ scale: act }] }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 12 * k, paddingHorizontal: 8 * k, paddingVertical: 3 * k }}><Text style={{ fontWeight: '900', color: '#1b1b24', fontSize: 11 * k }}>今天我請客！</Text></View>
                 </Animated.View>
               </>
             ) : null}
             {mode === 'info' ? (
-              <Animated.View style={{ position: 'absolute', zIndex: 8, left: W / 2 - 60, bottom: 4, width: 120, alignItems: 'center', opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
-                <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#1b1b24' }}>💬 這支會漲嗎？</Text></View>
+              <Animated.View style={{ position: 'absolute', zIndex: 8, left: W / 2 - 60 * k, bottom: 4 * k, width: 120 * k, alignItems: 'center', opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
+                <View style={{ backgroundColor: '#fff', borderRadius: 12 * k, paddingHorizontal: 8 * k, paddingVertical: 3 * k }}><Text style={{ fontSize: 11 * k, fontWeight: '800', color: '#1b1b24' }}>💬 這支會漲嗎？</Text></View>
               </Animated.View>
             ) : null}
             <Confetti w={W} h={H} on={mode === 'treat'} />
@@ -1009,8 +1013,8 @@ export function ReunionStage({ game, choice, style }) {
       </Animated.View>
       {/* 拚一下：座位不動，折線圖放在舞台下方 */}
       {mode === 'rival' && rivalData && W ? (
-        <Animated.View style={{ marginTop: 8, width: W, height: 120, borderRadius: 12, backgroundColor: 'rgba(10,8,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.35)', opacity: act }}>
-          <RivalChart me={rivalData.mine} rival={rivalData.theirs} rivalName={rivalData.name} w={W} h={120} />
+        <Animated.View style={{ marginTop: 8, width: W, height: Math.round(120 * k), borderRadius: 12, backgroundColor: 'rgba(10,8,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.35)', opacity: act }}>
+          <RivalChart me={rivalData.mine} rival={rivalData.theirs} rivalName={rivalData.name} w={W} h={Math.round(120 * k)} />
         </Animated.View>
       ) : null}
     </View>
