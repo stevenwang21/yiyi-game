@@ -48,6 +48,12 @@ export { ranking, myRank, rankMode, selectedClassmates };
 export { MAX_GROUP, canAcquire, meetsReq, synergy, AUCTION_BIDS, DEAL_KINDS } from './mna.js';
 export const mateList = (s) => selectedClassmates(s);
 
+// 跟股票、投資、房市有關的紀錄，還有世界新聞：不放在「今年發生的事」，改放投資頁
+const MARKET_RE = /【世界】|【市場】|ETF|大盤|股市|股票|個股|台股|美股|加密幣|比特幣|房價|房市|升息|降息|通膨|崩盤|熊市|牛市|殖利率|配息|定期定額/;
+export const isMarketLog = (l) => !!l && (String(l.tone || '').startsWith('world') || (l.tone !== 'focus' && MARKET_RE.test(l.text || '')));
+// 投資頁要顯示的市場消息（預設看最近幾年）
+export const marketNews = (s, years = 3) => (s.log || []).filter((l) => isMarketLog(l) && l.age > s.age - years).slice(-40).reverse();
+
 export const SAVE_VERSION = 3;
 export const BASE_FOCUS_SLOTS = 3; // 每年最多可以選幾個重點
 export const MAX_FOCUS_SLOTS = 5;
@@ -1298,6 +1304,17 @@ function followUps(s, rng) {
     const text = takeJob(s, 'bandmusician', salary);
     if (s.job) { s.job.name = `職業樂手（${s.flags.bandName || '樂團'}）`; s.careers[s.careers.length - 1] = s.job.name; }
     log(s, `${text.replace('職業樂手', `職業樂手（${s.flags.bandName || '樂團'}）`)}`, 'milestone');
+    return;
+  }
+  // 社團出道：簽約之後正式變成那個職業
+  if (s.flags.proSign) {
+    const { id, name, mult } = s.flags.proSign;
+    s.flags.proSign = null;
+    const def = jobById(id);
+    const salary = Math.round((def.salary * (mult || 1) * (s.priceIndex ** 0.85) * diffOf(s).salary) / 1000) * 1000;
+    const text = takeJob(s, id, salary);
+    if (name && s.job) { s.job.name = name; s.careers[s.careers.length - 1] = name; }
+    log(s, name ? text.replace(def.name, name) : text, 'milestone');
     return;
   }
   if (s.flags.needJob) {

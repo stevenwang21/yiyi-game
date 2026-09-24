@@ -76,6 +76,8 @@ export const PHOTO = {
   // 同學會情境圖
   reunion: { uri: 'art/reunion.webp' },
   restaurant: { uri: 'art/restaurant.webp' },
+  rt_chair: { uri: 'art/rt_chair.webp' },
+  rt_setting: { uri: 'art/rt_setting.webp' },
   cm_civil_f: { uri: 'art/cm_civil_f.webp' },
   cm_designer_f: { uri: 'art/cm_designer_f.webp' },
   cm_engineer_m: { uri: 'art/cm_engineer_m.webp' },

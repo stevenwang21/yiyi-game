@@ -192,7 +192,10 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   // 跟去年比：淨資產變化、今年發生的事
   const prevNw = s.history && s.history.length >= 2 ? s.history[s.history.length - 2] : null;
   const yearDelta = prevNw == null ? 0 : nw - prevNw;
-  const happened = s.log.filter((l) => l.age === s.age && l.tone !== 'money' && l.tone !== 'focus');
+  // 股票、投資、房市和世界新聞都丟到投資頁，這裡只留「人生」發生的事
+  const yearLogs = s.log.filter((l) => l.age === s.age && l.tone !== 'money' && l.tone !== 'focus');
+  const happened = yearLogs.filter((l) => !E.isMarketLog(l));
+  const marketCount = yearLogs.length - happened.length;
   const [showAllHappened, setShowAllHappened] = useState(false);
 
   // 新手提示：只在真的需要的時候出現一行；同一種提示出現過一次，之後幾年都不會再跳（不要一直通知）
@@ -267,7 +270,11 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           <View ref={refs.hero} collapsable={false} style={[styles.hero, SHADOW]}>
             <View style={styles.heroRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.heroLabel}>{s.age} 歲　淨資產</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                  <Text style={styles.heroAge}>{s.age}</Text>
+                  <Text style={styles.heroAgeUnit}>歲</Text>
+                  <Text style={[styles.heroLabel, { marginLeft: 4 }]}>淨資產</Text>
+                </View>
                 <RollingNumber
                   value={nw}
                   format={(v) => E.formatMoney(v)}
@@ -304,6 +311,12 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             <View style={styles.heroBar}>
               <SmoothBar value={progress} color={progress >= 1 ? C.gold : C.primary} height={6} />
             </View>
+            {!focusOpts.length ? (
+              <View style={styles.babyNote}>
+                <Text style={styles.babyTitle}>🍼 還小，只要健康長大就好</Text>
+                <Text style={styles.babyText}>6 歲以後才需要自己做選擇。現在直接按「過一年」就好，中間會有小時候的事件。</Text>
+              </View>
+            ) : null}
             <View style={styles.between}>
               <Text style={styles.heroFoot}>
                 {s.achievedAge
@@ -341,7 +354,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
 
 
           {/* 今年發生的事：過完一年先看發生了什麼，再決定下一年 */}
-          {happened.length && s.age > 0 ? (
+          {(happened.length || marketCount) && s.age > 0 ? (
             <>
             <GroupHead
               title={`${s.age} 歲發生的事`}
@@ -356,6 +369,12 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               {happened.length > 2 ? (
                 <Pressable onPress={() => setShowAllHappened(!showAllHappened)} hitSlop={6}>
                   <Text style={[styles.link, { marginTop: 6 }]}>{showAllHappened ? '收起 ▲' : `還有 ${happened.length - 2} 件 ▼`}</Text>
+                </Pressable>
+              ) : null}
+              {marketCount ? (
+                // 股票、投資和新聞改放在投資頁
+                <Pressable onPress={() => { setInvestTab(0); setShowInvest(true); }} hitSlop={6}>
+                  <Text style={[styles.link, { marginTop: happened.length ? 8 : 2 }]}>📈 今年有 {marketCount} 則市場消息，到投資頁看 ›</Text>
                 </Pressable>
               ) : null}
             </Card>
@@ -380,9 +399,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             {focusOpts.length ? (
               <GroupHead title="今年要做什麼" right={<Text style={[styles.slotText, chosen.length >= slots && { color: C.primaryInk }]}>{`${chosen.length} / ${slots}`}</Text>} />
             ) : null}
+            {focusOpts.length ? (
             <Card style={styles.focusCard}>
-              {focusOpts.length ? (
-                <>
+              <>
                   {focusMsg ? (
                     <Text style={[styles.focusHint, { color: C.red, fontWeight: '600' }]}>{focusMsg}</Text>
                   ) : <View style={{ height: 10 }} />}
@@ -403,14 +422,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                       />
                     ))}
                   </View>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.section}>🍼 還小，只要健康長大就好</Text>
-                  <Text style={[styles.focusHint, { marginBottom: 0 }]}>6 歲以後才需要自己做選擇。現在直接按「過一年」就好，中間會有小時候的事件。</Text>
-                </>
-              )}
+              </>
             </Card>
+            ) : null}
           </View>
 
           {/* 今年的世界＋同屆排名：合成一張卡，上下兩段 */}
@@ -664,6 +678,11 @@ const styles = StyleSheet.create({
   ageNum: { color: '#fff', fontSize: 23, fontWeight: '700', lineHeight: 26, fontVariant: ['tabular-nums'] },
   ageLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 10.5, fontWeight: '500' },
   heroLabel: { color: C.muted, fontSize: 13, fontWeight: '500' },
+  heroAge: { color: C.ink, fontSize: 30, fontWeight: '800', letterSpacing: -0.5, fontVariant: ['tabular-nums'] },
+  heroAgeUnit: { color: C.ink, fontSize: 16, fontWeight: '700' },
+  babyNote: { marginTop: 12, backgroundColor: C.primarySoft, borderRadius: 12, padding: 10, borderLeftWidth: 3, borderLeftColor: C.primary },
+  babyTitle: { color: C.ink, fontSize: 13.5, fontWeight: '700' },
+  babyText: { color: C.muted, fontSize: 11.5, lineHeight: 16, marginTop: 3 },
   heroMoney: { color: C.ink, fontSize: 36, fontWeight: '700', marginTop: 2, letterSpacing: -1, fontVariant: ['tabular-nums'] },
   pctBox: { alignItems: 'flex-end' },
   pctNum: { color: C.primaryInk, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },

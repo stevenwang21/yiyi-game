@@ -12,6 +12,8 @@ import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRi
 import { MAX_KIDS, TREAT_COST } from './data.js';
 import { EXTRA_EVENTS } from './events2.js';
 import { SCHOOL_EVENTS, BAND_EVENTS, IDOL_EVENTS } from './events_school.js';
+import { SELF_EVENTS } from './events_self.js';
+import { CLUB_EVENTS } from './events_club.js';
 import { TOP_EVENTS } from './events_top.js';
 import { EVENTS3 } from './events3.js';
 import { BABY_EVENTS } from './events_baby.js';
@@ -684,6 +686,6 @@ export const EVENTS = [
   },
 ];
 
-EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, ...LOVE_EVENTS, REUNION_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS);
+EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, ...LOVE_EVENTS, REUNION_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS);
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);

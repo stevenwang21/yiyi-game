@@ -5,7 +5,7 @@ import Sheet from './Sheet';
 import LineChart from './LineChart';
 import { Button, Card, Chip, Tag } from './components';
 import AmountSlider from './AmountSlider';
-import { C } from './theme';
+import { C, toneColor } from './theme';
 import * as E from '../game/engine';
 import { DCA_OPTIONS } from '../game/data';
 
@@ -117,6 +117,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
   useEffect(() => { if (visible) setAsset(null); }, [visible]);
   const [chartKey, setChartKey] = useState('compare');
   const [asset, setAsset] = useState(null); // null = 投資中心（卡片牆）
+  const [allNews, setAllNews] = useState(false);
   const [msg, setMsg] = useState(null);
   const [showAllYears, setShowAllYears] = useState(false);
   const [bids, setBids] = useState({});
@@ -201,6 +202,8 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
   const invStart = E.INVEST_MIN_AGE;
   // 最後一點用現在的投資總額（剛買賣完也會馬上反映）
   const invValues = [...s.invHistory.slice(invStart, -1), E.investTotal(s)];
+  // 股票、投資、房市和世界新聞（從「今年發生的事」搬過來的）
+  const news = E.marketNews(s, 3);
 
   return (
     <Sheet visible={visible} onClose={() => { setMsg(null); onClose(); }} title="投資與資產" tall>
@@ -226,6 +229,22 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
         <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能自己開戶投資、買房和貸款（還差 {E.INVEST_MIN_AGE - s.age} 年）。在那之前，零用錢和紅包會先存成現金；小時候選「學理財」可以先把投資眼光練起來。</Text></Card>
       ) : null}
 
+
+      {tab === 0 && news.length ? (
+        <Card style={{ marginTop: 8, paddingVertical: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={styles.h}>📈 市場消息</Text>
+            {news.length > 3 ? (
+              <Text style={styles.link} onPress={() => setAllNews(!allNews)}>{allNews ? '收起 ▲' : `全部 ${news.length} 則 ▼`}</Text>
+            ) : null}
+          </View>
+          {(allNews ? news : news.slice(0, 3)).map((l, i) => (
+            <Text key={`${l.age}-${i}`} style={[styles.newsItem, { color: toneColor(l.tone) }]}>
+              <Text style={styles.newsAge}>{l.age} 歲　</Text>{l.text.replace(/（(智力|健康|快樂|人緣)[+-]\d+[^）]*）/g, '')}
+            </Text>
+          ))}
+        </Card>
+      ) : null}
 
       {!locked && tab === 0 ? (
         <>
@@ -731,6 +750,9 @@ const styles = StyleSheet.create({
   cashRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   cashLabel: { fontSize: 13, color: C.muted },
   cash: { fontSize: 22, fontWeight: '600', color: C.ink },
+  link: { color: C.primaryInk, fontSize: 12.5, fontWeight: '600' },
+  newsItem: { fontSize: 12.5, lineHeight: 18, marginTop: 5 },
+  newsAge: { color: C.muted, fontSize: 11.5 },
   tabs: { flexDirection: 'row', backgroundColor: C.page, borderRadius: 14, padding: 4, marginTop: 8 },
   tab: { flex: 1, textAlign: 'center', paddingVertical: 8, fontSize: 14, color: C.muted, fontWeight: '700', borderRadius: 12, overflow: 'hidden' },
   tabOn: { backgroundColor: C.card, fontWeight: '600', color: C.primaryInk },

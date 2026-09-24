@@ -77,6 +77,8 @@ export const PHOTO = {
   // 同學會情境圖
   reunion: require('../../../assets/art/reunion.webp'),
   restaurant: require('../../../assets/art/restaurant.webp'),
+  rt_chair: require('../../../assets/art/rt_chair.webp'),
+  rt_setting: require('../../../assets/art/rt_setting.webp'),
   cm_civil_f: require('../../../assets/art/cm_civil_f.webp'),
   cm_designer_f: require('../../../assets/art/cm_designer_f.webp'),
   cm_engineer_m: require('../../../assets/art/cm_engineer_m.webp'),

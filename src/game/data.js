@@ -4,10 +4,10 @@ import { WAN } from './utils.js';
 // allowance：小時候每年爸媽給的零用錢（出生時的物價）；gift：出社會時給的起步金
 export const FAMILIES = [
   // allowance：一年的零用錢（出生時物價）｜gift：出社會時家裡給的一筆｜inherit：遺產範圍
-  { id: 'poor', name: '清寒家庭', weight: 25, allowance: 0, gift: 0, inherit: [0, 10 * WAN] },
+  { id: 'poor', name: '清寒家庭', weight: 15, allowance: 0, gift: 0, inherit: [0, 10 * WAN] },
   { id: 'normal', name: '小康家庭', weight: 45, allowance: 1 * WAN, gift: 10 * WAN, inherit: [30 * WAN, 150 * WAN] },
-  { id: 'rich', name: '富裕家庭', weight: 25, allowance: 4 * WAN, gift: 100 * WAN, inherit: [300 * WAN, 1000 * WAN] },
-  { id: 'tycoon', name: '豪門世家', weight: 5, allowance: 20 * WAN, gift: 800 * WAN, inherit: [2000 * WAN, 5000 * WAN] },
+  { id: 'rich', name: '富裕家庭', weight: 35, allowance: 4 * WAN, gift: 100 * WAN, inherit: [300 * WAN, 1000 * WAN] },
+  { id: 'tycoon', name: '豪門世家', weight: 20, allowance: 20 * WAN, gift: 800 * WAN, inherit: [2000 * WAN, 5000 * WAN] },
 ];
 
 export const familyById = (id) => FAMILIES.find((f) => f.id === id);
@@ -40,6 +40,15 @@ export const JOBS = [
   { id: 'trainee', name: '練習生', salary: 30 * WAN, edu: 0, req: {}, raise: 0.5, risk: 0, hidden: true },
   { id: 'idol', name: '偶像藝人', salary: 70 * WAN, edu: 0, req: {}, raise: 1.4, risk: 0, hidden: true },
   { id: 'bandmusician', name: '職業樂手', salary: 34 * WAN, edu: 0, req: {}, raise: 1.2, risk: 0, hidden: true },
+  // 社團一路練上去才會出現的職業（不會出現在一般求職名單）
+  { id: 'probball', name: '職業籃球員', salary: 110 * WAN, edu: 0, req: {}, raise: 1.7, risk: 0.5, retireAge: 36, hidden: true },
+  { id: 'ballcoach', name: '籃球教練', salary: 70 * WAN, edu: 0, req: {}, raise: 1.1, risk: 0.4, hidden: true },
+  { id: 'dancer', name: '職業舞者', salary: 55 * WAN, edu: 0, req: {}, raise: 1.5, risk: 0.6, retireAge: 42, hidden: true },
+  { id: 'choreo', name: '編舞師', salary: 95 * WAN, edu: 0, req: {}, raise: 1.4, risk: 0.4, hidden: true },
+  { id: 'researcher', name: '研究員', salary: 95 * WAN, edu: 0, req: {}, raise: 1.5, risk: 0.3, hidden: true },
+  { id: 'speaker', name: '講師／名嘴', salary: 75 * WAN, edu: 0, req: {}, raise: 1.7, risk: 0.8, hidden: true },
+  { id: 'progamer', name: '電競職業選手', salary: 85 * WAN, edu: 0, req: {}, raise: 1.8, risk: 0.6, retireAge: 28, hidden: true },
+  { id: 'ecoach', name: '電競教練', salary: 70 * WAN, edu: 0, req: {}, raise: 1.2, risk: 0.5, hidden: true },
   { id: 'influencer', name: '網紅', salary: 30 * WAN, edu: 0, req: { charm: 66 }, raise: 0, risk: 0, volatile: true, alts: [{ req: { int: 66 }, name: '知識型網紅', stat: 'int' }, { req: { hp: 72 }, name: '運動型網紅', stat: 'hp' }] },
   { id: 'athlete', name: '職業運動員', salary: 80 * WAN, edu: 0, req: { hp: 71 }, raise: 1.5, risk: 0.3, retireAge: 38, alts: [{ req: { hp: 66, int: 62 }, name: '運動分析師', noRetire: true }] },
   // 第二批行業

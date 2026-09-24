@@ -2,7 +2,7 @@
 // 男主以深藍色為識別、女主以紫色為識別；遊戲裡所有主角的插圖都從這裡出，確保每個事件都是同一張臉。
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, Platform, Text, View } from 'react-native';
-import Svg, { Defs, LinearGradient, Line, Path, Polyline, Stop } from 'react-native-svg';
+import Svg, { Defs, Ellipse, LinearGradient, Line, Path, Polyline, RadialGradient, Stop } from 'react-native-svg';
 import { PHOTO } from './art/photos';
 import { EMOJI3D } from './art/emoji3d';
 import { Avatar } from './art';
@@ -566,112 +566,180 @@ export function MateFace({ asset, size = 34, style }) {
   );
 }
 
-const LABEL_H = 30;
-// 版面：你在正中間最前面；同學依序 左1、右1、左2、右2、左3… 越外圈越小、越靠後。
-// 檢查每個人的「臉」左右不重疊、也不超出畫面，不行就整體縮小。
-function reunionLayout(mates, w, h, heroId, heroH0) {
-  const base = h - LABEL_H;
-  let f = 1;
-  for (let tries = 0; tries < 30; tries += 1) {
-    const heroH = heroH0 * f;
-    const heroW = (heroH * SIZE[heroId][0]) / SIZE[heroId][1];
-    const heroHead = { x: w / 2 - heroW / 2 + HEAD[heroId][0] * heroW, hw: HEAD[heroId][1] * heroH * 0.75 };
-    const items = mates.map((m, i) => {
-      const side = i % 2 === 0 ? -1 : 1;
-      const ring = Math.floor(i / 2) + 1;
-      const fh = heroH * (0.9 - 0.05 * (ring - 1));
-      const fw = cmW(m.characterAsset, fh);
-      const hd = cmHead(m.characterAsset);
-      return { m, side, ring, fh, fw, hd, lift: 5 * (ring - 1) };
-    });
-    // 每一圈的距離：夠放下臉就好
-    const maxRing = Math.max(1, ...items.map((it) => it.ring));
-    const step = Math.min((w / 2 - 6) / (maxRing + 0.35), heroW * 0.9 + 40);
-    items.forEach((it) => {
-      const headX = w / 2 + it.side * it.ring * step;
-      it.x = headX - it.hd.cx * it.fw;
-      it.headX = headX; it.headW = it.hd.hw * it.fw;
-      it.y = base - it.lift - it.fh;
-    });
-    const heads = [{ x: heroHead.x, hw: heroHead.hw }, ...items.map((it) => ({ x: it.headX, hw: it.headW }))].sort((a, b) => a.x - b.x);
-    let ok = heads.every((hd, i) => i === 0 || hd.x - heads[i - 1].x >= (hd.hw + heads[i - 1].hw) / 2 + 3);
-    ok = ok && heads[0].x - heads[0].hw / 2 >= 2 && heads[heads.length - 1].x + heads[heads.length - 1].hw / 2 <= w - 2;
-    if (ok || tries === 29) return { items, heroH, heroW, step, base };
-    f *= 0.94;
-  }
-  return null;
+// 桌上的名牌（名字＋職業）
+function PlaceCard({ x, y, name, job, me, maxW }) {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: x - maxW / 2, top: y, width: maxW, alignItems: 'center' }}>
+      <View style={[{ backgroundColor: me ? '#ffe9a8' : '#ffffff', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1, borderWidth: 1, borderColor: me ? '#c89a2e' : 'rgba(120,90,50,0.35)', alignItems: 'center', maxWidth: maxW }, WEB ? { boxShadow: '0 2px 3px rgba(60,40,20,0.35)' } : null]}>
+        <Text numberOfLines={1} style={{ color: '#1b1b24', fontSize: 9.5, fontWeight: '900' }}>{name}</Text>
+        {job ? <Text numberOfLines={1} style={{ color: '#5a5f7a', fontSize: 8 }}>{job}</Text> : null}
+      </View>
+    </View>
+  );
 }
 
-function MateActor({ it, delay, mode, idx, labelW }) {
+// 椅背（在人物後面）
+// ───────── 同學會：固定六人弧形站位（主角＋本次五位同學），站在圓桌後方 ─────────
+// 位置都是舞台寬高的百分比。人物框：寬 = width，高 = 寬 × 1.75；圖片 contain、靠上對齊（頭不會被裁）。
+// 同學 1～5 依資產排名放入；主角永遠在正中央、最上層。
+const SEATS = [
+  { key: 's1', left: 0.07, top: 0.10, width: 0.17, z: 2, row: 'back' }, // 同學 1：左後
+  { key: 's2', left: 0.41, top: 0.05, width: 0.18, z: 2, row: 'back' }, // 同學 2：中後
+  { key: 's3', left: 0.75, top: 0.10, width: 0.17, z: 2, row: 'back' }, // 同學 3：右後
+  { key: 's4', left: 0.20, top: 0.25, width: 0.20, z: 4, row: 'front' }, // 同學 4：左前
+  { key: 's5', left: 0.60, top: 0.25, width: 0.20, z: 4, row: 'front' }, // 同學 5：右前
+];
+const HERO_SEAT = { key: 'me', left: 0.40, top: 0.18, width: 0.20, z: 5, row: 'front' };
+const BOX_AR = 1.75;
+const STAGE_AR = 0.62; // 舞台高 = 寬 × 0.62：中後同學的臉在主角請客起身時也不會被擋住
+
+// 算出每個座位的圖片實際位置（contain＋靠上）與臉的位置
+function seatBox(seat, W, H, scale, img) {
+  const bw = seat.width * W * scale;
+  const bh = bw * BOX_AR;
+  const cx = (seat.left + seat.width / 2) * W; // 縮小時以框的中心上緣為基準，位置不變
+  const top = seat.top * H;
+  const ar = img.w / img.h;
+  const iw = Math.min(bw, bh * ar); const ih = iw / ar;
+  const x = cx - iw / 2;
+  const headX = x + img.cx * iw; const headW = img.hw * iw;
+  return { bw, bh, cx, top, x, y: top, iw, ih, headX, headW, face: { x0: headX - headW / 2, x1: headX + headW / 2, y0: top, y1: top + headW * 1.3 } };
+}
+const heroImg = (heroId) => ({ w: SIZE[heroId][0], h: SIZE[heroId][1], cx: HEAD[heroId][0], hw: (HEAD[heroId][1] * SIZE[heroId][1] * 0.72) / SIZE[heroId][0] });
+const mateImg = (asset) => { const [w, h] = CM[cmKey(asset)]; const hd = cmHead(asset); return { w, h, cx: hd.cx, hw: hd.hw }; };
+const facesOverlap = (a, b) => a.x0 < b.x1 + 2 && b.x0 < a.x1 + 2 && a.y0 < b.y1 && b.y0 < a.y1;
+
+function reunionLayout(mates, W, H, heroId) {
+  const build = (scale) => {
+    const people = mates.map((m, i) => ({ m, seat: SEATS[i], idx: i, ...seatBox(SEATS[i], W, H, scale, mateImg(m.characterAsset)) }));
+    const hero = { seat: HERO_SEAT, ...seatBox(HERO_SEAT, W, H, scale, heroImg(heroId)) };
+    return { people, hero, scale };
+  };
+  // 手機太窄、臉會互相碰到：整體縮成 85%（位置與前後層次不變）
+  let L = build(1);
+  const all = [L.hero, ...L.people];
+  const clash = all.some((a, i) => all.some((b, j) => j > i && facesOverlap(a.face, b.face)));
+  if (clash || W < 330) L = build(0.85);
+  // 餐桌：前緣切在前排的腰部（腿被桌子擋住）
+  const front = [L.hero, ...L.people.filter((p) => p.seat.row === 'front')];
+  const edge0 = Math.min(...front.map((p) => p.y + p.ih * 0.56));
+  const T = { cx: W / 2, rx: W * 0.78, cy: H * 1.12, e0: edge0 };
+  T.ry = T.cy - edge0;
+  return { ...L, T };
+}
+const tableEdgeAt = (T, x) => { const t = Math.min(0.97, Math.abs(x - T.cx) / T.rx); return T.cy - T.ry * Math.sqrt(1 - t * t); };
+
+// 前景餐桌（z 6）：白桌巾、桌裙、玻璃轉盤
+function StageTable({ T, W, H }) {
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, width: W, height: H, zIndex: 6 }}>
+      <Svg width={W} height={H}>
+        <Defs>
+          <RadialGradient id="stCloth" cx="50%" cy="8%" rx="55%" ry="60%">
+            <Stop offset="0" stopColor="#fffdf7" />
+            <Stop offset="0.6" stopColor="#efe4d0" />
+            <Stop offset="1" stopColor="#c7b393" />
+          </RadialGradient>
+          <LinearGradient id="stShade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#3a2410" stopOpacity="0.4" />
+            <Stop offset="0.12" stopColor="#3a2410" stopOpacity="0.06" />
+            <Stop offset="1" stopColor="#3a2410" stopOpacity="0" />
+          </LinearGradient>
+          <RadialGradient id="stGlass" cx="45%" cy="35%" rx="65%" ry="70%">
+            <Stop offset="0" stopColor="#ffffff" stopOpacity="0.6" />
+            <Stop offset="0.6" stopColor="#d9e4ea" stopOpacity="0.3" />
+            <Stop offset="1" stopColor="#8fa3ad" stopOpacity="0.4" />
+          </RadialGradient>
+        </Defs>
+        <Ellipse cx={T.cx} cy={T.cy} rx={T.rx} ry={T.ry} fill="url(#stCloth)" />
+        <Ellipse cx={T.cx} cy={T.cy} rx={T.rx} ry={T.ry} fill="url(#stShade)" />
+        <Ellipse cx={T.cx} cy={T.cy} rx={T.rx - 1} ry={T.ry - 1} fill="none" stroke="rgba(140,110,70,0.4)" strokeWidth={1.2} />
+        {T.susanY ? (
+          <>
+            <Ellipse cx={T.cx} cy={T.susanY + 4} rx={W * 0.28} ry={15} fill="rgba(80,60,40,0.16)" />
+            <Ellipse cx={T.cx} cy={T.susanY} rx={W * 0.28} ry={15} fill="url(#stGlass)" stroke="rgba(255,255,255,0.85)" strokeWidth={1.3} />
+          </>
+        ) : null}
+      </Svg>
+      {T.susanY ? [['🥟', -0.17], ['🍲', 0], ['🍗', 0.17]].map(([e, dx]) => (
+        <View key={e} style={{ position: 'absolute', left: T.cx + dx * W - 13, top: T.susanY - 20 }}><Emo e={e} size={26} /></View>
+      )) : null}
+    </View>
+  );
+}
+
+// 一個人（同學或主角）：進場、請客時彈跳、各種小道具
+function StageActor({ p, hero, mode, order, act, game, top }) {
   const inV = useRef(new Animated.Value(0)).current;
   const hop = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.timing(inV, { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.back(1.4)), useNativeDriver: ND }).start();
-    if (mode !== 'treat' && mode !== 'info') return undefined;
-    // 請客：大家歡呼跳起來｜交換情報：輕輕點頭
+    Animated.timing(inV, { toValue: 1, duration: 480, delay: 150 + order * 110, easing: Easing.out(Easing.back(1.4)), useNativeDriver: ND }).start();
+    if (hero || (mode !== 'treat' && mode !== 'info')) return undefined;
+    // 請客：五位同學依序彈跳歡呼｜交換情報：輕輕點頭
     const up = mode === 'treat' ? 1 : 0.3;
     const loop = Animated.loop(Animated.sequence([
-      Animated.delay(idx * 110),
-      Animated.timing(hop, { toValue: up, duration: 260, easing: Easing.out(Easing.quad), useNativeDriver: ND }),
-      Animated.timing(hop, { toValue: 0, duration: 320, easing: Easing.in(Easing.bounce), useNativeDriver: ND }),
-      Animated.delay(mode === 'treat' ? 360 : 900),
+      Animated.delay(order * 140),
+      Animated.timing(hop, { toValue: up, duration: 240, easing: Easing.out(Easing.quad), useNativeDriver: ND }),
+      Animated.timing(hop, { toValue: 0, duration: 300, easing: Easing.in(Easing.bounce), useNativeDriver: ND }),
+      Animated.delay(mode === 'treat' ? 5 * 140 - order * 140 + 300 : 900),
     ]));
-    const t = setTimeout(() => loop.start(), 700);
+    const t = setTimeout(() => loop.start(), 650);
     return () => { clearTimeout(t); loop.stop(); };
   }, [mode]);
-  const tilt = mode === 'info' ? (idx % 2 ? '4deg' : '-4deg') : '0deg';
-  const deco = mode === 'treat' ? ['🙌', '🎉', '👏', '🥳', '🎊'][idx % 5]
-    : mode === 'quiet' ? (idx % 2 ? '🍵' : '🍜')
-      : mode === 'info' ? (idx % 2 ? '💬' : '📱') : null;
-  const emo = Math.max(18, Math.min(30, it.headW * 0.9));
-  // 道具位置：歡呼／對話在頭上，吃飯／手機在胸前
-  const decoTop = mode === 'treat' || deco === '💬' ? -emo - 2 : it.fh * 0.36;
+  const deco = hero ? null
+    : mode === 'treat' ? ['🙌', '🎉', '👏', '🥳', '🎊'][order % 5]
+      : mode === 'info' ? (order % 2 ? '💬' : '📱') : null;
+  const emo = Math.max(16, Math.min(26, p.headW * 0.95));
+  const heroMove = hero && mode === 'treat'
+    ? [{ translateY: act.interpolate({ inputRange: [0, 1], outputRange: [0, -12] }) }, { scale: act.interpolate({ inputRange: [0, 1], outputRange: [1, 1.08] }) }]
+    : [];
   return (
-    <>
-      <Animated.View style={{
-        position: 'absolute', left: it.x, top: it.y, opacity: inV,
-        transform: [
-          { translateY: Animated.add(inV.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }), hop.interpolate({ inputRange: [0, 1], outputRange: [0, -it.fh * 0.09] })) },
-          { rotate: tilt },
-        ],
-      }}>
-        <View style={{ opacity: mode === 'quiet' ? 0.85 : 1 }}><MateFigure asset={it.m.characterAsset} height={it.fh} /></View>
-        {deco ? <View style={{ position: 'absolute', left: it.hd.cx * it.fw - emo / 2 + (mode === 'treat' || deco === '💬' ? 0 : it.headW * 0.3), top: decoTop }}><Emo e={deco} size={emo} /></View> : null}
-      </Animated.View>
-      <Animated.View style={{ position: 'absolute', left: it.headX - labelW / 2, bottom: 2, width: labelW, opacity: inV, alignItems: 'center' }}>
-        <Text numberOfLines={1} style={{ color: '#fff', fontSize: 10.5, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 }}>{it.m.name}</Text>
-        <Text numberOfLines={1} style={{ color: '#d4dafc', fontSize: 9, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 }}>{it.m.title || '同學'}</Text>
-      </Animated.View>
-    </>
+    <Animated.View style={{
+      position: 'absolute', left: p.x, top: p.y, width: p.iw, height: p.ih, zIndex: p.seat.z, opacity: inV,
+      ...(WEB ? { transformOrigin: 'top center' } : null),
+      transform: [
+        { translateY: Animated.add(inV.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }), hop.interpolate({ inputRange: [0, 1], outputRange: [0, -p.ih * 0.08] })) },
+        ...heroMove,
+        { rotate: mode === 'info' && !hero ? (p.seat.left + p.seat.width / 2 < 0.5 ? '4deg' : p.seat.left + p.seat.width / 2 > 0.5 ? '-4deg' : '0deg') : '0deg' }, // 交換情報：身體往中間靠
+      ],
+    }}>
+      {top ? <View style={{ position: 'absolute', left: p.headX - p.x - 9, top: -20 }}><Emo e="👑" size={18} /></View> : null}
+      {hero
+        ? <Sprite age={game.age} gender={game.gender} height={p.ih} />
+        : <View style={{ opacity: mode === 'quiet' ? 0.9 : 1 }}><MateFigure asset={p.m.characterAsset} height={p.ih} /></View>}
+      {deco ? (
+        <View style={{ position: 'absolute', left: p.headX - p.x - emo / 2 + (deco === '📱' ? p.headW * 0.5 : 0), top: deco === '📱' ? p.ih * 0.3 : -emo - 1 }}><Emo e={deco} size={emo} /></View>
+      ) : null}
+    </Animated.View>
   );
 }
 
 const reunionMode = (choice) => (!choice ? 'intro' : /請客/.test(choice) ? 'treat' : /投資情報/.test(choice) ? 'info' : /拚/.test(choice) ? 'rival' : 'quiet');
 
-export function ReunionStage({ game, choice, height = 330, style }) {
-  const [w, setW] = useState(0);
+export function ReunionStage({ game, choice, style }) {
+  const [W, setW] = useState(0);
   const inV = useRef(new Animated.Value(0)).current;
   const act = useRef(new Animated.Value(0)).current;
   const loop = useLoop(900, true);
   const mode = reunionMode(choice);
   useEffect(() => {
     Animated.timing(inV, { toValue: 1, duration: 500, useNativeDriver: ND }).start();
-    Animated.timing(act, { toValue: 1, duration: 750, delay: 300, easing: Easing.out(Easing.back(1.4)), useNativeDriver: ND }).start();
+    Animated.timing(act, { toValue: 1, duration: 600, delay: 300, easing: Easing.out(Easing.back(1.6)), useNativeDriver: ND }).start();
   }, []);
-  const mates = selectedClassmates(game).slice(0, 5); // 只有這次抽到的五位
-  const age = game.age; const gender = game.gender;
-  const heroId = cid(stageOf(age), gk(gender));
-  const heroH0 = height - LABEL_H - 46; // 頭上留空間給信用卡
-  const L = w && mode !== 'rival' ? reunionLayout(mates, w, height, heroId, heroH0) : null;
+  // 本次的五位同學（selectedClassmates，不重抽），依資產排名放進同學 1～5
+  const mates = [...selectedClassmates(game).slice(0, 5)].sort((a, b) => (b.nw || 0) - (a.nw || 0));
+  const heroId = cid(stageOf(game.age), gk(game.gender));
+  const H = Math.round(W * STAGE_AR);
+  const L = W ? reunionLayout(mates, W, H, heroId) : null;
 
-  let rivalData = null; let rivalMate = null;
+  let rivalData = null; let rivalId = null;
   if (mode === 'rival') {
     const list = ranking(game, netWorthOf(game));
     const top = list.find((x) => !x.me);
     if (top) {
-      rivalMate = mates.find((m) => m.id === top.id) || top;
-      const from = Math.min(22, Math.max(0, age - 4));
-      const ages = []; for (let a = from; a <= age; a += 1) ages.push(a);
+      rivalId = top.id;
+      const from = Math.min(22, Math.max(0, game.age - 4));
+      const ages = []; for (let a = from; a <= game.age; a += 1) ages.push(a);
       const mine = ages.map((a) => (game.history && game.history[a] != null ? game.history[a] : 0));
       const theirs = ages.map((a, i) => {
         if (top.hist && top.hist[a] != null) return top.hist[a];
@@ -681,82 +749,79 @@ export function ReunionStage({ game, choice, height = 330, style }) {
       rivalData = { mine, theirs, name: top.name };
     }
   }
-  const heroH = L ? L.heroH : heroH0;
-  const heroW = (heroH * SIZE[heroId][0]) / SIZE[heroId][1];
-  const heroLeft = mode === 'rival' ? w * 0.66 - HEAD[heroId][0] * heroW : w / 2 - heroW / 2;
-  const heroBottom = LABEL_H;
-  const labelW = L ? Math.max(40, Math.min(70, L.step - 2)) : 60;
-  // 拚一下：第一名站在你旁邊
-  let rv = null;
-  if (mode === 'rival' && rivalMate && w) {
-    const fh = heroH * 0.88; const fw = cmW(rivalMate.characterAsset, fh); const hd = cmHead(rivalMate.characterAsset);
-    const headX = w * 0.88;
-    rv = { m: rivalMate, fh, fw, hd, headX, headW: hd.hw * fw, x: headX - hd.cx * fw, y: height - LABEL_H - fh };
-  }
+  const labelW = W * 0.21;
+  if (L) { const room = H - (L.T.e0 + 3 + 25 + 26); L.T.susanY = room >= 34 ? H - room / 2 : 0; }
+  // 名牌放在桌上：後排一行、前排（含你）一行，不會蓋到任何人的臉
+  const farY = L ? L.T.e0 + 3 : 0;
+  const nearY = farY + 25;
   return (
-    <Animated.View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={[{ width: '100%', height, borderRadius: 18, overflow: 'hidden', backgroundColor: '#15183d', opacity: inV }, style]}>
-      {/* 固定的餐廳場景 */}
-      <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: [{ scale: inV.interpolate({ inputRange: [0, 1], outputRange: [1.06, 1] }) }] }}>
-        <Pic src={PHOTO.restaurant} width="100%" height="100%" cover />
+    <View style={style} onLayout={(e) => setW(e.nativeEvent.layout.width)}>
+      <Animated.View style={{ width: '100%', height: H || 220, borderRadius: 18, overflow: 'hidden', backgroundColor: '#15183d', opacity: inV }}>
+        {/* 固定的餐廳場景 */}
+        <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, transform: [{ scale: inV.interpolate({ inputRange: [0, 1], outputRange: [1.06, 1] }) }] }}>
+          <Pic src={PHOTO.restaurant} width="100%" height="100%" cover />
+        </Animated.View>
+        {mode === 'quiet' ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(8,10,30,0.28)', zIndex: 1 }} /> : null}
+        {L ? (
+          <>
+            {/* 後排同學站在椅子後面：椅背（z 3）擋住腿 */}
+            {L.people.filter((p) => p.seat.row === 'back').map((p) => (
+              <View key={`ch${p.m.id}`} pointerEvents="none" style={{ position: 'absolute', zIndex: 3, left: p.cx - p.bw * 0.46, top: p.y + p.ih * 0.6 }}>
+                <Pic src={PHOTO.rt_chair} width={p.bw * 0.92} height={p.bw * 0.92 * 1.13} />
+              </View>
+            ))}
+            {L.people.map((p) => <StageActor key={p.m.id} p={p} mode={mode} order={p.idx} act={act} game={game} top={mode === 'rival' && p.m.id === rivalId} />)}
+            <StageActor key="me" p={L.hero} hero mode={mode} order={5} act={act} game={game} />
+            <StageTable T={L.T} W={W} H={H} />
+            {/* 名牌（z 7） */}
+            {L.people.map((p) => (
+              <View key={`pc${p.m.id}`} style={{ position: 'absolute', left: 0, top: 0, zIndex: 7 }}>
+                <PlaceCard x={p.cx} y={p.seat.row === 'back' ? farY : nearY} name={p.m.name} job={p.m.title || '同學'} maxW={labelW} />
+              </View>
+            ))}
+            <View style={{ position: 'absolute', left: 0, top: 0, zIndex: 7 }}>
+              <PlaceCard x={L.hero.cx} y={nearY} name="你" job={game.name} me maxW={labelW} />
+            </View>
+            {mode === 'quiet' ? [L.hero, ...L.people].map((p, i) => (
+              // 低調吃飯：每個人面前一碗，冒熱氣
+              <View key={`bowl${i}`} pointerEvents="none" style={{ position: 'absolute', zIndex: 7, left: p.cx + (p.seat.row === 'back' ? labelW * 0.5 + 2 : -labelW * 0.5 - 24), top: (p.seat.row === 'back' ? farY : nearY) - 2 }}>
+                <Emo e={i % 2 ? '🍵' : '🍜'} size={24} />
+                <Animated.Text style={{ position: 'absolute', left: 7, top: -12, color: 'rgba(255,255,255,0.85)', fontSize: 12, opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.9] }), transform: [{ translateY: loop.interpolate({ inputRange: [0, 1], outputRange: [3, -5] }) }] }}>〰</Animated.Text>
+              </View>
+            )) : null}
+            {mode === 'treat' ? (
+              <>
+                {/* 拿出信用卡：在主角頭旁邊高舉 */}
+                <Animated.View style={{
+                  position: 'absolute', zIndex: 8, left: L.hero.headX + L.hero.headW * 0.7, top: Math.max(2, L.hero.y - 16),
+                  opacity: act,
+                  transform: [
+                    { translateY: act.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) },
+                    { rotate: loop.interpolate({ inputRange: [0, 1], outputRange: ['-10deg', '8deg'] }) },
+                  ],
+                }}>
+                  <CreditCard w={Math.max(40, W * 0.13)} />
+                </Animated.View>
+                <Animated.View style={{ position: 'absolute', zIndex: 8, left: L.hero.headX - L.hero.headW * 0.7 - 104, top: Math.max(2, L.hero.y - 20), width: 100, alignItems: 'flex-end', opacity: act, transform: [{ scale: act }] }}>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ fontWeight: '900', color: '#1b1b24', fontSize: 11 }}>今天我請客！</Text></View>
+                </Animated.View>
+              </>
+            ) : null}
+            {mode === 'info' ? (
+              <Animated.View style={{ position: 'absolute', zIndex: 8, left: W / 2 - 60, bottom: 4, width: 120, alignItems: 'center', opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
+                <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 }}><Text style={{ fontSize: 11, fontWeight: '800', color: '#1b1b24' }}>💬 這支會漲嗎？</Text></View>
+              </Animated.View>
+            ) : null}
+          </>
+        ) : null}
       </Animated.View>
-      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, height: LABEL_H + 16, backgroundColor: 'rgba(8,10,30,0.35)' }, WEB ? { backgroundImage: 'linear-gradient(180deg, rgba(8,10,30,0) 0%, rgba(8,10,30,0.75) 70%)', backgroundColor: 'transparent' } : null]} />
-      {mode === 'quiet' ? <View style={{ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(8,10,30,0.3)' }} /> : null}
-      {w > 0 ? (
-        <>
-          {mode === 'rival' && rivalData ? (
-            <Animated.View style={{ position: 'absolute', left: 10, top: 10, width: w * 0.54, height: height - 20, borderRadius: 12, backgroundColor: 'rgba(10,8,30,0.72)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.35)', opacity: act }}>
-              <RivalChart me={rivalData.mine} rival={rivalData.theirs} rivalName={rivalData.name} w={w * 0.54} h={height - 20} />
-            </Animated.View>
-          ) : null}
-          {/* 周圍：本次的五位同學（外圈先畫，越靠近你越前面） */}
-          {L ? [...L.items].sort((a, b) => b.ring - a.ring).map((it) => (
-            <MateActor key={it.m.id} it={it} delay={200 + mates.indexOf(it.m) * 110} mode={mode} idx={mates.indexOf(it.m)} labelW={labelW} />
-          )) : null}
-          {rv ? <MateActor it={rv} delay={250} mode="rival" idx={0} labelW={64} /> : null}
-          {/* 中間：你 */}
-          <Animated.View style={{
-            position: 'absolute', left: heroLeft, bottom: heroBottom,
-            transform: [
-              { translateY: act.interpolate({ inputRange: [0, 1], outputRange: mode === 'treat' ? [height * 0.18, 0] : [14, 0] }) },
-              { scale: act.interpolate({ inputRange: [0, 1], outputRange: [0.95, mode === 'treat' ? 1.05 : 1] }) },
-            ],
-          }}>
-            <Sprite age={age} gender={gender} height={heroH} />
-          </Animated.View>
-          <View style={{ position: 'absolute', left: (mode === 'rival' ? heroLeft + HEAD[heroId][0] * heroW : w / 2) - 30, bottom: 2, width: 60, alignItems: 'center' }}>
-            <Text style={{ color: '#ffd76a', fontSize: 11, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 }}>你</Text>
-            <Text numberOfLines={1} style={{ color: '#ffe9a8', fontSize: 9, textShadowColor: 'rgba(0,0,0,0.8)', textShadowRadius: 3 }}>{game.name}</Text>
-          </View>
-          {mode === 'treat' ? (
-            <>
-              {/* 站起來高舉信用卡 */}
-              <Animated.View style={{
-                position: 'absolute', left: w / 2 + 2, top: 4,
-                transform: [
-                  { translateY: act.interpolate({ inputRange: [0, 1], outputRange: [height * 0.45, 0] }) },
-                  { rotate: loop.interpolate({ inputRange: [0, 1], outputRange: ['-10deg', '8deg'] }) },
-                ],
-              }}>
-                <CreditCard w={58} />
-              </Animated.View>
-              <Animated.View style={{ position: 'absolute', left: w / 2 - 128, top: 8, width: 120, alignItems: 'flex-end', opacity: act, transform: [{ scale: act }] }}>
-                <View style={{ backgroundColor: '#fff', borderRadius: 14, paddingHorizontal: 9, paddingVertical: 4 }}><Text style={{ fontWeight: '900', color: '#1b1b24', fontSize: 12 }}>今天我請客！</Text></View>
-              </Animated.View>
-            </>
-          ) : null}
-          {mode === 'info' ? (
-            <Animated.View style={{ position: 'absolute', left: w / 2 - 70, top: 8, width: 140, alignItems: 'center', opacity: loop.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 }}><Text style={{ fontSize: 12, fontWeight: '800', color: '#1b1b24' }}>💬 這支會漲嗎？</Text></View>
-            </Animated.View>
-          ) : null}
-          {mode === 'quiet' ? (
-            <Animated.View style={{ position: 'absolute', left: w / 2 - 50, top: 8, width: 100, alignItems: 'center', opacity: act }}>
-              <View style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 2 }}><Text style={{ fontSize: 16, fontWeight: '900', color: '#555' }}>……</Text></View>
-            </Animated.View>
-          ) : null}
-        </>
+      {/* 拚一下：座位不動，折線圖放在舞台下方 */}
+      {mode === 'rival' && rivalData && W ? (
+        <Animated.View style={{ marginTop: 8, width: W, height: 120, borderRadius: 12, backgroundColor: 'rgba(10,8,30,0.85)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.35)', opacity: act }}>
+          <RivalChart me={rivalData.mine} rival={rivalData.theirs} rivalName={rivalData.name} w={W} h={120} />
+        </Animated.View>
       ) : null}
-    </Animated.View>
+    </View>
   );
 }
 
