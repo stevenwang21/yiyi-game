@@ -2,6 +2,9 @@
 // 同學會十秒場：四個選項各有自己的十秒動畫
 // 需要：react、framer-motion、tailwindcss
 //
+// 時間軸：0 待機用餐 → 1 起手式（0–2s）→ 2 核心特效（2–5s）
+//         → 3 全場敬酒拍手（5–8s）→ 4 結果卡（8–10s）
+//
 // 人物圖請用「全身、透明背景」的直式 PNG，切齊頭頂和鞋底。
 // 六個人平均分散成一排，不互相遮住；版面用身高排，每個人在畫面上一樣高
 // （玩家高一點），鞋子剛好落在前景圓桌的上緣。
@@ -87,12 +90,14 @@ const TONE = {
 };
 
 // ─────────── 一個人 ───────────
-function Character({ c, seat, opt, stage, isTop }) {
+function Character({ c, seat, opt, stage, isTop, idx = 0 }) {
   const isPlayer = !!c.isPlayer;
+  const idle = !opt || stage === 0;
 
   // 每個選項在每個階段，這個人要做什麼動作
   const anim = (() => {
-    if (!opt || stage === 0) return { y: 0, scale: 1, rotate: 0 };
+    // 待機：一桌人正在吃飯，輕輕晃、輕輕呼吸，每個人節奏錯開
+    if (idle) return { y: [0, -3.5, 0], scale: 1, rotate: [0, idx % 2 ? 0.7 : -0.7, 0] };
     if (opt === 'treat') {
       if (isPlayer) return { y: stage >= 1 ? -14 : 0, scale: stage >= 1 ? 1.1 : 1, rotate: 0 };
       if (stage >= 3) return { y: [0, -16, 0], scale: 1.04, rotate: [0, -4, 4, 0] };
@@ -122,12 +127,16 @@ function Character({ c, seat, opt, stage, isTop }) {
         className="h-full flex justify-center items-start"
         style={{ originY: 1 }}
         animate={anim}
-        transition={{
-          duration: stage >= 3 ? 0.55 : 0.5,
-          repeat: (opt === 'treat' && stage >= 3 && !isPlayer) || (opt === 'chat' && stage >= 2) ? Infinity : 0,
-          repeatDelay: opt === 'chat' ? 0.9 : 0.35,
-          ease: 'easeOut',
-        }}
+        transition={
+          idle
+            ? { duration: 2.4 + idx * 0.28, repeat: Infinity, ease: 'easeInOut' }
+            : {
+                duration: stage >= 3 ? 0.55 : 0.5,
+                repeat: (opt === 'treat' && stage >= 3 && !isPlayer) || (opt === 'chat' && stage >= 2) ? Infinity : 0,
+                repeatDelay: opt === 'chat' ? 0.9 : 0.35,
+                ease: 'easeOut',
+              }
+        }
       >
         <img
           src={c.avatar}
@@ -191,9 +200,9 @@ function TreatFx({ stage }) {
           <motion.div
             key="card"
             className="absolute z-[8]"
-            style={{ left: '62%', top: '2%', width: '15%' }}
+            style={{ left: '62%', top: '24%', width: '12%' }}
             initial={{ opacity: 0, y: 50, rotate: -20 }}
-            animate={{ opacity: 1, y: 0, rotate: [-8, 8, -8] }}
+            animate={{ opacity: 1, y: 0, rotate: [-5, 5, -5] }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5, rotate: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } }}
           >
@@ -210,7 +219,7 @@ function TreatFx({ stage }) {
           <motion.div
             key="bubble"
             className="absolute z-[8]"
-            style={{ left: '2%', top: '6%' }}
+            style={{ left: '2%', top: '22%' }}
             initial={{ opacity: 0, scale: 0.5, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.7 }}
@@ -372,6 +381,44 @@ function InvestFx({ stage }) {
   );
 }
 
+// ─────────── 5–8 秒：全場舉杯敬酒、拍手 ───────────
+// 每個人頭上冒出一個動作，錯開時間，看起來像一桌人真的在互動。
+const TOAST = {
+  treat:  ['🥂', '🙌', '🍻', '🥂', '🍻', '🎉'],
+  chat:   ['😆', '🍻', '😄', '🥢', '😆', '🍵'],
+  invest: ['👏', '🤔', '📈', '😮', '👏', '🤫'],
+};
+function ToastFx({ stage, opt }) {
+  const set = TOAST[opt];
+  return (
+    <AnimatePresence>
+      {stage >= 3 && set && (
+        <div key="toast" className="absolute inset-0 z-[9] pointer-events-none">
+          {SEATS.map((s, i) => (
+            <motion.div
+              key={'t' + i}
+              className="absolute text-lg sm:text-2xl"
+              style={{ left: s.cx - 2 + '%', top: 'calc(' + s.top + ' - 7%)' }}
+              initial={{ opacity: 0, scale: 0.3, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: [0, -9, 0] }}
+              exit={{ opacity: 0, scale: 0.4 }}
+              transition={{
+                duration: 1.1,
+                delay: i * 0.13,
+                repeat: Infinity,
+                repeatType: 'reverse',
+                ease: 'easeOut',
+              }}
+            >
+              {set[i] || null}
+            </motion.div>
+          ))}
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 // ─────────── 拚一下：舞台下方的資產折線圖（跟遊戲裡原本的做法一樣）───────────
 // 從 22 歲（或更早）一路畫到現在，你是金色、對手是紅色，線一格一格長出來。
 function rivalSeries(player, top) {
@@ -465,10 +512,9 @@ export default function Reunion10sScene({
     setAnimStage(1);
     setTimerProgress(0);
 
-    const slow = option === 'chat' || option === 'compete';
-    timers.current.push(setTimeout(() => setAnimStage(2), 2000));
-    timers.current.push(setTimeout(() => setAnimStage(3), slow ? 6000 : 5000));
-    timers.current.push(setTimeout(() => setAnimStage(4), 8000));
+    timers.current.push(setTimeout(() => setAnimStage(2), 2000));   // 起手式結束
+    timers.current.push(setTimeout(() => setAnimStage(3), 5000));   // 全場敬酒拍手
+    timers.current.push(setTimeout(() => setAnimStage(4), 8000));   // 結果卡
 
     const started = Date.now();
     const iv = setInterval(() => {
@@ -539,6 +585,7 @@ export default function Reunion10sScene({
             <Character
               key={c.id}
               c={c}
+              idx={i}
               seat={SEATS[i]}
               opt={activeOption}
               stage={animStage}
@@ -557,9 +604,14 @@ export default function Reunion10sScene({
             className="absolute z-[6] pointer-events-none left-1/2 -translate-x-1/2 rounded-[50%] border border-white/50"
             style={{ top: '86%', width: '58%', height: '8%', background: 'linear-gradient(180deg,rgba(255,255,255,0.55),rgba(190,205,215,0.35))' }}
           />
-          <div className="absolute z-[6] pointer-events-none left-1/2 -translate-x-1/2 flex gap-[18%] text-sm sm:text-lg" style={{ top: '85%' }}>
+          <motion.div
+            className="absolute z-[6] pointer-events-none left-1/2 flex gap-[18%] text-sm sm:text-lg"
+            style={{ top: '85%' }}
+            animate={{ x: ['-50%', '-46%', '-54%', '-50%'] }}
+            transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+          >
             <span>🥟</span><span>🍲</span><span>🍗</span>
-          </div>
+          </motion.div>
 
           {allCharacters.map((c, i) => (
             <PlaceCard key={'p' + c.id} c={c} seat={SEATS[i]} />
@@ -568,6 +620,7 @@ export default function Reunion10sScene({
           {activeOption === 'treat' && <TreatFx stage={animStage} />}
           {activeOption === 'chat' && <ChatFx stage={animStage} />}
           {activeOption === 'invest' && <InvestFx stage={animStage} />}
+          <ToastFx stage={animStage} opt={activeOption} />
 
 
           {/* 十秒進度條 */}
@@ -679,7 +732,7 @@ export default function Reunion10sScene({
         </AnimatePresence>
 
         <p className="text-[11px] leading-relaxed text-indigo-200/45">
-          時間軸：0–2 秒起手式 → 2–5／6 秒核心特效 → 8 秒前全場互動 → 8–10 秒結果卡。
+          時間軸：0–2 秒起手式 → 2–5 秒核心特效 → 5–8 秒全場敬酒拍手 → 8–10 秒結果卡。沒選之前一桌人會自己輕輕動。
           四個選項的動作完全不同，可以按「繼續」再選別的看。
         </p>
       </div>
