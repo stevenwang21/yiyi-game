@@ -58,9 +58,11 @@ function play(seed, mode, target, difficulty = 'normal') {
       const extra = mode === 'random'
         ? opts.map((o) => o.id).sort(() => rng() - 0.5)
         : (s.studying ? ['study', 'sport', 'finance'] : ['work', 'gym', 'invest', 'runbiz', 'date', 'family']);
+      const cap = E.focusEnergy(s);
       for (const id of extra) {
-        if (picks.length >= E.focusSlots(s)) break;
-        if (!picks.includes(id) && opts.some((o) => o.id === id)) picks.push(id);
+        if (picks.includes(id) || !opts.some((o) => o.id === id)) continue;
+        if (E.focusUsed(picks) + E.focusCost(id) > cap) continue;
+        picks.push(id);
       }
       s = E.setFocuses(s, picks);
     }

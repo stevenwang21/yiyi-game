@@ -161,7 +161,7 @@ export const ASSETS = [
   { key: 'deposit', name: '定存', short: '存', risk: 1, desc: '年利率 1.5%，最安全' },
   { key: 'etf', name: '指數型 ETF', short: 'ETF', risk: 2, desc: '長期平均約 7%，適合定期定額' },
   { key: 'stock', name: '個股', short: '股', risk: 4, desc: '波動大，投資眼光越好越準' },
-  { key: 'gold', name: '黃金', short: '金', risk: 2, desc: '股災時通常會漲，可以避險' },
+  { key: 'gold', name: '黃金', short: '金', risk: 3, desc: '長期輸 ETF，但股災和通膨時最抗跌' },
   { key: 'crypto', name: '加密貨幣', short: '幣', risk: 5, desc: '可能翻好幾倍，也可能歸零' },
 ];
 

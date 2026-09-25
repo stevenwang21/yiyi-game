@@ -65,7 +65,7 @@ export function Bar({ value, max = 100, color, height = 8, track }) {
 // 副標的色塊：加的綠、扣的紅、花錢的金、純說明灰
 const TONE_COLOR = { up: C.green, down: C.red, cost: C.goldInk, flat: C.muted };
 
-export function Chip({ label, sub, subParts, urgent, icon, on, disabled, onPress, style, plain }) {
+export function Chip({ label, sub, subParts, urgent, cost, icon, on, disabled, onPress, style, plain }) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -76,6 +76,7 @@ export function Chip({ label, sub, subParts, urgent, icon, on, disabled, onPress
     >
       {on && !plain ? <View style={styles.check}><Text style={styles.checkText}>✓</Text></View> : null}
       {urgent && !on ? <View style={styles.urgentDot} /> : null}
+      {cost > 1 ? <View style={styles.costTag}><Text style={styles.costTagText}>⚡{cost}</Text></View> : null}
       <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>
         {icon ? `${icon} ` : ''}{label}
       </Text>
@@ -142,6 +143,11 @@ const styles = StyleSheet.create({
   chipSub: { fontSize: 10.5, lineHeight: 13.5, textAlign: 'center', color: C.muted },
   subBox: { minHeight: 27, marginTop: 2, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
   chipUrgent: { borderColor: C.gold },
+  costTag: {
+    position: 'absolute', top: -7, left: -5, paddingHorizontal: 5, paddingVertical: 1,
+    borderRadius: 8, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: 'rgba(157,140,255,0.55)',
+  },
+  costTagText: { fontSize: 9.5, fontWeight: '800', color: C.primaryInk },
   urgentDot: { position: 'absolute', top: -4, right: -3, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold },
   check: {
     position: 'absolute', top: -7, right: -5, width: 20, height: 20, borderRadius: 10,

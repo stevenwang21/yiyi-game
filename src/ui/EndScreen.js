@@ -107,7 +107,7 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
             <Text style={styles.scoreNote}>{E.diffOf(game).name}難度加成：{score.base} × {score.mult} = {score.total} 點</Text>
           ) : null}
           <Text style={styles.scoreNote}>
-            點數已經存起來了{meta ? `（目前共 ${meta.points} 點）` : ''}。回到首頁可以買永久升級：每年多做一件事、延後退休。
+            點數已經存起來了{meta ? `（目前共 ${meta.points} 點）` : ''}。回到首頁可以買永久升級：每年多一點精力、延後退休。
           </Text>
         </Card>
         </FadeIn>

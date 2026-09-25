@@ -1,5 +1,5 @@
 // 傳承點數：每玩完一輩子，依這一生的成就換成點數，存在首頁。
-// 點數可以買「永久升級」（每年多做一件事、延後退休），買了之後每一輩子都有效。
+// 點數可以買「永久升級」（每年多一點精力、延後退休），買了之後每一輩子都有效。
 import { YI } from './utils.js';
 
 const WAN = 10000;
@@ -9,12 +9,12 @@ export const BASE_RETIRE = 65;
 
 export const META_UPGRADES = {
   slots: {
-    name: '每年多做一件事',
+    name: '每年多一點精力',
     icon: '⚡',
-    max: 2, // 3 件 → 最多 5 件
+    max: 2,
     cost: (lv) => [40, 80][lv],
-    now: (lv) => `每年可以同時做 ${BASE_SLOTS + lv} 件事`,
-    next: (lv) => `${BASE_SLOTS + lv} → ${BASE_SLOTS + lv + 1} 件`,
+    now: (lv) => `每年精力 ${4 + lv} 點（輕鬆的事 1 點、累的事 2 點）`,
+    next: (lv) => `精力 ${4 + lv} → ${5 + lv} 點`,
   },
   retire: {
     name: '延後退休',

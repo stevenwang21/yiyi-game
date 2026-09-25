@@ -293,7 +293,7 @@ export function focusOptions(s) {
     if (s.bizs.filter((b) => !b.group).length < MAX_BIZ && s.age >= 18) ids.push('startbiz');
   }
   return ids.map((id) => {
-    const o = { id, ...FOCUS[id], disabled: false };
+    const o = { id, ...FOCUS[id], disabled: false, cost: focusCost(id) };
     const parts = focusSub(s, id);
     if (parts) { o.subParts = parts; o.sub = null; }
     // 花錢的行動：
@@ -338,7 +338,30 @@ export function focusOptions(s) {
 // 選了一份工作要做滿幾年才能轉職或挑戰更高的工作
 export const JOB_LOCK_YEARS = 5;
 
-export const focusSlots = (s) => s.focusSlots || BASE_FOCUS_SLOTS;
+// ── 精力 ──────────────────────────────────────────────
+// 原本是「一年固定選 3 件事」，每件事一樣重，選項之間沒有取捨，學會最佳解之後就變自動駕駛。
+// 改成一年有幾點精力，累的事情花 2 點、輕鬆的花 1 點：
+//   身體很好 → 多一點精力，做得動更多事（運動從打卡變成投資）
+//   上年紀、身體差 → 精力變少，做得動的事情跟著變少
+export const FOCUS_ENERGY = {
+  work: 2, runbiz: 2, startbiz: 2, cram: 2, learn: 2, parttime: 2,
+};
+export const focusCost = (id) => (FOCUS_ENERGY[id] === undefined ? 1 : FOCUS_ENERGY[id]);
+
+export const focusEnergy = (s) => {
+  let n = 4 + Math.min(2, (s.focusSlots || BASE_FOCUS_SLOTS) - BASE_FOCUS_SLOTS); // 永久升級照樣加
+  if (s.stats.hp >= 85) n += 1;
+  if (s.stats.hp < 35) n -= 1;
+  if (s.age >= 55) n -= 1;
+  if (s.age >= 70) n -= 1;
+  return Math.max(2, Math.min(7, n));
+};
+
+// 這幾件事總共要花幾點
+export const focusUsed = (ids) => (ids || []).reduce((a, id) => a + focusCost(id), 0);
+
+// 舊名字留著：還有地方在用「還能不能再選一個」的概念
+export const focusSlots = (s) => focusEnergy(s);
 
 // 目前選的重點（會自動去掉已經不能選的）
 export function getFocuses(s) {
@@ -346,7 +369,15 @@ export function getFocuses(s) {
   if (!opts.length) return [];
   const ok = new Set(opts.filter((o) => !o.disabled).map((o) => o.id));
   const list = (s.focuses || (s.focus ? [s.focus] : [])).filter((id) => ok.has(id));
-  const uniq = [...new Set(list)].slice(0, focusSlots(s));
+  // 依精力上限截斷（不是依件數）
+  const cap = focusEnergy(s);
+  const uniq = [];
+  let used = 0;
+  for (const id of [...new Set(list)]) {
+    const c = focusCost(id);
+    if (used + c > cap) continue;
+    uniq.push(id); used += c;
+  }
   return uniq.length ? uniq : [opts[0].id];
 }
 
@@ -362,7 +393,11 @@ export function toggleFocus(s0, id) {
     next = cur.filter((x) => x !== id);
     if (!next.length) return { state: s0, error: '至少要選一個' };
   } else {
-    if (cur.length >= focusSlots(s0)) return { state: s0, error: `一年最多選 ${focusSlots(s0)} 個，先取消一個（可以用點數增加上限）` };
+    const cap = focusEnergy(s0);
+    const need = focusCost(id);
+    if (focusUsed(cur) + need > cap) {
+      return { state: s0, error: `精力不夠了（這件事要 ${need} 點，只剩 ${cap - focusUsed(cur)} 點）。先取消一件，或把身體練好一點` };
+    }
     next = [...cur, id];
   }
   return { state: { ...s0, focuses: next, focus: next[0] } };
@@ -465,7 +500,9 @@ function rollWorld(s, rng) {
   const returns = {
     etf: gauss(rng, d.ret, sd(0.07, m.etf)) + (m.etf || 0) + rebound,
     stock: gauss(rng, d.ret, sd(0.15, m.stock)) + (m.stock || 0) + rebound * 1.2,
-    gold: gauss(rng, 0.03, sd(0.05, m.gold)) + (m.gold || 0),
+    // 黃金：真實世界的年波動大約 15%，原本只給 5%，結果變成「報酬比 ETF 高又永遠不會賠」，
+    // 五種資產等於退化成一種。改成 2.8%／13% 之後長期會輸 ETF，但股災和通膨照樣是最好的避風港（m.gold）。
+    gold: gauss(rng, 0.02, sd(0.13, m.gold)) + (m.gold || 0),
     // 加密幣：平均 7%、波動 28%。波動大會「來回磨損」（幾何平均 ≈ 平均 − 波動²/2），
     // 原本 4%/35% 磨損到每年實質 -2.1%，長期幾乎一定歸零；現在改成長期還是正的，但波動照樣很嚇人。
     crypto: Math.max(-0.9, Math.min(3, gauss(rng, 0.07, sd(0.28, m.crypto)) + (m.crypto || 0))),

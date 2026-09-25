@@ -42,7 +42,7 @@ const TUT_STEPS = [
   },
   {
     key: 'focus', title: '② 每年要做的事（最重要）',
-    text: '點一下選、再點取消，可以同時選幾件。選完才按過一年。',
+    text: '每年有幾點精力（右上角 ⚡）。輕鬆的事 1 點，標 ⚡2 的比較累。身體好精力多，老了會變少。',
   },
   {
     key: 'stats', title: '③ 四個屬性',
@@ -120,7 +120,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const progress = Math.max(0, Math.min(1, nw / E.YI));
   const focusOpts = E.focusOptions(s);
   const chosen = E.getFocuses(s);
-  const slots = E.focusSlots(s);
+  const slots = E.focusEnergy(s);          // 這一年的精力上限
+  const usedEnergy = E.focusUsed(E.getFocuses(s));
   const [focusMsg, setFocusMsg] = useState(null);
   const route = routeLabel(s);
   const fam = familyById(s.family).name;
@@ -399,7 +400,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             onLayout={(e) => { focusY.current = e.nativeEvent.layout.y; }}
           >
             {focusOpts.length ? (
-              <GroupHead title="今年要做什麼" right={<Text style={[styles.slotText, chosen.length >= slots && { color: C.primaryInk }]}>{`${chosen.length} / ${slots}`}</Text>} />
+              <GroupHead title="今年要做什麼" right={<Text style={[styles.slotText, usedEnergy >= slots && { color: C.primaryInk }]}>{`⚡ ${usedEnergy} / ${slots}`}</Text>} />
             ) : null}
             {focusOpts.length ? (
             <Card style={styles.focusCard}>
@@ -415,10 +416,11 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                         sub={o.sub}
                         subParts={o.subParts}
                         urgent={o.urgent}
+                        cost={o.cost}
                         icon={FOCUS_ICON[o.id]}
                         on={chosen.includes(o.id)}
-                        // 選滿之後，沒選到的直接變灰按不動，不用再跳紅字罵人
-                        disabled={o.disabled || (chosen.length >= slots && !chosen.includes(o.id))}
+                        // 精力不夠的直接變灰按不動，不用再跳紅字罵人
+                        disabled={o.disabled || (!chosen.includes(o.id) && usedEnergy + o.cost > slots)}
                         onPress={() => {
                           const r = E.toggleFocus(s, o.id);
                           setFocusMsg(r.error || null);

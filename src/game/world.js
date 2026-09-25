@@ -11,13 +11,13 @@ export const WORLD_EVENTS = [
   {
     id: 'ai', w: 7, title: 'AI 科技熱潮',
     desc: '人工智慧大爆發，科技股漲翻天。',
-    m: { etf: 0.12, stock: 0.2, crypto: 0.3 }, infl: 0.005,
+    m: { etf: 0.12, stock: 0.2, crypto: 0.3, gold: -0.1 }, infl: 0.005,
     biz: { tech: 0.15, startup: 0.15, fund: 0.08, esportsco: 0.08, studio: 0.06 },
   },
   {
     id: 'chips', w: 5, title: '半導體大缺貨',
     desc: '晶片供不應求，電子業訂單接不完。',
-    m: { etf: 0.08, stock: 0.14 }, infl: 0.01,
+    m: { etf: 0.08, stock: 0.14, gold: -0.06 }, infl: 0.01,
     biz: { factory: 0.12, trade: 0.08 },
   },
   {
@@ -41,12 +41,12 @@ export const WORLD_EVENTS = [
   {
     id: 'rateUp', w: 7, title: '央行升息',
     desc: '為了壓抑物價，央行調高利率。存款利息變多，但股市和房市降溫。',
-    m: { etf: -0.05, stock: -0.08, house: -0.04, crypto: -0.2, deposit: 0.02 }, infl: -0.01,
+    m: { etf: -0.05, stock: -0.08, house: -0.04, crypto: -0.2, deposit: 0.02, gold: -0.12 }, infl: -0.01,
   },
   {
     id: 'rateDown', w: 7, title: '央行降息',
     desc: '為了刺激經濟，央行調降利率。資金湧入股市和房市。',
-    m: { etf: 0.08, stock: 0.1, house: 0.06, crypto: 0.2, deposit: -0.006 }, infl: 0.005,
+    m: { etf: 0.08, stock: 0.1, house: 0.06, crypto: 0.2, deposit: -0.006, gold: 0.08 }, infl: 0.005,
   },
   {
     id: 'oil', w: 5, title: '油價飆漲',
@@ -69,7 +69,7 @@ export const WORLD_EVENTS = [
   {
     id: 'cryptoBull', w: 4, title: '加密貨幣大牛市',
     desc: '比特幣創歷史新高，全民瘋幣。',
-    m: { crypto: 1.2, stock: 0.03 },
+    m: { crypto: 1.2, stock: 0.03, gold: -0.06 },
   },
   {
     id: 'cryptoWinter', w: 4, title: '加密貨幣寒冬',
