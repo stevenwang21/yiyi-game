@@ -106,6 +106,22 @@ export const EVENTS3 = [
         },
       },
       { label: '「保證獲利」一定有問題', effect: (s) => good(`你查了一下，果然是非法吸金。${addStats(s, { int: 2 })}`) },
+      {
+        // 假裝有興趣、把整套資料交給金管會，成功有檢舉獎金
+        label: '假裝有興趣，把資料交給金管會',
+        sub: '成功有檢舉獎金，失敗白跑一年',
+        odds: (s) => Math.min(0.75, 0.15 + s.stats.int / 280 + s.investSkill * 0.05),
+        effect: (s, rng) => {
+          const p = Math.min(0.75, 0.15 + s.stats.int / 280 + s.investSkill * 0.05);
+          if (chance(rng, p)) {
+            s.flags.bustCount = (s.flags.bustCount || 0) + 1;
+            const prize = Math.round((15 + rint(rng, 0, 40)) * WAN * s.priceIndex);
+            return good(`你去了三場說明會，把組織圖、金流帳號、話術手冊全部拍下來交出去。這個案子被查封的時候上了新聞，你領到檢舉獎金 ${formatMoney(prize)}。${addMoney(s, prize)}${addStats(s, { int: 3, charm: 3, happy: 6 })}`);
+          }
+          const spent = P(s, rint(rng, 1, 3) * WAN);
+          return bad(`對方一開始就覺得你怪怪的，資料給得零零落落，檢舉沒有下文。你白跑一年說明會，交通和「入場費」花掉 ${formatMoney(spent)}。${addMoney(s, -spent)}${addStats(s, { happy: -5 })}`);
+        },
+      },
     ],
   },
   {
@@ -114,6 +130,70 @@ export const EVENTS3 = [
     choices: [
       { label: '先打給孩子確認', effect: (s) => good(`一問之下根本沒這回事，你沒有上當。${addStats(s, { int: 1 })}`) },
       { label: '趕快匯錢', effect: (s) => bad(`匯出去才發現是詐騙。${addMoney(s, -P(s, 50 * WAN))}${addStats(s, { happy: -10 })}`) },
+      {
+        // 約他出來面交，警察在旁邊等
+        label: '約他來家裡拿，先報警',
+        sub: '成功有檢舉獎金',
+        odds: (s) => Math.min(0.8, 0.2 + s.stats.int / 300 + s.stats.charm / 340),
+        effect: (s, rng) => {
+          const p = Math.min(0.8, 0.2 + s.stats.int / 300 + s.stats.charm / 340);
+          if (chance(rng, p)) {
+            s.flags.bustCount = (s.flags.bustCount || 0) + 1;
+            const prize = Math.round((5 + rint(rng, 0, 20)) * WAN * s.priceIndex);
+            return good(`你裝得比他還急，說錢要現場點。車手按門鈴的時候，兩個便衣就站在你後面。檢舉獎金 ${formatMoney(prize)}，里長還送你一面感謝狀。${addMoney(s, prize)}${addStats(s, { charm: 5, happy: 8, int: 1 })}`);
+          }
+          return bad(`對方大概聽出你在拖時間，說一句「阿公你等我一下」就再也沒出現。${addStats(s, { happy: -3 })}`);
+        },
+      },
+    ],
+  },
+  {
+    // 一輩子最多一次的大案子。要先成功反制過兩次詐騙、而且腦子和人面都夠，檢警才會找上你。
+    // 這是全遊戲最大的一張樂透：中了可以直接破億，賠了可能連命都沒有。
+    id: 'scam_bust_big', minAge: 38, maxAge: 72, weight: 1, once: true,
+    cond: (s) => (s.flags.bustCount || 0) >= 2 && s.stats.int >= 75 && s.stats.charm >= 65,
+    title: '檢警找上門',
+    text: '你這幾年擋下詐騙的事被寫進他們的報告裡。一個穿便服的人翻開卷宗：「柬埔寨有個機房，一年洗掉幾十億。我們缺一個他們不會懷疑的人。」',
+    choices: [
+      { label: '我沒那麼偉大', effect: (s) => ({ text: '你送他到門口，說自己只是運氣好。這件事沒有下文。', tone: 'neutral' }) },
+      {
+        // 中風險：人在台灣，做得到但拿不到大的
+        label: '只當線人，在台灣提供情報',
+        sub: '安全一點，獎金也小一點',
+        odds: (s) => Math.min(0.8, 0.35 + s.stats.int / 300 + s.stats.charm / 400),
+        effect: (s, rng) => {
+          const p = Math.min(0.8, 0.35 + s.stats.int / 300 + s.stats.charm / 400);
+          if (chance(rng, p)) {
+            const prize = P(s, rint(rng, 500, 2000) * WAN);
+            return { text: `你用假身分跟他們的台灣窗口周旋了兩年，把三個車手集團的金流全攤在檢警面前。起訴書出來那天你沒去，獎金 ${formatMoney(prize)} 直接匯進帳戶。${addMoney(s, prize)}${addStats(s, { int: 4, charm: 6, happy: 10 })}`, tone: 'milestone' };
+          }
+          return bad(`對方很謹慎，兩年下來什麼都沒撈到，案子結掉了。你還接了整整一年的騷擾電話。${addStats(s, { happy: -8, hp: -2 })}`);
+        },
+      },
+      {
+        // 高風險：飛過去。中了直接破億，賠了健康掉 40 可能當場死。
+        label: '飛過去，進機房當內應',
+        sub: '成功分到查扣金額，失敗身分曝光',
+        odds: (s) => Math.min(0.42, 0.05 + s.stats.int / 450 + s.stats.charm / 700),
+        effect: (s, rng) => {
+          const p = Math.min(0.42, 0.05 + s.stats.int / 450 + s.stats.charm / 700);
+          if (chance(rng, p)) {
+            // 成功裡面有三分之一是「整個總部被端」的大獎
+            if (chance(rng, 0.35)) {
+              const seized = rint(rng, 20, 60);                       // 查扣幾十億
+              const prize = P(s, Math.round(seized * 10000 * WAN * 0.05)); // 1 億 = 10000 * WAN，依法分到 5%
+              return {
+                text: `你在裡面待了十一個月。收網那天，跨國聯合行動一次端掉總部和四個分部，冷錢包裡 ${seized} 億全部查扣。你依洗錢防制法分到 ${formatMoney(prize)}，新聞上你的臉全部打了馬賽克。${addMoney(s, prize)}${addStats(s, { int: 6, charm: 10, happy: 14, hp: -8 })}`,
+                tone: 'milestone',
+              };
+            }
+            const prize = P(s, rint(rng, 1500, 4000) * WAN);
+            return { text: `你混進去當了半年客服，把機房座標和幹部名單傳出來。攻堅那天抓到十七個人，你分到 ${formatMoney(prize)}。${addMoney(s, prize)}${addStats(s, { int: 4, charm: 6, happy: 10, hp: -5 })}`, tone: 'milestone' };
+          }
+          const loss = Math.round(Math.max(0, s.money) * 0.5);
+          return bad(`第三個月，你的手機被翻出來。你是被丟在邊境的路邊才被找到的，人救回來了，帳戶裡的錢沒有。${addMoney(s, -loss)}${addStats(s, { hp: -40, happy: -30, charm: -5 })}`);
+        },
+      },
     ],
   },
   {

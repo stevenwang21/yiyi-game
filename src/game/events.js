@@ -441,6 +441,27 @@ export const EVENTS = [
         effect: (s) => { const loss = Math.min(Math.round(s.money * 0.5), 500 * WAN); return bad(`你被詐騙集團騙走了 ${formatMoney(loss)}……${addMoney(s, -loss)}${addStats(s, { happy: -12 })}`); },
       },
       { label: '直接掛掉，打 165 查證', effect: (s) => good(`果然是詐騙！你沒有上當。${addStats(s, { int: 1 })}`) },
+      {
+        // 高風險高報酬：跟對方周旋、錄音蒐證，成功可以領檢舉獎金
+        label: '跟他周旋，錄音蒐證報警',
+        sub: '成功有檢舉獎金，失敗個資外洩',
+        odds: (s) => Math.min(0.75, 0.1 + s.stats.int / 260 + s.stats.charm / 360),
+        effect: (s, rng) => {
+          const p = Math.min(0.75, 0.1 + s.stats.int / 260 + s.stats.charm / 360);
+          if (chance(rng, p * 0.2)) {
+            s.flags.bustCount = (s.flags.bustCount || 0) + 1;
+            const prize = Math.round((20 + rint(rng, 0, 30)) * WAN * s.priceIndex);
+            return { text: `你拖了他四十分鐘，套出車手的交車地點。警方當場逮到一整車人，破了一個跨縣市機房，你上了社會版。檢舉獎金 ${formatMoney(prize)}！${addMoney(s, prize)}${addStats(s, { int: 3, charm: 6, happy: 8 })}`, tone: 'milestone' };
+          }
+          if (chance(rng, p)) {
+            s.flags.bustCount = (s.flags.bustCount || 0) + 1;
+            const prize = Math.round((3 + rint(rng, 0, 5)) * WAN * s.priceIndex);
+            return good(`你邊裝傻邊錄音，把匯款帳號全套出來交給警方。對方一毛也沒拿到，你還領到檢舉獎金 ${formatMoney(prize)}。${addMoney(s, prize)}${addStats(s, { int: 2, charm: 2, happy: 5 })}`);
+          }
+          const leak = Math.round((1 + rint(rng, 0, 3)) * WAN * s.priceIndex);
+          return bad(`你演得不夠像，對方掛了電話 —— 但你講太多了，個資被賣出去。半年後信用卡被盜刷 ${formatMoney(leak)}，電話也被灌爆。${addMoney(s, -leak)}${addStats(s, { happy: -6, hp: -1 })}`);
+        },
+      },
     ],
   },
   {
