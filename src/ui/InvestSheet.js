@@ -77,6 +77,7 @@ function QuickRow({ label, kind, onPick, disabled }) {
   );
 }
 const TABS = ['金融', '房地產', '公司', '收購', '貸款'];
+const TRADE_NAME = { buy: '買進', sell: '賣出', dca: '定期定額', forced: '被迫賣出' };
 const INV_DESC = { etf: '一籃子佈局\n掌握全球機會', deposit: '穩健累積\n安心增值', stock: '精選企業\n創造超越', gold: '價值永恆\n對抗風險', crypto: '擁抱創新\n探索未來' };
 const RISK = (r) => (r <= 1 ? ['低風險', '#7db4ff'] : r <= 2 ? ['中風險', '#3ddc97'] : r <= 4 ? ['中高風險', '#ffb547'] : ['高風險', '#d58bff']);
 const FADE = (dir) => (Platform.OS === 'web'
@@ -112,6 +113,7 @@ const shortMoney = (v) => (Math.abs(v) >= 1e8 ? `${(v / 1e8).toFixed(1)}億` : `
 
 export default function InvestSheet({ visible, onClose, game, setGame, initialTab }) {
   const [tab, setTab] = useState(0);
+  const [showAll, setShowAll] = useState(false);   // 交易紀錄要不要全部展開
   useEffect(() => { if (visible && initialTab != null) setTab(initialTab); }, [visible, initialTab]);
   // 每次打開投資頁都從投資中心開始
   useEffect(() => { if (visible) setAsset(null); }, [visible]);
@@ -284,7 +286,23 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                   </View>
                   <View style={styles.sumLine} />
                   <View style={styles.sumItem}>
-                    <Text style={styles.sumLabel}>報酬率</Text>
+                    <Text style={styles.sumLabel}>累計賺賠</Text>
+                    {(() => {
+                      const ic = E.investCost(s);
+                      if (!ic.net) return <Text style={styles.sumVal}>—</Text>;
+                      return (
+                        <>
+                          <Text style={[styles.sumVal, { color: ic.gain >= 0 ? C.green : C.red }]} numberOfLines={1} adjustsFontSizeToFit>
+                            {ic.gain >= 0 ? '+' : ''}{E.formatMoney(ic.gain)}
+                          </Text>
+                          {ic.pct != null ? <Text style={[styles.sumLabel, { color: ic.gain >= 0 ? C.green : C.red }]}>{pct(ic.pct)}</Text> : null}
+                        </>
+                      );
+                    })()}
+                  </View>
+                  <View style={styles.sumLine} />
+                  <View style={styles.sumItem}>
+                    <Text style={styles.sumLabel}>去年報酬率</Text>
                     <Text style={[styles.sumVal, last && last.mine != null && { color: last.mine >= 0 ? C.green : C.red }]}>{last && last.mine != null ? pct(last.mine) : '—'}</Text>
                   </View>
                 </View>
@@ -327,8 +345,15 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
 
                 {series ? (
                   <>
-                    <LineChart series={series} height={140} marks={crashAges} format={(v) => String(Math.round(v))} />
-                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的指數和漲跌，左右滑動換年份</Text>
+                    <LineChart
+                      series={series}
+                      height={140}
+                      marks={crashAges}
+                      format={(v) => String(Math.round(v))}
+                      trades={E.tradesOf(s, a.key).map((t) => ({ age: t.age, amt: t.amt }))}
+                      tradeFormat={(v) => E.formatMoney(v)}
+                    />
+                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的指數和漲跌．▲ 是你買進、▼ 是賣出</Text>
                     {a.key === 'crypto' ? (
                       <Text style={[styles.muted, { color: C.red, marginTop: 6 }]}>
                         ⚠️ 波動大會「來回磨損」：漲 50% 再跌 50% 剩下的是 75%，不是 100%。加密幣長期實際拿到的，通常比平均報酬看起來的少很多，不要全押。
@@ -341,6 +366,50 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                     </Text>
                   </>
                 ) : null}
+
+                {(() => {
+                  const cst = E.assetCost(s, a.key);
+                  const list = E.tradesOf(s, a.key).slice().reverse();
+                  if (!cst.in && !cst.out) return null;
+                  return (
+                    <View style={styles.costBox}>
+                      <View style={styles.costRow}>
+                        <View style={styles.costItem}>
+                          <Text style={styles.costLabel}>投入本金</Text>
+                          <Text style={styles.costVal} numberOfLines={1} adjustsFontSizeToFit>{E.formatMoney(cst.net)}</Text>
+                        </View>
+                        <View style={styles.costItem}>
+                          <Text style={styles.costLabel}>現在價值</Text>
+                          <Text style={styles.costVal} numberOfLines={1} adjustsFontSizeToFit>{E.formatMoney(cst.now)}</Text>
+                        </View>
+                        <View style={styles.costItem}>
+                          <Text style={styles.costLabel}>賺賠</Text>
+                          <Text style={[styles.costVal, { color: cst.gain >= 0 ? C.green : C.red }]} numberOfLines={1} adjustsFontSizeToFit>
+                            {cst.gain >= 0 ? '+' : ''}{E.formatMoney(cst.gain)}
+                          </Text>
+                          {cst.pct != null ? (
+                            <Text style={[styles.costPct, { color: cst.gain >= 0 ? C.green : C.red }]}>{pct(cst.pct)}</Text>
+                          ) : null}
+                        </View>
+                      </View>
+                      <Text style={styles.costNote}>投入本金 = 買進＋定期定額 − 賣出。賣掉的部分不算在裡面，所以這是「還放在裡面的錢」賺賠多少。</Text>
+
+                      <Text style={[styles.h, { marginTop: 10 }]}>交易紀錄</Text>
+                      {list.slice(0, showAll ? 999 : 6).map((t, i) => (
+                        <View key={i} style={styles.tradeRow}>
+                          <Text style={styles.tradeAge}>{t.age} 歲</Text>
+                          <Text style={[styles.tradeKind, { color: t.amt > 0 ? C.green : C.red }]}>{TRADE_NAME[t.kind] || (t.amt > 0 ? '買進' : '賣出')}</Text>
+                          <Text style={[styles.tradeAmt, { color: t.amt > 0 ? C.green : C.red }]}>{t.amt > 0 ? '+' : '−'}{E.formatMoney(Math.abs(t.amt))}</Text>
+                        </View>
+                      ))}
+                      {list.length > 6 ? (
+                        <Text onPress={() => setShowAll(!showAll)} style={styles.moreLink}>
+                          {showAll ? '收合' : `看全部 ${list.length} 筆 ›`}
+                        </Text>
+                      ) : null}
+                    </View>
+                  );
+                })()}
 
                 <AmountSlider
                   key={a.key}
@@ -763,6 +832,18 @@ const styles = StyleSheet.create({
   link: { color: C.primaryInk, fontSize: 12.5, fontWeight: '600' },
   newsItem: { fontSize: 12.5, lineHeight: 18, marginTop: 5 },
   newsAge: { color: C.muted, fontSize: 11.5 },
+  costBox: { marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: C.page, borderWidth: 1, borderColor: C.cardLine },
+  costRow: { flexDirection: 'row', gap: 8 },
+  costItem: { flex: 1, alignItems: 'center' },
+  costLabel: { fontSize: 11, color: C.muted },
+  costVal: { fontSize: 15.5, fontWeight: '800', color: C.ink, marginTop: 2, fontVariant: ['tabular-nums'] },
+  costPct: { fontSize: 11, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  costNote: { fontSize: 10.5, color: C.muted, marginTop: 8, lineHeight: 15 },
+  tradeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: C.line },
+  tradeAge: { fontSize: 12.5, color: C.muted, width: 46, fontVariant: ['tabular-nums'] },
+  tradeKind: { fontSize: 12.5, fontWeight: '700', flex: 1 },
+  tradeAmt: { fontSize: 13, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  moreLink: { marginTop: 7, fontSize: 12, color: C.primaryInk, fontWeight: '700' },
   tabs: { flexDirection: 'row', backgroundColor: C.page, borderRadius: 14, padding: 4, marginTop: 8 },
   tab: { flex: 1, textAlign: 'center', paddingVertical: 8, fontSize: 14, color: C.muted, fontWeight: '700', borderRadius: 12, overflow: 'hidden' },
   tabOn: { backgroundColor: C.card, fontWeight: '600', color: C.primaryInk },

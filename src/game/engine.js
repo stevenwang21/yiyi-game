@@ -64,6 +64,35 @@ export const FOCUS_SLOT_COSTS = [10, 16]; // 升到 4、5 個要幾點
 const MAX_LOG = 600;
 const clone = (s) => JSON.parse(JSON.stringify(s));
 
+// 記一筆買賣。amt 正數＝把現金投進去，負數＝把資產換回現金。
+// kind: buy 自己買 / sell 自己賣 / dca 定期定額 / forced 錢不夠被系統賣掉
+const logTrade = (s, key, amt, kind) => {
+  if (!amt) return;
+  if (!s.trades) s.trades = [];
+  s.trades.push({ age: s.age, key, amt: Math.round(amt), kind });
+};
+
+// 某個資產到現在為止「淨投入」了多少本金（買進＋定期定額 − 賣出）
+export const assetCost = (s, key) => {
+  const t = (s.trades || []).filter((x) => x.key === key);
+  const inAmt = t.filter((x) => x.amt > 0).reduce((a, x) => a + x.amt, 0);
+  const outAmt = -t.filter((x) => x.amt < 0).reduce((a, x) => a + x.amt, 0);
+  const net = inAmt - outAmt;
+  const now = s[key] || 0;
+  return { in: inAmt, out: outAmt, net, now, gain: now - net, pct: net > 0 ? now / net - 1 : null };
+};
+
+// 全部金融資產加起來的成本
+export const investCost = (s) => {
+  const keys = ['deposit', 'etf', 'stock', 'gold', 'crypto'];
+  const r = keys.map((k) => assetCost(s, k));
+  const net = r.reduce((a, x) => a + x.net, 0);
+  const now = r.reduce((a, x) => a + x.now, 0);
+  return { net, now, gain: now - net, pct: net > 0 ? now / net - 1 : null };
+};
+
+export const tradesOf = (s, key) => (s.trades || []).filter((x) => x.key === key);
+
 const log = (s, text, tone = 'neutral') => {
   s.log.push({ age: s.age, text, tone });
   if (s.log.length > MAX_LOG) s.log.splice(0, s.log.length - MAX_LOG);
@@ -93,6 +122,7 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
     deposit: 0, etf: 0, stock: 0, gold: 0, crypto: 0,
     dca: 0,
     investSkill: 0,
+    trades: [],   // 買賣紀錄：{ age, key, amt, kind }，amt 正=投入、負=拿回
     houses: [],
     debts: [],
     bizs: [],
@@ -684,6 +714,7 @@ function economy(s, rng) {
     const amt = Math.max(0, Math.min(Math.round((dcaBase * s.dca) / 100), s.money));
     s.money -= amt;
     s.etf += amt;
+    logTrade(s, 'etf', amt, 'dca');
     y.dca = amt;
   }
 
@@ -1233,6 +1264,7 @@ function forceSell(s) {
     const take = Math.min(s[k], -s.money);
     s[k] -= take;
     s.money += take;
+    logTrade(s, k, -take, 'forced');
     sold.push(`${ASSET_NAME[k]} ${formatMoney(take)}`);
   }
   while (s.money < 0 && (s.houses || []).length) {
@@ -1663,6 +1695,7 @@ export function resolveChoice(s0, idx, rng = Math.random) {
       const take = Math.min(s[k], -s.money);
       s[k] -= take;
       s.money += take;
+      logTrade(s, k, -take, 'forced');
       res = { text: `你賣掉了 ${formatMoney(take)} 的${ASSET_NAME[k]}來還債。${s.money < 0 ? `還欠 ${formatMoney(-s.money)}。` : '債還清了。'}`, tone: 'neutral' };
       if (s.money < 0 && SELLABLE.some((x) => s[x] > 0)) s.flags.mustSell = true;
     }
@@ -1788,6 +1821,7 @@ export function buyAsset(s0, key, amount) {
   const s = clone(s0);
   s.money -= amt;
   s[key] += amt;
+  logTrade(s, key, amt, 'buy');
   return { state: s };
 }
 
@@ -1797,6 +1831,7 @@ export function sellAsset(s0, key, amount) {
   const s = clone(s0);
   s[key] -= amt;
   s.money += amt;
+  logTrade(s, key, -amt, 'sell');
   return { state: s };
 }
 
@@ -1879,6 +1914,7 @@ export function clearOverdraft(s0) {
     const take = Math.min(s[k], -s.money);
     s[k] -= take;
     s.money += take;
+    logTrade(s, k, -take, 'forced');
     sold.push(`${ASSET_NAME[k]} ${formatMoney(take)}`);
   }
   log(s, `你賣掉了 ${sold.join('、')}，把透支的現金補回來了。${s.money < 0 ? `還差 ${formatMoney(-s.money)}。` : ''}`, 'neutral');

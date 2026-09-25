@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, G, Line, Polyline, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, G, Line, Polygon, Polyline, Text as SvgText } from 'react-native-svg';
 import { C } from './theme';
 
 const FONT = Platform.OS === 'web' ? 'system-ui, -apple-system, sans-serif' : undefined;
@@ -16,9 +16,10 @@ const niceCeil = (v) => {
 // series: [{ key, label, color, values }]，values[i] 對應年齡 xStart + i
 // refLine: { value, label }：一條虛線（例如一億）
 // marks: [age]：在 X 軸上標記的年份（例如股災）
+// trades: [{ age, amt }]：買賣紀錄，正數畫綠色向上三角（買），負數畫紅色向下三角（賣）
 export default function LineChart({
   series, xStart = 0, height = 150, format = (v) => String(Math.round(v)), refLine, marks = [], minZero = true,
-  scrub = true, tipFormat,
+  scrub = true, tipFormat, trades = [], tradeFormat = (v) => String(v),
 }) {
   const [w, setW] = useState(0);
   // 按住圖表可以看某一年的數字
@@ -97,6 +98,16 @@ export default function LineChart({
             {marks.filter((a) => a >= xStart && a <= lastAge).map((a) => (
               <Line key={`m${a}`} x1={x(a - xStart)} x2={x(a - xStart)} y1={padT} y2={padT + innerH} stroke={C.red} strokeOpacity={0.18} strokeWidth={4} />
             ))}
+            {/* 買賣紀錄：買＝綠色朝上、賣＝紅色朝下，貼著 X 軸畫 */}
+            {trades.filter((t) => t.age >= xStart && t.age <= lastAge).map((t, i) => {
+              const cx = x(t.age - xStart);
+              const base = padT + innerH;
+              const up = t.amt > 0;
+              const pts = up
+                ? `${cx},${base - 9} ${cx - 4.5},${base - 1} ${cx + 4.5},${base - 1}`
+                : `${cx},${base - 1} ${cx - 4.5},${base - 9} ${cx + 4.5},${base - 9}`;
+              return <Polygon key={`tr${i}`} points={pts} fill={up ? C.green : C.red} opacity={0.9} />;
+            })}
             {refLine ? (
               <G>
                 <Line x1={padL} x2={w - padR} y1={y(refLine.value)} y2={y(refLine.value)} stroke={C.red} strokeWidth={1} strokeDasharray="4 4" />
@@ -146,6 +157,18 @@ export default function LineChart({
                 })()}
               </View>
             ) : null))}
+            {(() => {
+              const at = trades.filter((t) => t.age === xStart + pick);
+              if (!at.length) return null;
+              const inAmt = at.filter((t) => t.amt > 0).reduce((a, t) => a + t.amt, 0);
+              const outAmt = -at.filter((t) => t.amt < 0).reduce((a, t) => a + t.amt, 0);
+              return (
+                <View style={styles.tipTrade}>
+                  {inAmt ? <Text style={[styles.tipTradeText, { color: C.green }]}>▲ 買進 {tradeFormat(inAmt)}</Text> : null}
+                  {outAmt ? <Text style={[styles.tipTradeText, { color: C.red }]}>▼ 賣出 {tradeFormat(outAmt)}</Text> : null}
+                </View>
+              );
+            })()}
           </View>
         ) : null}
       </View>
@@ -175,6 +198,8 @@ const styles = StyleSheet.create({
   tipLabel: { fontSize: 11, color: C.muted, flexShrink: 1 },
   tipVal: { fontSize: 12.5, fontWeight: '700', color: C.ink, fontVariant: ['tabular-nums'] },
   tipPct: { fontSize: 10.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  tipTrade: { marginTop: 2, paddingTop: 3, borderTopWidth: 1, borderTopColor: 'rgba(157,140,255,0.25)' },
+  tipTradeText: { fontSize: 11, fontWeight: '700' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   dot: { width: 8, height: 8, borderRadius: 4 },
