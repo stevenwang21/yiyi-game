@@ -194,6 +194,7 @@ export const marry = (s, rng) => {
   s.spouse = {
     name, since: s.age, age: Math.max(18, s.age + gap),
     type: p ? p.type || null : null, title: p ? p.title || '' : '',
+    love: 70, // 親密度：結婚後每年慢慢降，靠約會補回來
   };
   s.partner = null;
   addPoints(s, 2, '結婚');

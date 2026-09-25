@@ -329,6 +329,11 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                   <>
                     <LineChart series={series} height={140} marks={crashAges} format={(v) => String(Math.round(v))} />
                     <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的指數和漲跌，左右滑動換年份</Text>
+                    {a.key === 'crypto' ? (
+                      <Text style={[styles.muted, { color: C.red, marginTop: 6 }]}>
+                        ⚠️ 波動大會「來回磨損」：漲 50% 再跌 50% 剩下的是 75%，不是 100%。加密幣長期實際拿到的，通常比平均報酬看起來的少很多，不要全押。
+                      </Text>
+                    ) : null}
                     <Text style={styles.muted}>
                       {a.key === 'stock'
                         ? `大盤 ${Math.round(hist[hist.length - 1].etf)}．我的個股 ${Math.round(myNow)}${myNow >= hist[hist.length - 1].etf ? '，贏過大盤！' : '，輸給大盤。'}選股準不準看「投資眼光」。`

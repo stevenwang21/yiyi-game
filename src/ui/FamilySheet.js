@@ -56,6 +56,22 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
               <Text style={styles.money}>{E.formatMoney(E.spouseInfo(s).income + (ptype ? Math.round(ptype.income * 10000 * s.priceIndex) : 0))}</Text>
             </View>
           </View>
+          {/* 結婚後也有親密度：每年會慢慢降，靠「安排一次約會」補回來 */}
+          {(() => {
+            const love = s.spouse.love == null ? 70 : s.spouse.love;
+            return (
+              <>
+                <View style={[styles.between, { marginTop: 12 }]}>
+                  <Text style={styles.muted}>親密度</Text>
+                  <Text style={[styles.muted, { color: love < 30 ? C.red : C.ink }]}>{love} / 100</Text>
+                </View>
+                <Bar value={love} color={love < 30 ? C.red : C.pink} height={7} />
+                <Text style={[styles.muted, { marginTop: 4 }]}>
+                  {love >= 75 ? '感情很好，每年多一點快樂。' : love < 25 ? '兩個人越來越少講話了，快樂每年會被扣。' : '每年會慢慢降，遇到「安排一次約會」的時候花點錢補回來。'}
+                </Text>
+              </>
+            );
+          })()}
           {ptype ? <Text style={styles.perk}>✨ {ptype.perkText}</Text> : null}
           <Text style={[styles.muted, { marginTop: 8 }]}>
             {E.partnerWord(s)}會在自己的行業裡慢慢升遷（同一個職位至少 3 年）。家裡快樂、你多選「家庭時光」，升得比較快。

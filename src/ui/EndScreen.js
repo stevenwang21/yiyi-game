@@ -10,7 +10,7 @@ import Sheet from './Sheet';
 import LineChart from './LineChart';
 import * as E from '../game/engine';
 import { artForEnd } from './art';
-import { CharScene } from './Character';
+import { CharScene, Head, MateFace } from './Character';
 
 export default function EndScreen({ game, meta, onAgain, onHome }) {
   const sum = E.summary(game);
@@ -130,6 +130,8 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
         </Card>
 
 
+        <MatesFinal game={game} nw={sum.nw} />
+
         {sum.advice.length ? (
           <Card style={{ backgroundColor: C.goldSoft }}>
             <Text style={styles.h}>下次可以試試</Text>
@@ -190,6 +192,47 @@ const ROW_MS = 230;
 const ND = Platform.OS !== 'web';
 
 // 放大淡入
+// 最後結算：同學會的六個人各自賺到多少，一次攤開來看
+function MatesFinal({ game, nw }) {
+  const list = E.ranking(game, nw);
+  if (list.length < 2) return null;
+  const me = list.find((x) => x.me);
+  const top = list[0];
+  const gap = me && !me.me ? 0 : top.nw - (me ? me.nw : 0);
+  return (
+    <Card>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.h}>🎓 同學最後賺到多少</Text>
+        <Text style={styles.mateNote}>{list.length} 個人</Text>
+      </View>
+      <View style={{ marginTop: 6 }}>
+        {list.map((x) => (
+          <View key={x.id || x.name} style={[styles.mateRow, x.me && styles.mateMe]}>
+            <Text style={[styles.mateRank, x.rank === 1 && { color: C.goldInk }]}>{x.rank === 1 ? '👑' : x.rank}</Text>
+            {x.me
+              ? <Head age={game.age} gender={game.gender} size={32} />
+              : <MateFace asset={x.characterAsset} size={32} />}
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.mateName, x.me && { color: C.primaryInk }]} numberOfLines={1}>
+                {x.me ? `${x.name}（你）` : x.name}
+              </Text>
+              <Text style={styles.mateNote} numberOfLines={1}>
+                {x.me ? (game.job ? game.job.name : E.stageOf(game)) : x.title}
+              </Text>
+            </View>
+            <Text style={[styles.mateMoney, x.me && { color: C.primaryInk }]}>{E.formatMoney(x.nw)}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={[styles.mateNote, { marginTop: 10, lineHeight: 18 }]}>
+        {me && me.rank === 1
+          ? `你是這一屆最有錢的，第二名差你 ${E.formatMoney(me.nw - list[1].nw)}。`
+          : `第一名是「${top.name}」（${top.title}），比你多 ${E.formatMoney(gap)}。`}
+      </Text>
+    </Card>
+  );
+}
+
 function ZoomIn({ children, delay = 0, from = 0.85 }) {
   const a = useRef(new Animated.Value(0)).current;
   useEffect(() => { Animated.timing(a, { toValue: 1, duration: 500, delay, easing: Easing.out(Easing.back(1.6)), useNativeDriver: ND }).start(); }, []);
@@ -284,6 +327,12 @@ const styles = StyleSheet.create({
   kv: { width: '48.5%', backgroundColor: C.card, borderRadius: 16, padding: 12 },
   kvK: { fontSize: 11.5, color: C.muted },
   kvV: { fontSize: 14.5, fontWeight: '600', color: C.ink, marginTop: 3 },
+  mateRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: C.line },
+  mateMe: { backgroundColor: C.primarySoft, borderRadius: 12, paddingHorizontal: 8, borderBottomColor: 'transparent' },
+  mateRank: { width: 22, textAlign: 'center', fontSize: 14, fontWeight: '700', color: C.muted },
+  mateName: { fontSize: 14.5, fontWeight: '600', color: C.ink },
+  mateNote: { fontSize: 11.5, color: C.muted },
+  mateMoney: { fontSize: 14, fontWeight: '700', color: C.ink, fontVariant: ['tabular-nums'] },
   advice: { fontSize: 13.5, color: C.ink, marginTop: 6, lineHeight: 20 },
   logRow: { flexDirection: 'row', gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: C.line },
   logAge: { width: 42, fontSize: 12, color: C.muted, paddingTop: 1 },

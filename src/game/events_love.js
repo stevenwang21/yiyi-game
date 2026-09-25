@@ -47,6 +47,63 @@ export const MEET_EVENT = {
   ],
 };
 
+// ───────── 約會：自己挑要花多少錢，花越多親密度漲越快 ─────────
+// 交往中加的是 partner.love，結婚後加的是 spouse.love，兩邊用同一套。
+export const loveOf = (s) => (s.married ? s.spouse : s.partner);
+export const loveVal = (s) => { const p = loveOf(s); return p ? (p.love == null ? 70 : p.love) : 0; };
+const addLove = (s, n) => {
+  const p = loveOf(s);
+  if (!p) return 0;
+  const before = p.love == null ? 70 : p.love;
+  p.love = Math.max(0, Math.min(100, before + n));
+  return p.love - before;
+};
+const P = (s, wan) => Math.round(wan * WAN * s.priceIndex);
+
+// [標題, 說明, 花費（萬，出生時物價）, 親密度, 其他數值]
+const DATES = [
+  ['在家煮一頓飯', '散散步、看部片，不花什麼錢', 0.2, 5, { happy: 2 }],
+  ['看電影＋吃飯', '最普通的那種約會', 1.5, 12, { happy: 3, charm: 1 }],
+  ['週末小旅行', '訂間民宿，兩天一夜', 6, 22, { happy: 6, hp: 1 }],
+  ['出國玩一趟＋送禮', '機票飯店加一份禮物，很有誠意', 20, 36, { happy: 10, charm: 2 }],
+];
+
+const dateChoice = ([title, desc, wan, love, stats], i) => ({
+  label: (s) => `${title}　${formatMoney(P(s, wan))}`,
+  sub: (s) => `${desc}．親密度 +${love}`,
+  // 第一個最便宜的永遠選得到，其他的錢不夠就鎖起來
+  ...(i === 0 ? {} : {
+    cond: (s) => s.money >= P(s, wan),
+    showLocked: (s) => `錢不夠（要 ${formatMoney(P(s, wan))}，你有 ${formatMoney(Math.max(0, s.money))}）`,
+  }),
+  effect: (s) => {
+    const cost = P(s, wan);
+    s.money -= cost;
+    const got = addLove(s, love);
+    const who = (loveOf(s) || {}).name || '對方';
+    const tail = `花了 ${formatMoney(cost)}，親密度 +${got}（現在 ${loveVal(s)}）。${addStats(s, stats)}`;
+    const lines = [
+      `你們在家煮了一頓飯，吃完窩在沙發上看片。「${who}」說這樣就很好。${tail}`,
+      `你約「${who}」去看電影，散場後找了間小店吃宵夜，聊到店家要打烊。${tail}`,
+      `你帶「${who}」去了兩天一夜的小旅行，民宿窗外剛好看得到海。${tail}`,
+      `你帶「${who}」出國玩了一趟，回程在機場把禮物拿出來，對方愣了一下才笑出來。${tail}`,
+    ];
+    return good(lines[i]);
+  },
+});
+
+export const DATE_EVENT = {
+  id: 'date_plan', minAge: 16, maxAge: 70, weight: 8,
+  cond: (s) => !!(s.partner || (s.married && s.spouse)),
+  title: '安排一次約會',
+  text: (s) => {
+    const p = loveOf(s);
+    const rel = s.married ? '另一半' : '交往對象';
+    return `${rel}「${p ? p.name : ''}」最近念了你好幾次「我們很久沒出去了」。這次想怎麼安排？（目前親密度 ${loveVal(s)} / 100）`;
+  },
+  choices: DATES.map(dateChoice),
+};
+
 // 交往中偶爾會發現對方的專長幫上忙
 export const LOVE_EVENTS = [
   {

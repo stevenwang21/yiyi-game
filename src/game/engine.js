@@ -373,7 +373,9 @@ function rollWorld(s, rng) {
     etf: gauss(rng, d.ret, sd(0.07, m.etf)) + (m.etf || 0) + rebound,
     stock: gauss(rng, d.ret, sd(0.15, m.stock)) + (m.stock || 0) + rebound * 1.2,
     gold: gauss(rng, 0.03, sd(0.05, m.gold)) + (m.gold || 0),
-    crypto: Math.max(-0.9, Math.min(3, gauss(rng, 0.04, sd(0.35, m.crypto)) + (m.crypto || 0))),
+    // 加密幣：平均 7%、波動 28%。波動大會「來回磨損」（幾何平均 ≈ 平均 − 波動²/2），
+    // 原本 4%/35% 磨損到每年實質 -2.1%，長期幾乎一定歸零；現在改成長期還是正的，但波動照樣很嚇人。
+    crypto: Math.max(-0.9, Math.min(3, gauss(rng, 0.07, sd(0.28, m.crypto)) + (m.crypto || 0))),
     house: gauss(rng, 0.02, 0.03) + (m.house || 0) + infl * 0.8,
     deposit: Math.max(0.002, 0.012 + (m.deposit || 0) + infl * 0.3),
   };
@@ -810,6 +812,14 @@ function romanceYear(s, rng) {
     } else if (s.age - p.since >= 1 && p.love >= 40) {
       addStats(s, { happy: 1 });
     }
+  }
+  // 結婚之後：沒安排約會的話親密度每年慢慢降，高的過得開心、太低會悶
+  if (s.married && s.spouse) {
+    const before = s.spouse.love == null ? 70 : s.spouse.love;
+    const now = Math.max(0, before - rint(rng, 1, 2));
+    s.spouse.love = now;
+    if (now >= 75) addStats(s, { happy: 1 });
+    else if (now < 25) addStats(s, { happy: -2 });
   }
   if (s.married && s.spouseLevel >= 3) addStats(s, { happy: 1 });
 }
