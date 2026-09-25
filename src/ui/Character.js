@@ -145,8 +145,8 @@ const KIND = {
   teen: { pal: 'blue', mood: '😊', props: [['🎓', 74, 34, 36, 1], ['📖', 88, 70, 22], ['✨', 62, 22, 16, 1]] },
   exam: { pal: 'blue', mood: '😬', props: [['📝', 72, 50, 36], ['✏️', 86, 26, 22, 1], ['💯', 86, 76, 22, 1]] },
   study: { pal: 'blue', mood: '🤓', props: [['📚', 72, 56, 34], ['💡', 86, 22, 24, 1], ['✏️', 62, 28, 18, 1]] },
-  love: { pal: 'love', mood: '😍', partner: true, props: [['💕', 66, 18, 24, 1], ['🧋', 86, 72, 24], ['✨', 84, 36, 16, 1]] },
-  wedding: { pal: 'love', mood: '🥰', partner: true, props: [['💍', 66, 20, 26, 1], ['💐', 86, 66, 28], ['🎊', 86, 26, 22, 1]] },
+  love: { pal: 'love', mood: '😍', partner: true, props: [['💕', 80, 10, 24, 1], ['🧋', 88, 74, 24], ['✨', 70, 30, 16, 1]] },
+  wedding: { pal: 'love', mood: '🥰', partner: true, props: [['💍', 80, 12, 26, 1], ['💐', 88, 68, 28], ['🎊', 68, 30, 22, 1]] },
   family: { pal: 'warm', mood: '😊', props: [['🏠', 82, 46, 34], ['💞', 58, 18, 20, 1]] },
   party: { pal: 'purple', mood: '🥳', props: [['🎉', 74, 28, 30, 1], ['🥂', 86, 66, 26], ['🎈', 64, 58, 24, 1]] },
   deal: { pal: 'night', mood: '😎', props: [['🤝', 74, 42, 32], ['📄', 88, 72, 24], ['🏢', 88, 22, 24]] },
@@ -1087,7 +1087,11 @@ export function CharScene({
           ) : null}
           <Bubble
             mood={face} size={bubble}
-            left={Math.max(4, Math.min(heroX + heroW * HEAD[hid][0] + heroH * HEAD[hid][1] * 0.42, w - bubble - 4))}
+            // 平常泡泡放在頭的右邊；但有另一半的時候「你」在左、對方在中間，
+            // 放右邊會正好蓋到對方的臉，所以改放外側（左邊）。
+            left={withP
+              ? Math.max(4, heroX + heroW * HEAD[hid][0] - heroH * HEAD[hid][1] * 0.42 - bubble)
+              : Math.max(4, Math.min(heroX + heroW * HEAD[hid][0] + heroH * HEAD[hid][1] * 0.42, w - bubble - 4))}
             top={Math.max(4, topPad + heroH * HEAD[hid][1] * 0.05 - bubble * 0.3)}
           />
         </>
