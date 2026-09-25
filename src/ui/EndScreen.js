@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { play as playSfx } from './sfx';
 import { ActivityIndicator, Animated, Easing, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { FadeIn, SmoothBar } from './ios';
 import Celebration, { haptic } from './celebrate';
@@ -28,6 +29,7 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
     if (!revealed) return undefined;
     const ts = [];
     ts.push(setTimeout(() => haptic('tap'), T.badge));
+    ts.push(setTimeout(() => playSfx(sum.achieved ? 'achieve' : (game.ended && game.ended.reason === 'death') ? 'death' : 'bad'), T.badge));
     ts.push(setTimeout(() => setNwShown(sum.nw), T.money));
     ts.push(setTimeout(() => { setBarOn(true); haptic('small'); }, T.money + 1500));
     if (sum.achieved && !sum.dead) {
@@ -67,6 +69,15 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
         <FadeIn delay={T.kicker}><Text style={styles.kicker}>人 生 結 算</Text></FadeIn>
         <ZoomIn delay={T.headline} from={0.6}><Text style={[styles.headline, sum.achieved ? { color: C.goldInk } : { color: C.ink }]}>{sum.headline}</Text></ZoomIn>
         <Stamp delay={T.badge}><View style={styles.badge}><Text style={styles.badgeText}>稱號：{sum.title}</Text></View></Stamp>
+        {sum.play ? (
+          <Stamp delay={T.badge + 220}>
+            <View style={styles.playBadge}>
+              <Text style={styles.playName}>{sum.play.icon} {sum.play.name}</Text>
+              <Text style={styles.playDesc}>{sum.play.desc}</Text>
+              <Text style={styles.playCp}>階段目標過了 {sum.cpDone} / {sum.cpTotal} 關</Text>
+            </View>
+          </Stamp>
+        ) : null}
         <FadeIn delay={T.money - 150}>
           <CountUp value={nwShown} duration={1500} format={(v) => E.formatMoney(v)} style={[styles.nw, sum.nw >= E.YI && { color: C.goldInk }]} />
           <Text style={styles.nwLabel}>
@@ -303,6 +314,13 @@ const styles = StyleSheet.create({
   },
   kicker: { textAlign: 'center', color: C.primaryInk, fontWeight: '600', fontSize: 13, letterSpacing: 2 },
   headline: { textAlign: 'center', fontSize: 30, fontWeight: '700', color: C.primary, marginTop: 6 },
+  playBadge: {
+    alignSelf: 'center', alignItems: 'center', marginTop: 10, paddingVertical: 10, paddingHorizontal: 18,
+    borderRadius: 14, backgroundColor: 'rgba(30,38,96,0.75)', borderWidth: 1, borderColor: 'rgba(157,140,255,0.4)',
+  },
+  playName: { fontSize: 19, fontWeight: '900', color: C.primaryInk, letterSpacing: 1 },
+  playDesc: { fontSize: 12, color: C.muted, marginTop: 4, textAlign: 'center' },
+  playCp: { fontSize: 11.5, color: C.goldInk, marginTop: 6, fontWeight: '700' },
   badge: { alignSelf: 'center', backgroundColor: 'rgba(255,215,106,0.14)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.6)', borderRadius: 99, paddingHorizontal: 16, paddingVertical: 7, marginTop: 12 },
   badgeText: { color: '#ffd76a', fontWeight: '600', fontSize: 14 },
   nw: { textAlign: 'center', fontSize: 40, fontWeight: '700', color: C.ink, marginTop: 16 },

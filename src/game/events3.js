@@ -180,6 +180,7 @@ export const EVENTS3 = [
           if (chance(rng, p)) {
             // 成功裡面有三分之一是「整個總部被端」的大獎
             if (chance(rng, 0.35)) {
+              s.flags.windfall = true;
               const seized = rint(rng, 20, 60);                       // 查扣幾十億
               const prize = P(s, Math.round(seized * 10000 * WAN * 0.05)); // 1 億 = 10000 * WAN，依法分到 5%
               return {

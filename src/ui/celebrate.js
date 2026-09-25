@@ -3,6 +3,7 @@
 //  big  ：買房、頂大、跳級、出道、破千萬／五千萬、傳說職業、逆襲成功 → 大煙火＋中間大卡＋強震
 //  mega ：破一億 → 滿天煙火＋金幣雨＋超大字＋長震
 import { useEffect, useMemo, useRef } from 'react';
+import { play as playSfx, CELEBRATE_SOUND } from './sfx';
 import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -79,10 +80,10 @@ export function detect(prev, next) {
   if (!prev || !next || prev === next || next.ended) return null;
   if (prev.bornAt !== next.bornAt || prev.name !== next.name) return null; // 換了一個人生
   const out = [];
-  const add = (tier, icon, title, sub) => out.push({ tier, icon, title, sub });
+  const add = (tier, icon, title, sub, sound) => out.push({ tier, icon, title, sub, sound });
 
   // 破億
-  if (!prev.achievedAge && next.achievedAge) add('mega', '🏆', '一個億達成！', `${next.achievedAge} 歲，你做到了`);
+  if (!prev.achievedAge && next.achievedAge) add('mega', '🏆', '一個億達成！', `${next.achievedAge} 歲，你做到了`, 'achieve');
 
   // 資產門檻：以前最高都沒到過才算
   const nw0 = netWorth(prev);
@@ -115,8 +116,8 @@ export function detect(prev, next) {
   // 工作
   const j0 = prev.job; const j1 = next.job;
   if (j1 && !String(j1.id).startsWith('lg_')) {
-    if (!j0) add('small', '💼', '找到工作了！', `${j1.name}${j1.volatile ? '' : `．年薪 ${formatMoney(j1.salary)}`}`);
-    else if (j0.id === j1.id && j0.name !== j1.name) add('small', '📈', '升職了！', `${j1.name}．年薪 ${formatMoney(j1.salary)}`);
+    if (!j0) add('small', '💼', '找到工作了！', `${j1.name}${j1.volatile ? '' : `．年薪 ${formatMoney(j1.salary)}`}`, 'promote');
+    else if (j0.id === j1.id && j0.name !== j1.name) add('small', '📈', '升職了！', `${j1.name}．年薪 ${formatMoney(j1.salary)}`, 'promote');
     else if (j0.id !== j1.id && j1.salary > j0.salary * 1.1) add('small', '🚀', '跳槽成功！', `${j1.name}．年薪 ${formatMoney(j1.salary)}`);
   }
 
@@ -124,16 +125,16 @@ export function detect(prev, next) {
   if ((next.houses || []).length > (prev.houses || []).length) {
     const h = next.houses[next.houses.length - 1];
     // 買房：放煙火慶祝（第一間是「成家」，之後是「包租公」）
-    add('big', '🏠', (prev.houses || []).length ? '又買了一間房！' : '買房了！恭喜成家', h ? `${h.name}．${formatMoney(h.price || h.value)}` : '');
+    add('big', '🏠', (prev.houses || []).length ? '又買了一間房！' : '買房了！恭喜成家', h ? `${h.name}．${formatMoney(h.price || h.value)}` : '', 'house');
   }
   if ((next.bizs || []).length > (prev.bizs || []).length) {
     const b = next.bizs[next.bizs.length - 1];
     add('small', '🏢', '當老闆了！', b ? b.name : '');
   }
-  if (!prev.married && next.married) add('small', '💍', '結婚了！', next.spouse ? `和 ${next.spouse.name}` : '');
+  if (!prev.married && next.married) add('big', '💍', '結婚了！', next.spouse ? `和 ${next.spouse.name}` : '', 'wedding');
   if ((next.kids || []).length > (prev.kids || []).length) {
     const k = next.kids[next.kids.length - 1];
-    add('small', '👶', '寶寶出生了！', k && k.name ? k.name : '');
+    add('big', '👶', '寶寶出生了！', k && k.name ? k.name : '', 'baby');
   }
 
   if (!out.length) return null;
@@ -290,6 +291,8 @@ export default function Celebration({ data, onDone }) {
   useEffect(() => {
     if (!data) return undefined;
     card.setValue(0);
+    // 配樂：結婚放結婚的、寶寶放音樂盒、破億放大號角
+    playSfx(data.sound || CELEBRATE_SOUND[tier] || 'coin');
     Animated.spring(card, { toValue: 1, friction: 6, tension: 70, useNativeDriver: ND }).start();
     const ms = tier === 'small' ? 2200 : tier === 'big' ? 4200 : 6500;
     const t = setTimeout(() => onDone && onDone(), ms);

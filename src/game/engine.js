@@ -44,6 +44,8 @@ export function lifeScore(s) {
 }
 export { motherAge, conceiveChance, downsChance, bizLevel, BIZ_LEVELS, canOpenSecondBiz } from './actions.js';
 export { LEGENDS, legendById };
+export { TITLES, lifeTitle } from './titles.js';
+import { lifeTitle } from './titles.js';
 export { ROUTES, HOUSES, ASSETS, BUSINESSES, DOWN_PAYMENT, INVEST_MIN_AGE, MAX_BIZ, MAX_KIDS };
 export { currentType, PARTNER_TYPES };
 export const perkOf = (s) => (s.perk ? s.perk : perksOf(s));
@@ -58,6 +60,34 @@ export const isMarketLog = (l) => !!l && (String(l.tone || '').startsWith('world
 export const marketNews = (s, years = 3) => (s.log || []).filter((l) => isMarketLog(l) && l.age > s.age - years).slice(-40).reverse();
 
 export const SAVE_VERSION = 3;
+// ── 階段目標 ──────────────────────────────────────────
+// 原本整場人生只有一個目標，而且在 65 歲 —— 你 30 歲時完全不知道自己算不算落後。
+// 每隔五年給一個具體門檻，畫面上一直顯示「離下一關還差多少」，過關給點數。
+// 金額不跟著物價調整，因為終點「一個億」本來就是名目金額。
+export const CHECKPOINTS = [
+  { age: 25, nw: 100 * 10000, name: '第一桶金', pts: 2 },
+  { age: 30, nw: 400 * 10000, name: '站穩腳步', pts: 3 },
+  { age: 35, nw: 1000 * 10000, name: '小有積蓄', pts: 4 },
+  { age: 40, nw: 2200 * 10000, name: '中年有成', pts: 5 },
+  { age: 45, nw: 4000 * 10000, name: '衝刺期', pts: 6 },
+  { age: 50, nw: 6000 * 10000, name: '看得到終點', pts: 7 },
+  { age: 55, nw: 8000 * 10000, name: '最後一哩', pts: 8 },
+  { age: 60, nw: 9500 * 10000, name: '差一步', pts: 9 },
+];
+
+// 下一個還沒過的關卡（已經破億就不用再看了）
+export const nextCheckpoint = (s, nw) => {
+  const done = (s.flags && s.flags.cp) || {};
+  for (const c of CHECKPOINTS) {
+    if (done[c.age] || c.age <= s.age) continue;
+    return { ...c, gap: Math.max(0, c.nw - nw), years: c.age - s.age, ok: nw >= c.nw };
+  }
+  return null;
+};
+
+// 過了幾關
+export const checkpointsDone = (s) => Object.keys((s.flags && s.flags.cp) || {}).length;
+
 export const BASE_FOCUS_SLOTS = 3; // 每年最多可以選幾個重點
 export const MAX_FOCUS_SLOTS = 5;
 export const FOCUS_SLOT_COSTS = [10, 16]; // 升到 4、5 個要幾點
@@ -122,6 +152,7 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
     deposit: 0, etf: 0, stock: 0, gold: 0, crypto: 0,
     dca: 0,
     investSkill: 0,
+    focusTally: {},   // 這輩子每件事做過幾次（結算的稱號用）
     trades: [],   // 買賣紀錄：{ age, key, amt, kind }，amt 正=投入、負=拿回
     houses: [],
     debts: [],
@@ -424,6 +455,9 @@ const STAT_KEYS = ['int', 'hp', 'happy', 'charm'];
 function applyFocus(s, rng) {
   const list = s.focuses.length ? s.focuses : ['grow'];
   s.workStreak = hasFocus(s, 'work') || hasFocus(s, 'runbiz') ? s.workStreak + 1 : 0;
+  // 累計這輩子每件事做過幾次，結算時拿來算稱號
+  if (!s.focusTally) s.focusTally = {};
+  for (const f of list) s.focusTally[f] = (s.focusTally[f] || 0) + 1;
   const detail = [];
   for (const f of list) {
     const before = { ...s.stats };
@@ -1682,6 +1716,18 @@ export function nextYear(s0, rng = Math.random) {
   romanceYear(s, rng);
   bodyYear(s, rng);
   if (s.age >= 6 && !s.ended) addPoints(s, 1, '又長大一歲');
+  // 階段目標：年齡到了就結算，過了給點數
+  if (!s.flags.cp) s.flags.cp = {};
+  for (const c of CHECKPOINTS) {
+    if (c.age !== s.age || s.flags.cp[c.age]) continue;
+    if (netWorth(s) >= c.nw) {
+      s.flags.cp[c.age] = true;
+      addPoints(s, c.pts, `${c.age} 歲關卡「${c.name}」`);
+      log(s, `【階段目標】${c.age} 歲前要存到 ${formatMoney(c.nw)} —— 你做到了！（+${c.pts} 點）`, 'milestone');
+    } else {
+      log(s, `【階段目標】${c.age} 歲的門檻是 ${formatMoney(c.nw)}，你還差 ${formatMoney(c.nw - netWorth(s))}。還有時間追。`, 'neutral');
+    }
+  }
   s.history.push(netWorth(s));
   s.invHistory.push(investTotal(s));
 
@@ -2042,6 +2088,10 @@ export function summary(s) {
 
   return {
     nw,
+    // 玩法稱號：看你這輩子實際在做什麼，跟上面那個看結果的稱號是兩回事
+    play: lifeTitle(s),
+    cpDone: checkpointsDone(s),
+    cpTotal: CHECKPOINTS.length,
     pct: (nw / YI) * 100,
     realNw: nw / s.priceIndex,
     priceIndex: s.priceIndex,

@@ -12,6 +12,7 @@ import UpgradeSheet from './UpgradeSheet';
 import Sheet from './Sheet';
 import Tutorial from './Tutorial';
 import MatesSheet from './MatesSheet';
+import { play as playSfx, getSfx, setSfx } from './sfx';
 import YearSummary from './YearSummary';
 import { sceneForState } from './art';
 import { CharScene, Head, castFor, stageOf } from './Character';
@@ -83,6 +84,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const prevRef = useRef(s);
   const [cel, setCel] = useState([]);
   const [hapticsOn, setHapticsOn] = useState(getHaptics());
+  const [sfxOn, setSfxOn] = useState(getSfx());
   useLayoutEffect(() => {
     const d = detect(prevRef.current, s);
     prevRef.current = s;
@@ -105,6 +107,13 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
     for (const m of STAT_META) { const d = s2.stats[m.key] - s.stats[m.key]; if (d) stats[m.key] = d; }
     const nwD = E.netWorth(s2) - nw0;
     haptic('tap');
+    // 事件結果：好消息一個上行、壞消息一個下行
+    {
+      const tones = items.map((x) => x.tone);
+      playSfx(tones.includes('milestone') ? 'checkpoint'
+        : (tones.includes('bad') && !tones.includes('good')) ? 'bad'
+          : tones.includes('good') ? 'good' : 'tap');
+    }
     setResult({
       title: p.title, choice: p.choices[i].label, items, stats,
       // 這個選項有專屬動畫就用它的，沒有就沿用事件本身的
@@ -328,6 +337,22 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               </Text>
               <Text style={styles.pctNum}>{pctNum >= 100 ? pctNum.toFixed(0) : pctNum.toFixed(1)}%</Text>
             </View>
+            {/* 階段目標：讓玩家每一年都知道自己跟不跟得上，不用等到 65 歲才發現 */}
+            {(() => {
+              if (s.achievedAge || s.age < 6) return null;
+              const cp = E.nextCheckpoint(s, nw);
+              if (!cp) return null;
+              return (
+                <View style={styles.cpBar}>
+                  <Text style={styles.cpLabel} numberOfLines={1}>
+                    下一關 <Text style={styles.cpAge}>{cp.age} 歲</Text> {E.formatMoney(cp.nw)}
+                  </Text>
+                  <Text style={[styles.cpGap, cp.ok ? { color: C.green } : null]}>
+                    {cp.ok ? `✓ 已達標（剩 ${cp.years} 年）` : `還差 ${E.formatMoney(cp.gap)}`}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
 
           {/* 狀態：屬性＋資產，一眼看完 */}
@@ -546,6 +571,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               setShowAllLog(false);
               scrollRef.current?.scrollTo({ y: 0, animated: false });
               haptic('tap');
+              playSfx('year');
               setGame(E.nextYear(s));
             }}
             style={({ pressed }) => [styles.nextBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
@@ -571,6 +597,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       <Sheet visible={showMenu} onClose={() => setShowMenu(false)} title="選單">
         <Text style={[styles.small, { marginBottom: 12 }]}>性別：{E.genderById(s.gender).name}．難度：{E.diffOf(s).name}（{E.diffOf(s).sub}）。遊戲每一年都會自動存檔，換難度要開新的人生。</Text>
         <Button kind="soft" title={hapticsOn ? '震動：開' : '震動：關'} icon="📳" onPress={() => { const v = !hapticsOn; setHaptics(v); setHapticsOn(v); if (v) haptic('small'); }} />
+        <Button kind="soft" title={sfxOn ? '音效：開' : '音效：關'} icon="🔊" onPress={() => { const v = !sfxOn; setSfx(v); setSfxOn(v); }} />
         <Button kind="soft" title="重看新手教學" icon="💡" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); setTut(0); }} />
         <Button kind="ghost" title="回到首頁" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); onHome(); }} />
         <Button kind="red" title="放棄這一生，重新開始" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); onRestart(); }} />
@@ -695,6 +722,13 @@ const styles = StyleSheet.create({
   pctNum: { color: C.primaryInk, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
   pctLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 10.5 },
   heroBar: { marginTop: 14 },
+  cpBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(140,170,255,0.18)',
+  },
+  cpLabel: { fontSize: 12, color: 'rgba(200,215,255,0.75)', flexShrink: 1 },
+  cpAge: { fontWeight: '800', color: C.goldInk },
+  cpGap: { fontSize: 12, fontWeight: '700', color: C.goldInk, fontVariant: ['tabular-nums'] },
   heroFoot: { color: C.muted, fontSize: 11.5, marginTop: 8, fontWeight: '400', flex: 1 },
 
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
