@@ -431,6 +431,113 @@ export const EVENTS3 = [
     id: 'crypto_hack', minAge: 20, maxAge: 99, weight: 1, cond: (s) => s.crypto >= 20 * WAN, title: '交易所被駭',
     effect: (s) => { const loss = Math.round(s.crypto * 0.4); s.crypto -= loss; return bad(`你放幣的交易所被駭客入侵，少了 ${formatMoney(loss)}。${addStats(s, { happy: -8 })}`); },
   },
+  // ───────── 以小搏大：賠的機率比較高，但中了就是一次改變人生 ─────────
+  // 這幾個事件的共通點：擺明告訴你「大概率賠」，但押不押是你的選擇。
+  // 賠的時候只賠掉你押的那筆，中的時候是好幾十倍，所以敢玩的人才有故事。
+  {
+    id: 'angel_invest', minAge: 25, maxAge: 60, weight: 2, once: true,
+    cond: (s) => s.money >= P(s, 50 * WAN), title: '朋友來借創業的錢',
+    text: '大學同學做了一個東西，講得眼睛發亮，說再兩百萬就能量產。他問你要不要算一份。',
+    choices: [
+      {
+        label: '投他一筆', sub: '大概率打水漂，但中了是幾十倍',
+        odds: (s) => Math.min(0.3, 0.12 + s.investSkill * 0.012 + s.stats.int / 800),
+        effect: (s, rng) => {
+          const amt = Math.min(Math.round(cash(s) * 0.2), P(s, 200 * WAN));
+          addMoney(s, -amt);
+          const p = Math.min(0.3, 0.12 + s.investSkill * 0.012 + s.stats.int / 800);
+          if (!chance(rng, p)) {
+            return bad(`公司撐了兩年還是收了。他親自來跟你道歉，你的 ${formatMoney(amt)} 沒了。${addStats(s, { happy: -6 })}`);
+          }
+          // 活下來的裡面，五分之一會變成真的很大的那種
+          if (chance(rng, 0.15)) {
+            s.flags.windfall = true;
+            const back = Math.round(amt * (20 + rng() * 30));
+            return { text: `八年後，那家公司在美國上市。你當年那 ${formatMoney(amt)} 變成 ${formatMoney(back)}，你連股東會都沒去過。${addMoney(s, back)}${addStats(s, { happy: 20 })}`, tone: 'milestone' };
+          }
+          const back = Math.round(amt * (2 + rng() * 3.5));
+          return { text: `公司被一家大廠併購，你那筆錢連本帶利拿回 ${formatMoney(back)}。${addMoney(s, back)}${addStats(s, { happy: 10 })}`, tone: 'milestone' };
+        },
+      },
+      { label: '請他吃頓飯就好', effect: (s) => `你祝他順利，但沒有掏錢。${addStats(s, { charm: 1 })}` },
+    ],
+  },
+  {
+    id: 'old_land', minAge: 35, maxAge: 99, weight: 2, once: true,
+    cond: (s) => s.age >= 40, title: '老家那塊地',
+    text: '老家鄉下那塊沒人管的地，仲介開了價要買。爸說要賣就賣，反正也沒人回去了。',
+    choices: [
+      {
+        label: '賣掉，拿現金比較實在',
+        effect: (s, rng) => {
+          const amt = P(s, rint(rng, 80, 260) * WAN);
+          return good(`手續辦一辦，一筆錢進了帳戶。${addMoney(s, amt)}`);
+        },
+      },
+      {
+        label: '留著，看以後會不會都更', sub: '每年要繳地價稅，可能白等一輩子',
+        odds: () => 0.12,
+        effect: (s, rng) => {
+          s.flags.landHold = s.age;
+          if (chance(rng, 0.12)) {
+            s.flags.windfall = true;
+            const amt = P(s, rint(rng, 1200, 4000) * WAN);
+            return { text: `十幾年後，那一帶劃進重劃區。你什麼都沒做，地價翻了幾十倍，建商捧著錢來找你。${addMoney(s, amt)}${addStats(s, { happy: 18 })}`, tone: 'milestone' };
+          }
+          const tax = P(s, rint(rng, 8, 25) * WAN);
+          return bad(`地還是那塊地，雜草長得比人高。這些年的地價稅加一加 ${formatMoney(tax)}。${addMoney(s, -tax)}`);
+        },
+      },
+    ],
+  },
+  {
+    id: 'stock_option', minAge: 24, maxAge: 60, weight: 2,
+    cond: (s) => regularJob(s) && s.job.salary > 0, title: '年終給股票還是現金？',
+    text: '今年公司說年終可以選：領現金，或是換成等值的自家股票，但要鎖三年。',
+    choices: [
+      { label: '領現金', sub: '拿得到、算得準', effect: (s) => good(`年終落袋為安。${addMoney(s, Math.round(s.job.salary * 0.3))}`) },
+      {
+        label: '換成股票', sub: '三年後可能翻倍，也可能變壁紙',
+        odds: () => 0.35,
+        effect: (s, rng) => {
+          const base = Math.round(s.job.salary * 0.3);
+          const r = rng();
+          if (r < 0.07) {
+            const back = Math.round(base * (5 + rng() * 7));
+            s.flags.windfall = back > base * 12;
+            return { text: `三年後公司被國際大廠併購，你那些鎖住的股票一次兌現 ${formatMoney(back)}。${addMoney(s, back)}${addStats(s, { happy: 12 })}`, tone: 'milestone' };
+          }
+          if (r < 0.35) {
+            const back = Math.round(base * (1.4 + rng() * 1.2));
+            return good(`三年後解鎖，股價漲了不少，換回 ${formatMoney(back)}。${addMoney(s, back)}`);
+          }
+          const back = Math.round(base * (0.05 + rng() * 0.45));
+          return bad(`三年後解鎖時股價已經腰斬再腰斬，只換回 ${formatMoney(back)}。${addMoney(s, back)}${addStats(s, { happy: -5 })}`);
+        },
+      },
+    ],
+  },
+  {
+    id: 'auction_find', minAge: 22, maxAge: 99, weight: 1, once: true,
+    cond: (s) => s.money >= P(s, 20 * WAN), title: '二手市集的怪東西',
+    text: '你在舊貨攤看到一幅畫，老闆說是他阿公留下來的，開價不高。',
+    choices: [
+      {
+        label: '買下來', sub: '大概率就是一張畫',
+        odds: (s) => Math.min(0.16, 0.05 + s.stats.int / 900 + s.investSkill * 0.005),
+        effect: (s, rng) => {
+          const amt = P(s, rint(rng, 3, 12) * WAN);
+          addMoney(s, -amt);
+          const p = Math.min(0.16, 0.05 + s.stats.int / 900 + s.investSkill * 0.005);
+          if (!chance(rng, p)) return `畫掛在客廳，你太太說很醜。${addStats(s, { happy: 1 })}`;
+          const back = P(s, rint(rng, 150, 1200) * WAN);
+          if (back > P(s, 800 * WAN)) s.flags.windfall = true;
+          return { text: `幾年後你送去鑑定，那是一位已故畫家早期的作品。拍賣會上落槌 ${formatMoney(back)}。${addMoney(s, back)}${addStats(s, { happy: 15 })}`, tone: 'milestone' };
+        },
+      },
+      { label: '拍張照就好', effect: () => '你拍了照，走了。' },
+    ],
+  },
   {
     id: 'bank_promo', minAge: 20, maxAge: 99, weight: 2, cond: (s) => s.money >= P(s, 30 * WAN), title: '高利定存專案',
     text: '銀行推出限時的高利定存，利率比平常高一點。',

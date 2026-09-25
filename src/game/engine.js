@@ -455,9 +455,14 @@ const STAT_KEYS = ['int', 'hp', 'happy', 'charm'];
 function applyFocus(s, rng) {
   const list = s.focuses.length ? s.focuses : ['grow'];
   s.workStreak = hasFocus(s, 'work') || hasFocus(s, 'runbiz') ? s.workStreak + 1 : 0;
-  // 累計這輩子每件事做過幾次，結算時拿來算稱號
+  // 累計這輩子每件事做過幾次，結算時拿來算稱號。
+  // 學生時期只算 0.4 —— 每個人都要唸十幾年書，不打折的話童年會把成年後的選擇整個蓋過去
+  // （實測：工作狂有 73% 被判成「書呆子」）。
   if (!s.focusTally) s.focusTally = {};
-  for (const f of list) s.focusTally[f] = (s.focusTally[f] || 0) + 1;
+  // 再乘上精力花費：「認真工作」要 2 點、「經營人脈」只要 1 點，
+  // 不乘的話便宜的行動每年都選得起，稱號就會全部被它們洗走（實測工作狂 74% 被判成交際花）。
+  const w = (s.age >= 18 ? 1 : 0.4);
+  for (const f of list) s.focusTally[f] = Math.round(((s.focusTally[f] || 0) + w * focusCost(f)) * 10) / 10;
   const detail = [];
   for (const f of list) {
     const before = { ...s.stats };
@@ -800,7 +805,42 @@ function economy(s, rng) {
     gold: ret.gold,
     crypto: ret.crypto,
   };
+  // ── 飆股、地雷股、暴漲的幣 ──────────────────────────
+  // 以前個股只有「大盤 ± 一點雜訊」，所以永遠不會出現「我買到一支翻三倍」
+  // 或「我踩到一顆地雷」這種故事，個股跟 ETF 幾乎只差在波動大小。
+  // 這裡每年多擲一次小機率的骰子，讓高風險的東西真的有高風險高報酬。
+  // 投資眼光越好，飆股機率越高、地雷機率越低 ——「研究投資」才有意義。
+  const jackpots = [];
+  const roll = (key, min, up, upLo, upHi, down, dnLo, dnHi, upText, dnText) => {
+    if (s[key] < cost(s, min)) return;
+    if (chance(rng, up)) {
+      const m = upLo + rng() * (upHi - upLo);
+      mine[key] += m;
+      jackpots.push({ key, m, before: s[key], text: upText, good: true });
+    } else if (chance(rng, down)) {
+      const m = -(dnLo + rng() * (dnHi - dnLo));
+      mine[key] += m;
+      jackpots.push({ key, m, before: s[key], text: dnText, good: false });
+    }
+  };
+  if (canInvest(s)) {
+    roll('stock', 10 * WAN,
+      0.02 + s.investSkill * 0.0012, 0.7, 2.3,
+      Math.max(0.008, 0.03 - s.investSkill * 0.0012), 0.45, 0.8,
+      '你手上有一檔冷門股被外資發現，一年漲了好幾倍',
+      '你重押的那家公司爆出財報造假，股票一路跌停鎖死');
+    roll('crypto', 5 * WAN,
+      0.012, 1.2, 4.2,
+      0.02, 0.55, 0.9,
+      '你當初隨便買的那顆小幣，被大交易所上架後直接噴上天',
+      '你押的那個幣，團隊半夜把流動性抽乾跑路了');
+  }
   for (const a of ASSETS) s[a.key] = Math.round(s[a.key] * (1 + mine[a.key]));
+  for (const j of jackpots) {
+    const amt = Math.round(Math.abs(j.before * j.m));
+    if (j.good && j.m >= 2) s.flags.windfall = true;
+    log(s, `${j.text}，${ASSET_NAME[j.key]}${j.good ? '多了' : '少了'} ${formatMoney(amt)}。`, j.good ? 'milestone' : 'bad');
+  }
   // 我的個股表現指數（用來跟大盤比較）
   s.myStock = Math.max(1, s.myStock * (1 + mine.stock));
   s.idxHistory[s.idxHistory.length - 1].myStock = s.myStock;
@@ -864,6 +904,44 @@ function economy(s, rng) {
       y.dca ? `投資 ${formatMoney(y.dca)}` : null,
     ].filter(Boolean).join('　'), 'money');
   }
+}
+
+// ── 職業爆發 ────────────────────────────────────────────
+// 以前每個工作都是「固定薪水＋固定調薪」，一輩子不會有意外，所以選哪個行業
+// 看的只是起薪高低。有些行業實際上不是這樣：作家可能一本書就翻身，業務可能
+// 一張單抵十年，工程師可能公司被併購股票一次兌現。
+// 所以給這類行業一個 hit（在 data.js），每年擲一次骰子。
+// 機率不是純運氣：能力越高、在這行待越久，越容易輪到你。
+function hitChance(s, j) {
+  const h = j.hit;
+  if (!h) return 0;
+  const st = s.stats[h.stat || 'charm'] || 0;
+  const skill = 0.4 + Math.max(0, st - 40) / 45;            // 能力 40 以下 0.4 倍，85 約 1.4 倍
+  const tenure = Math.min(1.5, 0.45 + (j.years || 0) * 0.09); // 菜鳥比較不會輪到，做久了門路多
+  return Math.max(0, h.p * skill * tenure);
+}
+
+function careerHit(s, rng) {
+  const j = s.job;
+  if (!j) return;
+  // 舊存檔、或別的地方自己組出來的工作物件（例如偶像轉型成藝人）沒有 hit，補上
+  if (j.hit === undefined) { const d = jobById(j.id); j.hit = (d && d.hit) || null; }
+  if (!j.hit) return;
+  if (j.lastHit && s.age - j.lastHit < 3) return;   // 中過之後冷卻三年，不要連莊
+  if (!chance(rng, hitChance(s, j))) return;
+  const [lo, hi] = j.hit.mult;
+  const mult = lo + rng() * (hi - lo);
+  // volatile 的工作（網紅那種）沒有固定年薪，用一個跟著物價走的基準
+  const base = j.volatile || !j.salary ? cost(s, 45 * WAN) : j.salary;
+  const gross = Math.round(base * mult);
+  // 一次性的大筆收入要先被剝一層皮：所得稅級距直接跳到最高、經紀公司或事務所再抽一手。
+  // 這層也是平衡閥 —— 沒有它，挑戰和地獄難度會被這個機制救得太輕鬆。
+  const net = Math.round(gross * 0.55);
+  j.lastHit = s.age;
+  if (mult >= 8) s.flags.windfall = true;            // 真的很大的那種才算「狗屎運」
+  log(s, `${j.hit.text}，扣掉稅和抽成後實拿 ${formatMoney(net)}。${addMoney(s, net)}`, 'milestone');
+  // 給 UI 放煙火用（celebrate.js 的 detect() 會比對 age 有沒有變）
+  s.flags.hitShow = { age: s.age, job: j.name, net, mega: mult >= 8 };
 }
 
 function careerYear(s, rng) {
@@ -1325,7 +1403,9 @@ function jobOffers(s, rng) {
         label: `${o.alt ? `${o.alt}（${j.name}）` : j.name}${headhunt ? ' ★' : ''}`,
         sub: j.volatile
           ? `收入看${statName}，有機會爆紅${o.alt ? '．走另一條路進來的' : ''}`
-          : `年薪約 ${formatMoney(o.salary)}${ROUTES[j.id] ? '．有逆襲路線' : ''}${o.alt ? '．用你的強項進來的' : ''}${headhunt ? '．學歷不夠但被挖角' : ''}`,
+          // 有 hit 的行業要在卡片上講清楚，不然玩家只會比起薪，
+          // 永遠不會知道作家、電競這種「起薪低但可能一次翻身」的選項是怎麼回事
+          : `年薪約 ${formatMoney(o.salary)}${j.hit ? `．${j.hit.mult[1] >= 8 ? '有機會一次翻身' : '有機會領到大筆獎金'}` : ''}${ROUTES[j.id] ? '．有逆襲路線' : ''}${o.alt ? '．用你的強項進來的' : ''}${headhunt ? '．學歷不夠但被挖角' : ''}`,
         ref: o.id,
         salary: o.salary,
         alt: o.alt,
@@ -1723,6 +1803,7 @@ export function nextYear(s0, rng = Math.random) {
   refreshTargets(s, rng);
   economy(s, rng);
   careerYear(s, rng);
+  careerHit(s, rng);
   petYear(s, rng);
   spouseCareer(s, rng);
   romanceYear(s, rng);
@@ -1844,6 +1925,7 @@ function takeJob(s, id, salary, variant = null) {
     risk: def.risk,
     volatile: !!def.volatile,
     fade: def.fade || null,   // 偶像的「被新人擠」參數
+    hit: def.hit || null,     // 這行有沒有「爆發」的機會（careerHit()）
     retireAge: variant && variant.noRetire ? null : (def.retireAge || null),
     stat: (variant && variant.stat) || null,
   };

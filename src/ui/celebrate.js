@@ -101,6 +101,12 @@ export function detect(prev, next) {
   // 逆襲路線完成
   if (prev.route && next.route && !prev.route.done && next.route.done) add('big', '⭐', '逆襲成功！', '一路從谷底爬上來');
 
+  // 職涯爆發（engine.js 的 careerHit()）
+  const h0 = prev.flags?.hitShow; const h1 = next.flags?.hitShow;
+  if (h1 && (!h0 || h0.age !== h1.age)) {
+    add(h1.mega ? 'mega' : 'big', '💰', '職涯爆發！', `${h1.job}．${formatMoney(h1.net)}`, h1.mega ? 'achieve' : 'promote');
+  }
+
   // 學業
   if (prev.edu !== 'topCollege' && next.edu === 'topCollege') add('big', '🎓', '考上頂尖大學！', '全家都為你驕傲');
   if ((next.flags?.skipYears || 0) > (prev.flags?.skipYears || 0)) add('big', '🧠', '跳級成功！', '比同學早一年');

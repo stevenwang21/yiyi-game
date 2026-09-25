@@ -13,12 +13,12 @@ export const TITLES = [
   {
     id: 'grinder', name: '拼命三郎', icon: '🔥',
     desc: '一輩子都在工作，身體是最後才想到的事',
-    score: (s) => ratio(s, ['work']) * 4.5 + (s.stats.hp < 40 ? 1 : 0) - ratio(s, ['rest', 'gym']) * 2,
+    score: (s) => ratio(s, ['work']) * 6.5 + (s.stats.hp < 40 ? 1 : 0) - ratio(s, ['rest', 'gym']) * 2,
   },
   {
     id: 'ironman', name: '鐵人', icon: '💪',
     desc: '再忙也要運動，活得比誰都久',
-    score: (s) => ratio(s, ['gym', 'sport']) * 4 + (s.stats.hp >= 70 ? 1.2 : 0) + (s.age >= 75 ? 0.8 : 0),
+    score: (s) => ratio(s, ['gym', 'sport']) * 6 + (s.stats.hp >= 70 ? 1.2 : 0) + (s.age >= 75 ? 0.8 : 0),
   },
   {
     id: 'gambler', name: '賭徒', icon: '🎲',
@@ -44,27 +44,27 @@ export const TITLES = [
   {
     id: 'family', name: '家庭至上', icon: '🏠',
     desc: '錢再多也比不上晚餐桌上有人等你',
-    score: (s) => ratio(s, ['family', 'date']) * 4 + (s.kids || []).length * 0.5 + (s.married ? 0.5 : -1),
+    score: (s) => ratio(s, ['family', 'date']) * 6 + (s.kids || []).length * 0.4 + (s.married ? 0.5 : -1),
   },
   {
     id: 'social', name: '交際花', icon: '🤝',
     desc: '人脈就是錢脈，你把這句話活成真的',
-    score: (s) => ratio(s, ['network', 'friends']) * 4 + (s.stats.charm >= 80 ? 1.2 : 0),
+    score: (s) => ratio(s, ['network', 'friends']) * 6 + (s.stats.charm >= 80 ? 1.2 : 0),
   },
   {
     id: 'nerd', name: '書呆子', icon: '📚',
     desc: '一路念到底，腦子是你唯一的本錢',
-    score: (s) => ratio(s, ['study', 'cram', 'learn']) * 3.5 + (s.stats.int >= 82 ? 1.2 : 0),
+    score: (s) => ratio(s, ['study', 'cram', 'learn']) * 5 + (s.stats.int >= 82 ? 1.2 : 0),
   },
   {
     id: 'founder', name: '連續創業家', icon: '🚀',
     desc: '上班是不可能上班的，這輩子都在開公司',
-    score: (s) => (s.bizs || []).length * 1.6 + ratio(s, ['startbiz', 'runbiz']) * 3.5,
+    score: (s) => (s.bizs || []).length * 0.7 + ratio(s, ['startbiz', 'runbiz']) * 4.5,
   },
   {
     id: 'slacker', name: '快樂至上', icon: '🎮',
     desc: '錢沒賺到，但你每一天都過得很爽',
-    score: (s) => ratio(s, ['play', 'rest']) * 4 + (s.stats.happy >= 80 ? 1.5 : 0),
+    score: (s) => ratio(s, ['play', 'rest']) * 6 + (s.stats.happy >= 80 ? 1.5 : 0),
   },
   {
     id: 'hero', name: '反詐英雄', icon: '🛡️',
@@ -74,7 +74,7 @@ export const TITLES = [
   {
     id: 'landlord', name: '包租公', icon: '🔑',
     desc: '房子替你上班，你只要收錢',
-    score: (s) => (s.houses || []).length * 1.5,
+    score: (s) => (s.houses || []).length * 0.9 + ((s.houses || []).length >= 2 ? 0.8 : 0),
   },
   {
     id: 'lucky', name: '狗屎運', icon: '🍀',
@@ -90,7 +90,7 @@ export const lifeTitle = (s) => {
     try { v = x.score(s) || 0; } catch (_) { v = 0; }
     if (!best || v > best.v) best = { ...x, v };
   }
-  if (!best || best.v < 1.2) {
+  if (!best || best.v < 1.6) {
     return { id: 'normal', name: '平凡人', icon: '🙂', desc: '沒有特別拼，也沒有特別廢，就這樣過完一生' };
   }
   return best;
