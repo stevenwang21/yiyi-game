@@ -904,7 +904,19 @@ function careerYear(s, rng) {
       log(s, '你的努力被老闆看見，加薪 10%！', 'good');
     }
   }
+  // 偶像專屬：過了顛峰，公司把資源給新人，通告和分紅被稀釋。
+  // 人緣高的人掉得慢（老粉還在），年紀越大掉越兇。
+  if (j.fade && s.age >= j.fade.from) {
+    const over = s.age - j.fade.from;
+    const cut = Math.max(0.02, Math.min(0.2,
+      j.fade.rate + over * 0.006 - Math.max(0, (s.stats.charm - 70) / 500)));
+    raise -= cut;
+  }
+  const before = j.salary;
   j.salary = Math.round(j.salary * (1 + raise));
+  if (j.fade && j.salary < before * 0.985) {
+    log(s, `今年公司把資源給了新人，你的通告變少，年薪降到 ${formatMoney(j.salary)}。`, 'bad');
+  }
 }
 
 const ASSET_NAME = { deposit: '定存', gold: '黃金', etf: 'ETF', stock: '個股', crypto: '加密幣' };
@@ -1831,6 +1843,7 @@ function takeJob(s, id, salary, variant = null) {
     raise: def.raise,
     risk: def.risk,
     volatile: !!def.volatile,
+    fade: def.fade || null,   // 偶像的「被新人擠」參數
     retireAge: variant && variant.noRetire ? null : (def.retireAge || null),
     stat: (variant && variant.stat) || null,
   };

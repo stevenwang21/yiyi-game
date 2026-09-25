@@ -38,7 +38,11 @@ export const JOBS = [
   { id: 'lawyer', name: '律師', salary: 110 * WAN, edu: 4, req: { int: 71 }, raise: 1.2, risk: 0.4 },
   { id: 'doctor', name: '醫生', salary: 180 * WAN, edu: 5, req: { int: 74 }, raise: 1.0, risk: 0.2 },
   { id: 'trainee', name: '練習生', salary: 30 * WAN, edu: 0, req: {}, raise: 0.5, risk: 0, hidden: true },
-  { id: 'idol', name: '偶像藝人', salary: 70 * WAN, edu: 0, req: {}, raise: 1.4, risk: 0, hidden: true },
+  // 偶像：紅得快，但過了顛峰之後一年比一年多的新人在後面追，通告和分紅會被稀釋。
+  // fade = { from: 幾歲開始被擠, rate: 每年基本削減 }，詳細算法在 engine.js 的 careerYear()
+  { id: 'idol', name: '偶像', salary: 70 * WAN, edu: 0, req: {}, raise: 1.4, risk: 0, hidden: true, fade: { from: 28, rate: 0.06 } },
+  // 藝人：轉型走戲劇、主持、代言，靠的是資歷和人脈，年紀大反而是加分，薪水會一直往上
+  { id: 'artist', name: '藝人', salary: 90 * WAN, edu: 0, req: {}, raise: 1.7, risk: 0.3, hidden: true },
   { id: 'bandmusician', name: '職業樂手', salary: 34 * WAN, edu: 0, req: {}, raise: 1.2, risk: 0, hidden: true },
   // 社團一路練上去才會出現的職業（不會出現在一般求職名單）
   { id: 'probball', name: '職業籃球員', salary: 110 * WAN, edu: 0, req: {}, raise: 1.7, risk: 0.5, retireAge: 36, hidden: true },

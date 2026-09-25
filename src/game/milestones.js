@@ -1,6 +1,7 @@
 // 人生里程碑：抓周、會考、學測、畢業
 import { addStats, chance, formatMoney, WAN } from './utils.js';
 import { addPoints, addSkill, startBiz, underIdolContract } from './actions.js';
+import { jobById } from './data.js';
 
 const AGENCY_COST = (s) => Math.round(300 * WAN * (s.priceIndex || 1) / WAN) * WAN;
 
@@ -112,7 +113,7 @@ export const MILESTONES = {
     title: (s) => (s.flags.idol === 1 ? '練習生合約到期了' : '偶像合約到期了'),
     text: (s) => (s.flags.idol === 1
       ? `八年了，你還是沒能出道。公司說不續約了，練習室的鑰匙要交回去。`
-      : `八年前簽的約到期了。公司把新合約放在桌上：再簽八年，簽約金 ${formatMoney(Math.round(80 * WAN * s.priceIndex))}。你已經 ${s.age} 歲，圈子裡的新人一年比一年多。`),
+      : `八年前簽的約到期了。公司把新合約放在桌上：再簽八年，簽約金 ${formatMoney(Math.round(80 * WAN * s.priceIndex))}。你已經 ${s.age} 歲，練習生名單一年比一年長，資源也一年比一年少。經紀人私下說：「要嘛趁現在轉戲劇，要嘛就簽下去。」`),
     choices: [
       {
         label: '離開公司', sub: '不用付違約金',
@@ -124,7 +125,7 @@ export const MILESTONES = {
         },
       },
       {
-        label: '續約八年', sub: '拿簽約金，繼續當藝人',
+        label: '續約八年', sub: '拿簽約金，但還是會被新人擠',
         cond: (s) => s.flags.idol >= 2,
         effect: (s) => {
           const amt = Math.round(80 * WAN * s.priceIndex);
@@ -145,6 +146,33 @@ export const MILESTONES = {
           const text = startBiz(s, 'talentagency', { cash: cost, value: Math.round(cost * 1.4) });
           addPoints(s, 3, '開經紀公司');
           return good(`你把這些年的人脈全帶走，自己開了經紀公司，第一批練習生就是以前的師弟妹。${text}${addStats(s, { charm: 6, happy: 5 })}`);
+        },
+      },
+      {
+        // 偶像吃青春，藝人吃資歷。轉過去之後薪水不再被新人壓，但要先看人緣。
+        label: '轉型走戲劇和主持', sub: (s) => (s.stats.charm >= 60
+          ? '起薪先降，但之後會一直往上'
+          : `人緣要 60（你 ${s.stats.charm}）`),
+        cond: (s) => s.flags.idol >= 2 && s.stats.charm >= 60,
+        showLocked: (s) => `人緣不夠（要 60，你 ${s.stats.charm}）`,
+        effect: (s) => {
+          s.flags.idol = 5;          // 5 = 已轉型，不再受合約綁住
+          s.flags.idolEnd = null;
+          const base = s.job && s.job.id === 'idol' ? s.job.salary : Math.round(90 * WAN * s.priceIndex);
+          const salary = Math.round((base * 0.8) / 1000) * 1000;
+          // 這裡不能 import engine 的 takeJob（會變成循環引用），所以直接組工作物件
+          const def = jobById('artist');
+          const oldName = s.job ? s.job.name : null;
+          s.job = {
+            id: 'artist', name: def.name, salary, years: 0,
+            raise: def.raise, risk: def.risk, volatile: !!def.volatile, fade: null, retireAge: null, stat: null,
+          };
+          s.studying = false;
+          s.careers.push(def.name);
+          s.jobIds = [...(s.jobIds || []), 'artist'];
+          const text = `${oldName ? `你不再是「${oldName}」，` : ''}開始以「${def.name}」的身分接戲和主持，年薪 ${formatMoney(salary)}。`;
+          addPoints(s, 2, '從偶像轉型藝人');
+          return good(`你接了一部沒人看好的小成本電影，演一個很不討喜的角色。殺青那天導演說：「你不用再靠臉了。」${text}${addStats(s, { charm: 2, int: 4, happy: 2 })}`);
         },
       },
       {
