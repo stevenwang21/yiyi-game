@@ -16,6 +16,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="icon" type="image/png" href="favicon.png">
+  <!-- 第一個畫面的插圖先排隊下載，不用等程式跑起來才開始抓 -->
+  <link rel="preload" as="image" href="art/hero.webp">
+  <link rel="preload" as="image" href="art/card_bg.webp">
+  <link rel="preload" as="image" href="art/face_boy.webp">
+  <link rel="preload" as="image" href="art/face_girl.webp">
   <style>
     html, body { height: 100%; margin: 0; }
     body { background: #0f1636; overflow: hidden; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }

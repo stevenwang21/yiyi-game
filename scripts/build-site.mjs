@@ -41,11 +41,29 @@ const indexHtml = fs.readFileSync(path.join(root, 'web', 'index.html'), 'utf8')
   .replace('src="register-sw.js"', `src="${swUrl}"`);
 fs.writeFileSync(path.join(out, 'index.html'), indexHtml);
 
-// 5. 離線快取：檔案清單要用同一組帶版本的網址，離線時才對得上
-const files = ['./', 'index.html', appUrl, swUrl, 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png', ...arts.map((f) => `art/${f}`)];
+// 5. 離線快取
+// 外殼 = 一定要先有的東西（程式、圖示）＋ 第一個畫面就會用到的插圖。
+// 其他 280 張圖不放進外殼，改成開起來之後在背景慢慢補（見 web/sw.js）。
+// 以前是把全部檔案塞進 install 的 addAll()，一打開就同時抓 5MB，圖片才會慢得要命。
+const FIRST_SCREEN = [
+  'hero.webp', 'card_bg.webp', 'face_boy.webp', 'face_girl.webp',
+  'ic_easy.webp', 'ic_normal.webp', 'ic_hard.webp', 'ic_hell.webp',
+  'tile_star.webp', 'tile_book.webp', 'tile_crown.webp',
+].filter((f) => arts.includes(f));
+const shell = [
+  './', 'index.html', appUrl, swUrl,
+  'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png', 'favicon.png',
+  ...FIRST_SCREEN.map((f) => `art/${f}`),
+];
+const artUrls = arts.map((f) => `art/${f}`);
+// 每張圖的大小：插圖是 cache-first，換了同名的圖要靠這個才知道要把舊的丟掉
+const artSizes = {};
+for (const f of arts) artSizes[`art/${f}`] = fs.statSync(path.join(out, 'art', f)).size;
 const sw = fs.readFileSync(path.join(root, 'web', 'sw.js'), 'utf8')
   .replace('__CACHE__', `yiyi-${version}`)
-  .replace('__FILES__', JSON.stringify(files));
+  .replace('__SHELL__', JSON.stringify(shell))
+  .replace('__ART__', JSON.stringify(artUrls))
+  .replace('__ART_SIZES__', JSON.stringify(artSizes));
 fs.writeFileSync(path.join(out, 'sw.js'), sw);
 
 // GitHub Pages 不要用 Jekyll 處理
