@@ -6,6 +6,7 @@ import {
   ASSETS, BIZ_MIN_CAPITAL, BUSINESSES, CHECKUP_COST, DEBT_RATE, DOWN_PAYMENT, EDU, FAMILIES, HOUSES,
   INVEST_MIN_AGE, JOBS, KID_COST, KID_CRAM_COST, KID_INDEPENDENT, KID_STYLES, kidStyleById, KID_OUTCOMES, KID_SPECIAL_COST, KID_SPECIAL_ADULT, KID_SPECIAL_OUTCOMES, MAX_BIZ, MAX_KIDS, MORTGAGE_RATE,
   OPEN_BIZ, RENT_YIELD, familyById, jobById, PETS, PET_VACCINE, DIFFICULTIES, GENDERS, genderById, partnerWord, SURNAMES, randomPersonName,
+  rollDifficulty, RANDOM_WEIGHTS,
   BASE_RETIRE_AGE, MAX_RETIRE_AGE, retireCost, SPOUSE_LEVELS, SPOUSE_COSTS,
   DATE_COST_STUDENT, DATE_COST_ADULT, DATE_FOCUS_COST,
 } from './data.js';
@@ -27,6 +28,7 @@ import {
 export { formatMoneyFine } from './utils.js';
 export { netWorth, debtTotal, houseTotal, investTotal, bizTotal, housePrice, spouseInfo, formatMoney, YI, INDEX_META };
 export { SPOUSE_LEVELS, SPOUSE_COSTS, MAX_RETIRE_AGE, BASE_RETIRE_AGE, DIFFICULTIES, GENDERS, genderById, partnerWord };
+export { rollDifficulty, RANDOM_WEIGHTS };
 export { diffOf };
 export { KID_STYLES, kidStyleById, KID_OUTCOMES };
 export { spouseTitle };

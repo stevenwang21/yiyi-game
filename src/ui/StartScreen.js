@@ -8,7 +8,7 @@ import { PHOTO } from './art/photos';
 import Sheet from './Sheet';
 import { Button } from './components';
 import { C } from './theme';
-import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf } from '../game/engine';
+import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf, rollDifficulty, RANDOM_WEIGHTS } from '../game/engine';
 import { APP_VERSION } from '../version';
 import { STUDIO_NAME } from './StudioIntro';
 
@@ -87,6 +87,7 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
   const [showBoard, setShowBoard] = useState(false);
   const [metaMsg, setMetaMsg] = useState(null);
   const [confirmNew, setConfirmNew] = useState(false);
+  const [rolling, setRolling] = useState(null); // 隨機難度抽到什麼，先給玩家看一下再進遊戲
   const m = meta || { points: 0, earned: 0, lives: 0, slots: 0, retire: 0 };
   const got = book || {};
   const gotCount = LEGENDS.filter((l) => got[l.id]).length;
@@ -96,9 +97,16 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
   const ready = name.trim().length > 0;
 
   const startNew = () => {
-    if (!ready) return;
+    if (!ready || rolling) return;
     if (canContinue && !confirmNew) { setConfirmNew(true); return; }
     setConfirmNew(false);
+    if (diff === 'random') {
+      // 抽完先蓋一層卡片給玩家看 1.7 秒，不然不知道自己被分到什麼
+      const picked = DIFFICULTIES.find((d) => d.id === rollDifficulty()) || DIFFICULTIES[1];
+      setRolling(picked);
+      setTimeout(() => onNew(name.trim(), picked.id, gender), 1700);
+      return;
+    }
     onNew(name.trim(), diff, gender);
   };
 
@@ -192,6 +200,17 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           </View>
 
           <Pressable
+            onPress={() => setDiff('random')}
+            style={[styles.randCard, diff === 'random' && styles.pickOn, diff !== 'random' && { opacity: 0.8 }]}
+          >
+            <Text style={styles.randDice}>🎲</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.pickText, diff === 'random' && { color: '#fff' }]}>隨機</Text>
+              <Text style={styles.randSub}>交給命運決定，地獄只有 {RANDOM_WEIGHTS.hell}%</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
             onPress={startNew}
             disabled={!ready}
             style={({ pressed }) => [styles.primary, !ready && styles.primaryOff, confirmNew && styles.danger, pressed && ready && { transform: [{ scale: 0.98 }], opacity: 0.92 }]}
@@ -213,6 +232,18 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
         {/* 版本號：手機上一眼就知道有沒有更新到 */}
         <Text style={styles.credit}>{STUDIO_NAME}　{APP_VERSION}</Text>
       </ScrollView>
+
+      {/* 隨機難度：抽到什麼先蓋一張卡給玩家看 */}
+      {rolling ? (
+        <View style={styles.rollWrap} pointerEvents="none">
+          <View style={[styles.rollCard, rolling.id === 'hell' && styles.rollHell]}>
+            <Text style={styles.rollDice}>🎲</Text>
+            <Text style={styles.rollLabel}>命運決定的難度</Text>
+            <Text style={[styles.rollName, rolling.id === 'hell' && { color: '#e5b3ff' }]}>{rolling.name}</Text>
+            <Text style={styles.rollSub}>{rolling.sub}</Text>
+          </View>
+        </View>
+      ) : null}
 
       {/* 底部 Tab Bar */}
       <View style={[styles.tabBar, GLASS, { paddingBottom: insets.bottom + 6, width: W }]}>
@@ -390,6 +421,26 @@ const styles = StyleSheet.create({
   diffCard: { flex: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: 'rgba(10,15,50,0.55)', borderWidth: 1, borderColor: 'rgba(140,170,255,0.3)' },
   diffBg: { width: '100%', aspectRatio: 100 / 82 },
   diffLabel: { paddingVertical: 5, alignItems: 'center' },
+  randCard: {
+    marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 16,
+    backgroundColor: 'rgba(10,15,50,0.55)', borderWidth: 1, borderColor: 'rgba(140,170,255,0.3)',
+  },
+  randDice: { fontSize: 24 },
+  randSub: { marginTop: 2, fontSize: 11.5, color: 'rgba(200,215,255,0.65)' },
+  rollWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 60,
+    alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(7,11,34,0.88)',
+  },
+  rollCard: {
+    alignItems: 'center', paddingVertical: 30, paddingHorizontal: 40, borderRadius: 22,
+    backgroundColor: 'rgba(24,32,86,0.95)', borderWidth: 1.5, borderColor: 'rgba(159,178,255,0.6)',
+  },
+  rollHell: { backgroundColor: 'rgba(56,20,92,0.95)', borderColor: '#c68cff' },
+  rollDice: { fontSize: 46 },
+  rollLabel: { marginTop: 10, fontSize: 12, letterSpacing: 2, color: 'rgba(200,215,255,0.6)' },
+  rollName: { marginTop: 6, fontSize: 34, fontWeight: '900', color: '#fff', letterSpacing: 3 },
+  rollSub: { marginTop: 8, fontSize: 12.5, color: 'rgba(200,215,255,0.75)' },
   primary: {
     marginTop: 14, backgroundColor: '#6a5cff', borderRadius: 18, paddingVertical: 15, alignItems: 'center',
     borderWidth: 1, borderColor: '#b39cff',

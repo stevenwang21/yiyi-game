@@ -346,3 +346,15 @@ export const DIFFICULTIES = [
   },
 ];
 export const diffById = (id) => DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[0];
+
+// 隨機難度：不想自己選的時候用。地獄故意壓到 5%，不然每開三場就中一次會玩到想砸手機。
+export const RANDOM_WEIGHTS = { easy: 30, normal: 40, hard: 25, hell: 5 };
+export const rollDifficulty = () => {
+  const total = Object.values(RANDOM_WEIGHTS).reduce((a, b) => a + b, 0);
+  let r = Math.random() * total;
+  for (const [id, w] of Object.entries(RANDOM_WEIGHTS)) {
+    r -= w;
+    if (r < 0) return id;
+  }
+  return 'normal';
+};
