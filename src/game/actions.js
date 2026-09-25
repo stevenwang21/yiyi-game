@@ -1,6 +1,6 @@
 // 會被事件、逆襲路線、引擎共用的動作
 import {
-  BUSINESSES, LOAN_RATE, PAY_RATIO, MAX_BIZ, HOUSES, KID_GIVEN_M, KID_GIVEN_F, PARTNER_NAMES, SPOUSE_LEVELS, PETS, diffById, partnerPool,
+  BUSINESSES, BIZ_MIN_CAPITAL, LOAN_RATE, PAY_RATIO, MAX_BIZ, HOUSES, KID_GIVEN_M, KID_GIVEN_F, PARTNER_NAMES, SPOUSE_LEVELS, PETS, diffById, partnerPool,
 } from './data.js';
 import { rollPartnerType, partnerType } from './partners.js';
 
@@ -49,7 +49,9 @@ export const removeBiz = (s, uid) => {
 // 開始一個事業（最多同時兩家，超過時先賣掉價值最低的）
 export const ownBizs = (s) => s.bizs.filter((b) => !b.group);
 
-export const startBiz = (s, type, { cash = 0, loan = 0, value, route = null, quitJob = false } = {}) => {
+export const startBiz = (s, type, {
+  cash = 0, loan = 0, value, route = null, quitJob = false, joint = null,
+} = {}) => {
   const def = BUSINESSES[type];
   let prefix = '';
   if (ownBizs(s).length >= MAX_BIZ) {
@@ -60,7 +62,8 @@ export const startBiz = (s, type, { cash = 0, loan = 0, value, route = null, qui
   }
   s.money -= cash;
   if (loan > 0) addDebt(s, `創業貸款：${def.name}`, loan);
-  const v = Math.round(value ?? cash + loan);
+  // 合資：對方那筆錢直接算進公司價值，不經過你的現金
+  const v = Math.round(value ?? cash + loan + (joint ? joint.amount : 0));
   // 第一家還沒到滿級：新事業併進第一家，當成新部門（第二家公司要等第一家升到 Lv5）
   const own = ownBizs(s);
   if (own.length === 1 && !canOpenSecondBiz(s)) {
@@ -72,9 +75,14 @@ export const startBiz = (s, type, { cash = 0, loan = 0, value, route = null, qui
     if (quitJob && s.job) { text += `你辭掉了「${s.job.name}」的工作，全心當老闆。`; s.job = null; }
     return text;
   }
-  s.bizs.push({ uid: `b${s.uid++}`, type, name: def.name, value: v, capital: v, route, bonus: 0, years: 0, lastR: 0 });
+  s.bizs.push({
+    uid: `b${s.uid++}`, type, name: def.name, value: v, capital: v, route, bonus: 0, years: 0, lastR: 0,
+    joint: joint ? { name: joint.name, share: 0.5 } : null,
+  });
   s.flags.everBiz = true;
-  let text = `${prefix}你成立了「${def.name}」，事業價值 ${formatMoney(v)}。`;
+  let text = joint
+    ? `${prefix}你和「${joint.name}」一起成立了「${def.name}」，對方出了 ${formatMoney(joint.amount)}，公司登記在兩個人名下，事業價值 ${formatMoney(v)}。`
+    : `${prefix}你成立了「${def.name}」，事業價值 ${formatMoney(v)}。`;
   if (quitJob && s.job) {
     text += `你辭掉了「${s.job.name}」的工作，全心當老闆。`;
     s.job = null;
@@ -169,6 +177,10 @@ export const addKid = (s, rng) => {
 };
 
 // ───────── 戀愛、婚姻 ─────────
+// 女生玩的時候，開口求婚的是對方。條件完全一樣，只是台詞和主導權的寫法不一樣：
+// 你按下去是「讓他知道你想定下來了」，真正單膝跪下的是他。
+export const heProposes = (s) => (s.gender || 'male') === 'female';
+
 export const startDating = (s, rng, typeId = null, forcedName = null) => {
   const all = partnerPool(s);
   const pool = all.filter((n) => !s.exes.includes(n));
@@ -180,9 +192,51 @@ export const startDating = (s, rng, typeId = null, forcedName = null) => {
   return s.partner;
 };
 
+// ───────── 跟另一半合資開公司 ─────────
+// 交往中的對象也拿一筆錢出來，公司起步價值大很多，但登記在兩個人名下、一人一半。
+// 代價很明確：分手的時候公司會被分走一半。所以有合資公司的人，「約會」這個選項
+// 忽然就變得很重要 —— 感情不是裝飾品，是你公司的一半。
+// 結婚之後就沒有這個選項了，因為錢本來就是一起的。
+export const JOINT_MIN_YEARS = 3;
+export const JOINT_MIN_LOVE = 50;
+
+export const jointInfo = (s) => {
+  if (s.married) return { ok: false, reason: '已經結婚了，家裡的錢本來就是一起的' };
+  if (!s.partner) return { ok: false, reason: '現在沒有交往的對象' };
+  const years = s.age - s.partner.since;
+  if (years < JOINT_MIN_YEARS) return { ok: false, reason: `交往滿 ${JOINT_MIN_YEARS} 年，對方才敢把錢拿出來（目前 ${years} 年）` };
+  if (s.partner.love < JOINT_MIN_LOVE) return { ok: false, reason: `感情要 ${JOINT_MIN_LOVE} 以上（目前 ${s.partner.love}）` };
+  const t = s.partner.type ? partnerType(s.partner.type) : null;
+  // 對方拿得出來的錢 ≈ 四年的收入，而且不會超過你自己出的 1.5 倍 ——
+  // 合資是「一起做大」，不是「靠對方出錢」，主導的人還是你。
+  const mine = Math.max(BIZ_MIN_CAPITAL, Math.round((s.money * 0.5) / (10 * 10000)) * 10 * 10000);
+  const raw = (t ? t.income : 35) * 10000 * s.priceIndex * 4 * diffOf(s).salary;
+  const amount = Math.round(Math.min(raw, mine * 1.5) / 1000) * 1000;
+  return { ok: true, amount, name: s.partner.name, title: t ? t.title : '' };
+};
+
+// 分手時把合資公司的一半分出去（回傳要寫進紀錄的那句話）
+export const splitJointBizs = (s) => {
+  const joint = s.bizs.filter((b) => b.joint);
+  if (!joint.length) return '';
+  const parts = [];
+  for (const b of joint) {
+    const share = Math.round(b.value * (b.joint.share || 0.5));
+    b.value -= share;
+    b.capital = Math.round(b.capital * (1 - (b.joint.share || 0.5)));
+    b.joint = null;
+    parts.push(`「${b.name}」被分走一半（−${formatMoney(share)}）`);
+    if (b.value < 1) removeBiz(s, b.uid);
+  }
+  return `公司是登記在兩個人名下的，${parts.join('、')}。`;
+};
+
+// 分手一律走這裡，合資公司才不會有漏網的路徑（回傳要寫進紀錄的那句話）
 export const endRelationship = (s) => {
+  const split = splitJointBizs(s);
   if (s.partner) s.exes.push(s.partner.name);
   s.partner = null;
+  return split;
 };
 
 export const marry = (s, rng) => {
@@ -197,6 +251,8 @@ export const marry = (s, rng) => {
     love: 70, // 親密度：結婚後每年慢慢降，靠約會補回來
   };
   s.partner = null;
+  // 合資的公司：結婚之後是夫妻共有，等於整間都是你們的，不再有被分走的風險
+  for (const b of s.bizs) if (b.joint) b.joint = null;
   addPoints(s, 2, '結婚');
   // 富二代這種對象結婚時會給一筆禮金
   const t = s.spouse.type ? partnerType(s.spouse.type) : null;

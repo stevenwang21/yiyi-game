@@ -8,7 +8,7 @@
 import { PERFORM, performTalent } from './talents.js';
 import { addMoney, addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { familyById } from './data.js';
-import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRisky, startDating, diffOf, scaleBiz, motherAge, conceiveChance, downsChance } from './actions.js';
+import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRisky, startDating, diffOf, scaleBiz, motherAge, heProposes as he, conceiveChance, downsChance } from './actions.js';
 import { MAX_KIDS, TREAT_COST } from './data.js';
 import { EXTRA_EVENTS } from './events2.js';
 import { SCHOOL_EVENTS, BAND_EVENTS, IDOL_EVENTS } from './events_school.js';
@@ -219,28 +219,38 @@ export const EVENTS = [
   {
     id: 'propose', minAge: 20, maxAge: 55, weight: 9,
     cond: (s) => !!s.partner && !s.married && !s.studying && s.partner.love >= 40 && s.age - s.partner.since >= 1,
-    title: '要不要求婚？',
-    text: (s) => `你和「${s.partner.name}」已經交往 ${s.age - s.partner.since} 年了，感情很穩定。`,
+    // 女生玩的時候，開口的是對方：事件變成「他求婚了」，你選要不要答應
+    title: (s) => (he(s) ? '他求婚了' : '要不要求婚？'),
+    text: (s) => (he(s)
+      ? `你和「${s.partner.name}」已經交往 ${s.age - s.partner.since} 年了。今天吃完飯他一直很安靜，然後從口袋裡拿出一個小盒子。`
+      : `你和「${s.partner.name}」已經交往 ${s.age - s.partner.since} 年了，感情很穩定。`),
     choices: [
       {
-        label: '求婚！辦婚禮',
+        label: (s) => (he(s) ? '答應！辦婚禮' : '求婚！辦婚禮'),
         sub: '約 60 萬（隨物價上漲）',
         effect: (s, rng) => {
           const c = Math.round(60 * 10000 * s.priceIndex);
           const name = s.partner.name;
+          const hs = he(s);
           const gift = marry(s, rng);
-          return good(`「${name}」答應了！在親友祝福下完成婚禮。${addMoney(s, -c)}${gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : ''}${addStats(s, { happy: 15, charm: 3 })}`);
+          return good(`${hs ? `你說好，「${name}」抱著你在餐廳裡哭了。` : `「${name}」答應了！`}在親友祝福下完成婚禮。${addMoney(s, -c)}${gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : ''}${addStats(s, { happy: 15, charm: 3 })}`);
         },
       },
       {
-        label: '求婚，簡單登記就好',
+        label: (s) => (he(s) ? '答應，簡單登記就好' : '求婚，簡單登記就好'),
         effect: (s, rng) => {
           const name = s.partner.name;
           const gift = marry(s, rng);
           return good(`你和「${name}」去戶政事務所登記結婚，省下一大筆錢。${gift ? `對方家裡還包了 ${formatMoney(gift)} 給你們。` : ''}${addStats(s, { happy: 10 })}`);
         },
       },
-      { label: '再交往看看', effect: (s) => { s.partner.love = Math.max(0, s.partner.love - 5); return '你覺得還沒準備好。'; } },
+      {
+        label: (s) => (he(s) ? '先不要，再等等' : '再交往看看'),
+        effect: (s) => {
+          s.partner.love = Math.max(0, s.partner.love - 5);
+          return he(s) ? `你說再等等。他把盒子收回口袋，笑了一下，但那天晚上話很少。` : '你覺得還沒準備好。';
+        },
+      },
     ],
   },
   {

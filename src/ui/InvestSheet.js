@@ -606,6 +606,11 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
               <Text style={styles.muted}>
                 已經營 {b.years} 年．去年成長 <Text style={{ color: b.lastR >= 0 ? C.green : C.red }}>{pct(b.lastR)}</Text>．投入本金 {E.formatMoney(b.capital)}
               </Text>
+              {b.joint ? (
+                <Text style={[styles.muted, { marginTop: 4, color: C.goldInk, fontWeight: '700' }]}>
+                  🤝 跟「{b.joint.name}」合資．登記在兩個人名下，分手的話會被分走一半（{E.formatMoney(Math.round(b.value * b.joint.share))}）。結婚之後就整間都是你們的。
+                </Text>
+              ) : null}
               {!b.group && L.next ? (
                 <Text style={[styles.muted, { marginTop: 4 }]}>
                   升到 Lv{L.next.lv}：公司價值達本金 {L.next.mult} 倍（現在 {L.mult.toFixed(1)} 倍）、經營滿 {L.next.years} 年（現在 {b.years} 年）

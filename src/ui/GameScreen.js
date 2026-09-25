@@ -223,7 +223,14 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       return { key: 'cash', text: '照去年的收支，明年現金會不夠。點這裡看貸款，或先賣一點投資。' };
     }
     if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了！選「運動」或「休息旅遊」，歸零就結束。' };
-    if (s.partner && !s.married && E.proposeInfo(s).ok) return { key: 'propose', text: `感情夠穩定了，點「家庭」可以跟「${s.partner.name}」求婚。` };
+    if (s.partner && !s.married && E.proposeInfo(s).ok) {
+      return {
+        key: 'propose',
+        text: E.heProposes(s)
+          ? `感情夠穩定了，點「家庭」讓「${s.partner.name}」知道你想定下來了。`
+          : `感情夠穩定了，點「家庭」可以跟「${s.partner.name}」求婚。`,
+      };
+    }
     if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return { key: 'nojob', text: '沒有工作。選「找新工作」，年底會有職缺。' };
     if (invest === 0 && s.money > 30 * 10000 && E.canInvest(s)) return { key: 'idle', text: '現金放著會被通膨吃掉。去「投資」買點 ETF 或設定期定額。' };
     if (s.route && !s.route.done && s.job && s.age >= 22) return { key: 'route', text: '多選「認真工作」或「經營事業」，逆襲路線比較容易觸發。' };

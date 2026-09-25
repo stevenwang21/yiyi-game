@@ -12,6 +12,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
   const s = game;
   const ptype = E.currentType(s);
   const pInfo = E.proposeInfo(s);
+  const he = E.heProposes(s);   // 女生玩：開口的是對方
   const [pMsg, setPMsg] = useState(null);
   const doPropose = (wedding) => {
     const r = E.propose(s, wedding);
@@ -99,20 +100,20 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
           </Text>
           {pInfo.ok ? (
             <>
-              <Text style={[styles.perk, { marginTop: 10 }]}>💍 可以求婚了！</Text>
+              <Text style={[styles.perk, { marginTop: 10 }]}>{he ? '💍 感情夠穩了，他在等一個訊號' : '💍 可以求婚了！'}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
                 <Button
                   small
                   kind="primary"
-                  title="求婚並辦婚禮"
-                  sub={E.formatMoney(pInfo.cost)}
+                  title={he ? '讓他知道你想定下來' : '求婚並辦婚禮'}
+                  sub={he ? `他會開口．婚禮 ${E.formatMoney(pInfo.cost)}` : E.formatMoney(pInfo.cost)}
                   style={{ flex: 1 }}
                   onPress={() => doPropose(true)}
                 />
                 <Button
                   small
                   kind="ghost"
-                  title="登記就好"
+                  title={he ? '暗示一下，登記就好' : '登記就好'}
                   sub="不花錢"
                   style={{ flex: 1 }}
                   onPress={() => doPropose(false)}
@@ -121,7 +122,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
               {pMsg ? <Text style={[styles.muted, { marginTop: 8, color: C.red, fontWeight: '700' }]}>{pMsg}</Text> : null}
             </>
           ) : (
-            <Text style={[styles.muted, { marginTop: 8, color: C.goldInk, fontWeight: '700' }]}>💍 求婚條件：{pInfo.reason}</Text>
+            <Text style={[styles.muted, { marginTop: 8, color: C.goldInk, fontWeight: '700' }]}>💍 {he ? '結婚' : '求婚'}條件：{pInfo.reason}</Text>
           )}
         </Card>
       ) : null}
@@ -139,7 +140,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
         <Text style={styles.muted}>
           {s.married
             ? `年度重點選「家庭時光」，年底就能決定要不要再生一個（最多 ${E.MAX_KIDS} 個）。養小孩的花費會隨物價上漲。`
-            : '還沒結婚。交往滿 1 年、感情 40 以上就能求婚，結婚後才能生小孩。'}
+            : `還沒結婚。交往滿 1 年、感情 40 以上${he ? '他就會開口' : '就能求婚'}，結婚後才能生小孩。`}
         </Text>
         {s.married ? (
           <View style={styles.fertBox}>

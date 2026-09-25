@@ -21,13 +21,13 @@ import { makeTargets, canAcquire, MAX_GROUP, groupCount, meetsReq, synergy, roll
 import { LEGENDS, legendById, availableLegend } from './legends.js';
 import { lifePoints } from './meta.js';
 import {
-  addDebt, addPoints, bizTotal, debtTotal, endRelationship, houseTotal, housePrice, investTotal, netWorth,
-  removeBiz, spouseInfo, spouseTitle, startBiz, addPet, alivePets, petExpense, diffOf, marry, underIdolContract, idolJobId, bizLevel, canOpenSecondBiz,
+  addDebt, addPoints, bizTotal, debtTotal, endRelationship, jointInfo, houseTotal, housePrice, investTotal, netWorth,
+  removeBiz, spouseInfo, spouseTitle, startBiz, heProposes, addPet, alivePets, petExpense, diffOf, marry, underIdolContract, idolJobId, bizLevel, canOpenSecondBiz,
   promoteChance,
 } from './actions.js';
 
 export { formatMoneyFine } from './utils.js';
-export { netWorth, debtTotal, houseTotal, investTotal, bizTotal, housePrice, spouseInfo, formatMoney, YI, INDEX_META };
+export { netWorth, debtTotal, houseTotal, investTotal, bizTotal, housePrice, spouseInfo, jointInfo, heProposes, formatMoney, YI, INDEX_META };
 export { SPOUSE_LEVELS, SPOUSE_COSTS, MAX_RETIRE_AGE, BASE_RETIRE_AGE, DIFFICULTIES, GENDERS, genderById, partnerWord };
 export { rollDifficulty, RANDOM_WEIGHTS };
 export { diffOf };
@@ -1062,8 +1062,8 @@ function romanceYear(s, rng) {
     if (!hasFocus(s, 'date')) p.love = Math.max(0, p.love - rint(rng, 1, 3));
     if (s.lastYear && s.lastYear.dating === 0) p.love = Math.max(0, p.love - 6);
     if (p.love < 12 && chance(rng, 0.35)) {
-      log(s, `你和「${p.name}」越來越少見面，最後分手了。${addStats(s, { happy: -10 })}`, 'bad');
-      endRelationship(s);
+      const split = endRelationship(s);
+      log(s, `你和「${p.name}」越來越少見面，最後分手了。${split}${addStats(s, { happy: split ? -16 : -10 })}`, 'bad');
     } else if (s.age - p.since >= 1 && p.love >= 40) {
       addStats(s, { happy: 1 });
     }
@@ -1564,6 +1564,42 @@ function bizPick(s, rng = Math.random) {
   };
 }
 
+// 真的把公司開起來（自己開和合資共用）
+function openBiz(s, type, cap, joint) {
+  const r = s.route;
+  let route = null;
+  // 創業家之路一生只能走一次
+  if (!s.flags.founderUsed && (!r || r.done || r.step === 0)) {
+    s.flags.founderUsed = true;
+    s.route = { id: 'founder', step: 0, since: s.age, done: false };
+    route = 'founder';
+  }
+  return startBiz(s, type, { cash: Math.min(cap, s.money), route, joint });
+}
+
+// 選完行業之後，如果有交往夠久的對象，再問一次要不要找他合資
+function bizJointPick(s, type, cap, ji) {
+  const def = BUSINESSES[type];
+  s.pending = {
+    source: 'bizJoint',
+    id: 'bizJoint',
+    title: `${def.name}：自己開還是合資？`,
+    text: `「${ji.name}」${ji.title ? `（${ji.title}）` : ''}說願意一起做，可以拿 ${formatMoney(ji.amount)} 出來。`,
+    choices: [
+      {
+        label: '自己開就好',
+        sub: `資本 ${formatMoney(Math.min(cap, s.money))}．公司完全是你的`,
+        ref: 'solo', type, cap,
+      },
+      {
+        label: `跟「${ji.name}」合資`,
+        sub: `資本 ${formatMoney(Math.min(cap, s.money) + ji.amount)}．但登記兩人名下，分手會被分走一半`,
+        ref: 'joint', type, cap, amount: ji.amount, name: ji.name,
+      },
+    ],
+  };
+}
+
 function followUps(s, rng) {
   if (s.pending || s.ended) return;
   // 樂團簽約：變成全職樂手
@@ -1880,16 +1916,20 @@ export function resolveChoice(s0, idx, rng = Math.random) {
     else res = { text: '你想了很久，還是婉拒了。有些路不是每個人都想走。', tone: 'neutral' };
   } else if (p.source === 'bizPick') {
     if (ch.ref) {
-      const r = s.route;
-      let route = null;
-      // 創業家之路一生只能走一次
-      if (!s.flags.founderUsed && (!r || r.done || r.step === 0)) {
-        s.flags.founderUsed = true;
-        s.route = { id: 'founder', step: 0, since: s.age, done: false };
-        route = 'founder';
+      // 有交往夠久的對象：先問要不要合資，決定完才真的開公司
+      const ji = jointInfo(s);
+      if (ji.ok) {
+        bizJointPick(s, ch.ref, ch.cap, ji);
+        s.history[s.history.length - 1] = netWorth(s);
+        s.invHistory[s.invHistory.length - 1] = investTotal(s);
+        return s;
       }
-      res = { text: startBiz(s, ch.ref, { cash: Math.min(ch.cap, s.money), route }), tone: 'good' };
+      res = { text: openBiz(s, ch.ref, ch.cap, null), tone: 'good' };
     } else res = { text: '你決定再想想。', tone: 'neutral' };
+  } else if (p.source === 'bizJoint') {
+    const joint = ch.ref === 'joint' ? { name: ch.name, amount: ch.amount } : null;
+    if (joint) s.partner.love = Math.min(100, s.partner.love + 5);   // 一起打拼，感情加分
+    res = { text: openBiz(s, ch.type, ch.cap, joint), tone: 'good' };
   } else {
     const def = getDef(p);
     const c = def.choices[ch.ref];
@@ -1962,6 +2002,7 @@ const fail = (s, error) => ({ state: s, error });
 export const PROPOSE_MIN_LOVE = 40;
 export const PROPOSE_MIN_YEARS = 1;
 
+
 export function proposeInfo(s) {
   if (!s.partner || s.married) return { ok: false, reason: '你現在沒有交往的對象' };
   const years = s.age - s.partner.since;
@@ -1981,11 +2022,16 @@ export function propose(s0, wedding = true, rng = Math.random) {
   if (wedding && s.money < cost0) return fail(s0, `辦婚禮需要 ${formatMoney(cost0)}，可以先選「登記就好」`);
   s.money -= cost0;
   const gift = marry(s, rng);
+  const he = heProposes(s);
   log(
     s,
     wedding
-      ? `你向「${name}」求婚，對方答應了！婚禮花了 ${formatMoney(cost0)}。${gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : ''}${addStats(s, { happy: 15, charm: 3 })}`
-      : `你和「${name}」去戶政事務所登記結婚，省下一大筆錢。${gift ? `對方家裡還包了 ${formatMoney(gift)} 給你們。` : ''}${addStats(s, { happy: 10 })}`,
+      ? (he
+        ? `你讓「${name}」知道你想定下來了。兩個禮拜後他訂了你們第一次約會的那家餐廳，吃到一半忽然安靜下來，從外套口袋裡拿出一個小盒子 ——「${name}」跟你求婚，你說好。婚禮花了 ${formatMoney(cost0)}。${gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : ''}${addStats(s, { happy: 15, charm: 3 })}`
+        : `你向「${name}」求婚，對方答應了！婚禮花了 ${formatMoney(cost0)}。${gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : ''}${addStats(s, { happy: 15, charm: 3 })}`)
+      : (he
+        ? `你讓「${name}」知道你想定下來了。他隔天一早就拿著兩份資料來按你家門鈴，說戶政事務所九點開門。你們去登記結婚，省下一大筆錢。${gift ? `對方家裡還包了 ${formatMoney(gift)} 給你們。` : ''}${addStats(s, { happy: 10 })}`
+        : `你和「${name}」去戶政事務所登記結婚，省下一大筆錢。${gift ? `對方家裡還包了 ${formatMoney(gift)} 給你們。` : ''}${addStats(s, { happy: 10 })}`),
     'milestone',
   );
   s.perk = perksOf(s);

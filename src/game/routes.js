@@ -3,7 +3,7 @@
 // choice.advance = true 代表選了之後路線前進一步
 import { addMoney, addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { BUSINESSES, HOUSES, DOWN_PAYMENT, MORTGAGE_RATE } from './data.js';
-import { addDebt, addSkill, growBiz, growFactor, housePrice, promote, promoteChance, routeBiz, startBiz } from './actions.js';
+import { addDebt, addSkill, growBiz, growFactor, housePrice, jointInfo, promote, promoteChance, routeBiz, startBiz } from './actions.js';
 
 const good = (text) => ({ text, tone: 'good' });
 
@@ -24,6 +24,22 @@ const openBizChoices = (routeId, type, cost, value, { quitJob = true } = {}) => 
     sub: '現金不動，但每年要還款',
     advance: true,
     effect: (s) => good(startBiz(s, type, { loan: cost, value, route: routeId, quitJob }) + addStats(s, { happy: 4 })),
+  },
+  // 跟交往中的對象一起出錢：門檻直接砍一半，開得起的年紀提早很多。
+  // 代價是公司登記在兩個人名下，分手會被分走一半（結婚之後就沒事了）。
+  {
+    label: (s) => `跟「${(s.partner || {}).name || '另一半'}」一起合資`,
+    sub: (s) => `你只要出 ${formatMoney(Math.round(cost * 0.5))}，另一半出剩下的．分手會被分走一半`,
+    cond: (s) => jointInfo(s).ok && s.money >= Math.round(cost * 0.5),
+    advance: true,
+    effect: (s) => {
+      const mine = Math.round(cost * 0.5);
+      const name = s.partner.name;
+      s.partner.love = Math.min(100, s.partner.love + 5);
+      return good(startBiz(s, type, {
+        cash: mine, value, route: routeId, quitJob, joint: { name, amount: cost - mine },
+      }) + addStats(s, { happy: 8 }));
+    },
   },
   { label: '再等等', sub: '之後還有機會', effect: () => '你決定再觀察一陣子。' },
 ];
