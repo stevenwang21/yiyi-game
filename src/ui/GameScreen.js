@@ -413,9 +413,12 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                         key={o.id}
                         label={o.label}
                         sub={o.sub}
+                        subParts={o.subParts}
+                        urgent={o.urgent}
                         icon={FOCUS_ICON[o.id]}
                         on={chosen.includes(o.id)}
-                        disabled={o.disabled}
+                        // 選滿之後，沒選到的直接變灰按不動，不用再跳紅字罵人
+                        disabled={o.disabled || (chosen.length >= slots && !chosen.includes(o.id))}
                         onPress={() => {
                           const r = E.toggleFocus(s, o.id);
                           setFocusMsg(r.error || null);

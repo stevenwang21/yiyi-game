@@ -23,6 +23,7 @@ import { lifePoints } from './meta.js';
 import {
   addDebt, addPoints, bizTotal, debtTotal, endRelationship, houseTotal, housePrice, investTotal, netWorth,
   removeBiz, spouseInfo, spouseTitle, startBiz, addPet, alivePets, petExpense, diffOf, marry, underIdolContract, idolJobId, bizLevel, canOpenSecondBiz,
+  promoteChance,
 } from './actions.js';
 
 export { formatMoneyFine } from './utils.js';
@@ -204,6 +205,44 @@ export const FOCUS = {
   runbiz: { label: '經營事業', sub: '公司成長↑' },
 };
 
+// 行動卡上的副標：直接寫數字，不要用箭頭。玩家才知道「認真讀書」到底加多少。
+// 回傳「兩行、每行幾個色塊」的結構，Chip 會依 tone 上色：up=綠、down=紅、cost=金、flat=灰。
+// 數字要跟 applyOne() 裡面的完全一致，改那邊記得回來改這裡。
+const wanText = (n) => `${Math.max(1, Math.round(n / WAN))} 萬`;
+const UP = (t) => ({ t, tone: 'up' });
+const DN = (t) => ({ t, tone: 'down' });
+const CO = (t) => ({ t, tone: 'cost' });
+const FL = (t) => ({ t, tone: 'flat' });
+
+// 這些行動要花錢，現金不夠就鎖起來（不然年底現金變負的，系統會強制賣你的資產）
+export const FOCUS_COST = { learn: 3, rest: 5, gym: 2, network: 3, invest: 2, family: 3 };
+
+function focusSub(s, id) {
+  const c = (w) => wanText(cost(s, w * WAN));
+  const earn = (a, b) => `賺 ${Math.round(cost(s, a * WAN) / WAN)}~${Math.round(cost(s, b * WAN) / WAN)} 萬`;
+  const skill = s.investSkill >= 6 ? FL('投資眼光已滿 6/6') : UP(`投資眼光 +1（${s.investSkill}/6）`);
+  switch (id) {
+    case 'study': return [[UP('智力 +3~6')], [DN('快樂 −2')]];
+    case 'cram': return [[UP('智力 +5~8')], [DN('快樂−4'), DN('健康−1')]];
+    case 'sport': return [[UP('健康 +3~6')], [UP('快樂+1')]];
+    case 'play': return [[UP('快樂 +5~8')], [DN('智力−1')]];
+    case 'friends': return [[UP('人緣 +3~6')], [UP('快樂+2')]];
+    case 'parttime': return [[UP(earn(4, 9))], [DN('智力−1'), DN('健康−1')]];
+    case 'finance': return [[skill], [UP('智力+1')]];
+    case 'work': return [[UP(`升遷成功率 ${Math.round(promoteChance(s) * 100)}%`)], [DN('健康−2'), DN('快樂−1')]];
+    case 'gig': return [[UP(earn(12, 18))], [DN('健康−1')]];
+    case 'learn': return [[UP('智力 +3~6')], [CO(`花 ${c(3)}`)]];
+    case 'rest': return [[UP('快樂 +6~10')], [UP('健康+3'), CO(`花 ${c(5)}`)]];
+    case 'gym': return [[UP('健康 +4~7')], [UP('快樂+1'), CO(`花 ${c(2)}`)]];
+    case 'network': return [[UP('人緣 +3~6')], [UP('快樂+1'), CO(`花 ${c(3)}`)]];
+    case 'invest': return [[skill], [UP('智力+1'), CO(`花 ${c(2)}`)]];
+    case 'family': return [[UP('快樂 +5~8')], [UP('健康+1'), CO(`花 ${c(3)}`)]];
+    case 'date': return [[UP('感情 +24'), UP('快樂 +5~8')], [UP('人緣+2'), CO(`花 ${wanText(cost(s, DATE_FOCUS_COST * (s.studying ? 1 : 2)))}`)]];
+    case 'runbiz': return [[UP('公司成長↑')], [DN('健康−2'), UP('智力+1')]];
+    default: return null;
+  }
+}
+
 export function focusOptions(s) {
   if (s.age < 6) return [];
   const ids = [];
@@ -225,6 +264,28 @@ export function focusOptions(s) {
   }
   return ids.map((id) => {
     const o = { id, ...FOCUS[id], disabled: false };
+    const parts = focusSub(s, id);
+    if (parts) { o.subParts = parts; o.sub = null; }
+    // 花錢的行動：
+    //   現金夠            → 正常
+    //   現金不夠但投資夠   → 可以選，但要講明白會被迫賣掉投資
+    //   兩個加起來都不夠   → 真的付不出來，鎖起來
+    // （不能一律鎖，不然錢都在投資裡、健康又快歸零的人會連「運動健身」都按不了，直接死局）
+    const need = FOCUS_COST[id];
+    if (need) {
+      const c = cost(s, need * WAN);
+      const liquid = Math.max(0, s.money) + investTotal(s);
+      if (liquid < c) {
+        o.disabled = true;
+        o.subParts = null;
+        o.sub = `錢不夠（要 ${wanText(c)}，有 ${wanText(liquid)}）`;
+      } else if (s.money < c) {
+        o.subParts = [o.subParts[0], [DN(`花 ${wanText(c)}．要賣投資`)]];
+      }
+    }
+    // 屬性掉太低的時候，把對應的行動標出來
+    if ((id === 'sport' || id === 'gym') && s.stats.hp < 30) o.urgent = '健康太低了';
+    if ((id === 'play' || id === 'rest') && s.stats.happy < 30) o.urgent = '快樂太低了';
     if (id === 'startbiz' && s.money < BIZ_MIN_CAPITAL) {
       o.disabled = true;
       o.sub = '現金需 50 萬';
@@ -235,7 +296,7 @@ export function focusOptions(s) {
       if (L.lv < 5) { o.disabled = true; o.sub = `第一家需 Lv5（現 Lv${L.lv}）`; } else if (!o.disabled) o.sub = '開第二家公司';
     }
     if (id === 'runbiz' && s.bizs.length === 2) o.sub = '兩家公司一起顧';
-    if (id === 'family' && s.kids.length >= MAX_KIDS) o.sub = '快樂↑';
+
     if (id === 'jobhunt') {
       if (underIdolContract(s)) { o.disabled = true; o.sub = `偶像合約到 ${s.flags.idolEnd} 歲`; }
       else if (s.job && s.job.years < JOB_LOCK_YEARS) { o.disabled = true; o.sub = `做滿 ${JOB_LOCK_YEARS} 年才能轉職（還 ${JOB_LOCK_YEARS - s.job.years} 年）`; }

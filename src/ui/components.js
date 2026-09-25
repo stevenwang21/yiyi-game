@@ -62,20 +62,38 @@ export function Bar({ value, max = 100, color, height = 8, track }) {
   );
 }
 
-export function Chip({ label, sub, icon, on, disabled, onPress, style, plain }) {
+// 副標的色塊：加的綠、扣的紅、花錢的金、純說明灰
+const TONE_COLOR = { up: C.green, down: C.red, cost: C.goldInk, flat: C.muted };
+
+export function Chip({ label, sub, subParts, urgent, icon, on, disabled, onPress, style, plain }) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
       style={({ pressed }) => [
-        styles.chip, on && styles.chipOn, disabled && styles.disabled,
+        styles.chip, on && styles.chipOn, urgent && !on && styles.chipUrgent, disabled && styles.disabled,
         pressed && !disabled && { opacity: 0.8 }, style,
       ]}
     >
       {on && !plain ? <View style={styles.check}><Text style={styles.checkText}>✓</Text></View> : null}
+      {urgent && !on ? <View style={styles.urgentDot} /> : null}
       <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>
         {icon ? `${icon} ` : ''}{label}
       </Text>
-      {sub ? <Text style={[styles.chipSub, on && { color: C.primaryInk }]} numberOfLines={1}>{sub}</Text> : null}
+      {subParts ? (
+        <View style={[styles.subBox, plain && { minHeight: 0 }]}>
+          {subParts.map((line, i) => (
+            <Text key={i} style={styles.chipSub} numberOfLines={1}>
+              {line.map((c, j) => (
+                <Text key={j} style={{ color: TONE_COLOR[c.tone] || C.muted }}>{j ? '  ' : ''}{c.t}</Text>
+              ))}
+            </Text>
+          ))}
+        </View>
+      ) : sub ? (
+        <View style={[styles.subBox, plain && { minHeight: 0 }]}>
+          <Text style={[styles.chipSub, on && { color: C.primaryInk }]} numberOfLines={2}>{sub}</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -121,7 +139,10 @@ const styles = StyleSheet.create({
   chipOn: { borderColor: '#9d8cff', backgroundColor: C.primarySoft },
   chipText: { fontSize: 14, color: C.ink, fontWeight: '500' },
   chipTextOn: { fontWeight: '700', color: C.primaryInk },
-  chipSub: { fontSize: 10.5, color: C.muted, marginTop: 1 },
+  chipSub: { fontSize: 10.5, lineHeight: 13.5, textAlign: 'center', color: C.muted },
+  subBox: { minHeight: 27, marginTop: 2, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
+  chipUrgent: { borderColor: C.gold },
+  urgentDot: { position: 'absolute', top: -4, right: -3, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold },
   check: {
     position: 'absolute', top: -7, right: -5, width: 20, height: 20, borderRadius: 10,
     backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center',
