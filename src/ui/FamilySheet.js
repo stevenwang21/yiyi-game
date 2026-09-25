@@ -67,14 +67,14 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
                 </View>
                 <Bar value={love} color={love < 30 ? C.red : C.pink} height={7} />
                 <Text style={[styles.muted, { marginTop: 4 }]}>
-                  {love >= 75 ? '感情很好，每年多一點快樂。' : love < 25 ? '兩個人越來越少講話了，快樂每年會被扣。' : '每年會慢慢降，遇到「安排一次約會」的時候花點錢補回來。'}
+                  {love >= 75 ? '感情很好，每年多一點快樂。' : love < 25 ? '兩個人越來越少講話了，快樂每年會被扣。' : '每年會慢慢降，靠「約會」補回來。'}
                 </Text>
               </>
             );
           })()}
           {ptype ? <Text style={styles.perk}>✨ {ptype.perkText}</Text> : null}
           <Text style={[styles.muted, { marginTop: 8 }]}>
-            {E.partnerWord(s)}會在自己的行業裡慢慢升遷（同一個職位至少 3 年）。家裡快樂、你多選「家庭時光」，升得比較快。
+            {E.partnerWord(s)}會慢慢升遷（同一個職位至少 3 年）。多選「家庭時光」升得比較快。
             {s.spouseLevel < 5 ? `下一步：${E.spouseTitle(s, s.spouseLevel + 1)}` : '已經是這一行的頂點了！'}
           </Text>
         </Card>
@@ -95,7 +95,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
           {ptype ? <Text style={styles.perk}>✨ {ptype.perkText}</Text> : null}
           {ptype ? <Text style={styles.muted}>結婚後，對方每年還會為家裡賺約 {E.formatMoney(ptype.income * 10000 * s.priceIndex)}。</Text> : null}
           <Text style={[styles.muted, { marginTop: 8 }]}>
-            年度重點選「約會」感情會加 24；太久沒約會或沒錢約會，感情會慢慢變淡。
+            選「約會」感情 +24；太久沒約會會慢慢變淡。
           </Text>
           {pInfo.ok ? (
             <>
@@ -139,7 +139,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
         <Text style={styles.muted}>
           {s.married
             ? `年度重點選「家庭時光」，年底就能決定要不要再生一個（最多 ${E.MAX_KIDS} 個）。養小孩的花費會隨物價上漲。`
-            : '還沒結婚。先交往（會有「有人想介紹對象給你」讓你挑），交往滿 1 年、感情 40 以上就可以直接求婚，結婚後就能生小孩。'}
+            : '還沒結婚。交往滿 1 年、感情 40 以上就能求婚，結婚後才能生小孩。'}
         </Text>
         {s.married ? (
           <View style={styles.fertBox}>
@@ -147,7 +147,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
               🤰 媽媽今年 {E.motherAge(s)} 歲．受孕成功率約 {Math.round(E.conceiveChance(E.motherAge(s)) * 100)}%
             </Text>
             <Text style={styles.fertText}>
-              年紀越大越不容易懷上（35 歲後明顯下降、40 歲後更低），高齡懷孕唐氏症的機率也會上升
+              35 歲後不容易懷上，40 歲後更低，風險也比較高
               （遊戲用的是接近真實的數字：35 歲約 0.4%、40 歲約 1%、43 歲約 2.8%、45 歲以上約 4%）。
               目前這個年紀約 {(E.downsChance(E.motherAge(s)) * 100).toFixed(1)}%。
             </Text>
@@ -263,7 +263,7 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
   );
 }
 
-// 同學會的那幾位同學：只看他們現在做到哪裡，不顯示存款
+// 同學會那幾位：只看職位，不看存款
 function Classmates({ s }) {
   const mates = s.age >= START_AGE ? E.selectedClassmates(s) : [];
   if (!mates.length) return null;
@@ -306,7 +306,7 @@ function Classmates({ s }) {
         );
       })}
       <Text style={[styles.muted, { marginTop: 8 }]}>
-        這裡只看大家現在做到哪個位子，不看存款。要比資產和名次，去排行榜那邊。
+        只看職位，不看存款。要比資產去排行榜。
       </Text>
     </Card>
   );

@@ -34,31 +34,31 @@ const FOCUS_ICON = {
 const TUT_STEPS = [
   {
     key: null, title: '歡迎來到「一個億的小目標」',
-    text: '你會從 0 歲一路活到退休，每一年做的選擇都會影響最後的結果。目標只有一個：在退休前賺到一個億。先用 30 秒看完怎麼玩。',
+    text: '從 0 歲活到退休，目標是賺到一個億。三十秒看完怎麼玩。',
   },
   {
     key: 'hero', title: '① 這裡看你離目標多遠',
-    text: '大字是你的「淨資產」＝現金＋投資＋房產＋公司－負債。下面那條進度條衝到 100% 就達成一個億了。左上角是年齡。',
+    text: '大字是淨資產（現金＋投資＋房產＋公司－負債）。進度條到 100% 就破億了。',
   },
   {
     key: 'focus', title: '② 每年要做的事（最重要）',
-    text: '這一區是你每年真正在「玩」的地方：點一下選起來、再點一下取消，可以同時選好幾件。選完才按過一年。',
+    text: '點一下選、再點取消，可以同時選幾件。選完才按過一年。',
   },
   {
     key: 'stats', title: '③ 四個屬性',
-    text: '智力、健康、快樂、人緣。智力影響考試和工作，健康歸零人生就結束，快樂太低會影響表現，人緣影響升遷和機會。點屬性那張卡可以看詳細。',
+    text: '智力管考試和工作，健康歸零就結束，快樂太低會影響表現，人緣影響升遷。',
   },
   {
     key: 'bar', title: '④ 下面這排是隨時能做的事',
-    text: '「投資」把現金變成 ETF、股票、房子或公司，錢放著不會自己變多；「健康」可以做健康檢查；「家庭」看另一半、小孩和寵物的花費。',
+    text: '錢放著不會變多，去「投資」買點東西。「健康」做檢查，「家庭」看另一半和小孩。',
   },
   {
     key: 'next', title: '⑤ 按「過一年」讓時間前進',
-    text: '按下去會長一歲，發生隨機事件、世界大事（會影響股市），然後結算這一年的收入和花費。遇到事件時選一個選項就好。',
+    text: '長一歲、跑事件、結算這年的收支。遇到事件選一個就好。',
   },
   {
     key: null, title: '就這樣，開始吧！',
-    text: '不用怕做錯，每個職業都有自己的「逆襲路線」可以翻身。想重看這個教學，點右上角的 ⋯ 選單。',
+    text: '不用怕做錯，每個職業都有自己的逆襲路線。要重看教學點右上角 ⋯。',
   },
 ];
 
@@ -206,17 +206,17 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
     const net = ly ? (ly.salary + ly.bizIncome + ly.rent + ly.spouse + (ly.filial || 0) + (ly.side || 0))
       - (ly.living + ly.kids + ly.debtPay + (ly.dating || 0) + (ly.tax || 0)) : 0;
     if (s.age >= 18 && s.money < 0) {
-      return { key: 'overdraft', amt: -s.money, text: `現金透支了 ${E.formatMoney(-s.money)}，每年會滾利息。點這裡到「貸款」分頁一鍵賣投資還清，或自己去「金融」賣一些。` };
+      return { key: 'overdraft', amt: -s.money, text: `現金透支 ${E.formatMoney(-s.money)}，會滾利息。點這裡一鍵賣投資還清。` };
     }
     // 照去年的收支，明年現金就會變負的才提醒
     if (s.age >= 18 && invest > 0 && ly && s.money + net < 0) {
-      return { key: 'cash', text: '照去年的收支，明年現金會不夠用。入不敷出會先記成透支（有利息），可以先賣一點投資。點這裡看「貸款」分頁。' };
+      return { key: 'cash', text: '照去年的收支，明年現金會不夠。點這裡看貸款，或先賣一點投資。' };
     }
-    if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了！這一年選「運動」或「休息旅遊」，健康歸零人生就結束。' };
-    if (s.partner && !s.married && E.proposeInfo(s).ok) return { key: 'propose', text: `你和「${s.partner.name}」的感情夠穩定了，點下面的「家庭」就可以求婚。` };
-    if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return { key: 'nojob', text: '目前沒有工作。選「找工作」這一年就會有幾家公司讓你挑。' };
-    if (invest === 0 && s.money > 30 * 10000 && E.canInvest(s)) return { key: 'idle', text: '現金放著只會被通膨吃掉。點下面的「投資」買一點 ETF，或設定定期定額。' };
-    if (s.route && !s.route.done && s.job && s.age >= 22) return { key: 'route', text: '想走「逆襲路線」翻身，多選「認真工作」或「經營事業」，劇情比較容易出現。' };
+    if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了！選「運動」或「休息旅遊」，歸零就結束。' };
+    if (s.partner && !s.married && E.proposeInfo(s).ok) return { key: 'propose', text: `感情夠穩定了，點「家庭」可以跟「${s.partner.name}」求婚。` };
+    if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return { key: 'nojob', text: '沒有工作。選「找新工作」，年底會有職缺。' };
+    if (invest === 0 && s.money > 30 * 10000 && E.canInvest(s)) return { key: 'idle', text: '現金放著會被通膨吃掉。去「投資」買點 ETF 或設定期定額。' };
+    if (s.route && !s.route.done && s.job && s.age >= 22) return { key: 'route', text: '多選「認真工作」或「經營事業」，逆襲路線比較容易觸發。' };
     return null;
   })();
   const seen = (s.flags && s.flags.hintSeen) || {};
@@ -316,7 +316,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             {!focusOpts.length ? (
               <View style={styles.babyNote}>
                 <Text style={styles.babyTitle}>🍼 還小，只要健康長大就好</Text>
-                <Text style={styles.babyText}>6 歲以後才需要自己做選擇。現在直接按「過一年」就好，中間會有小時候的事件。</Text>
+                <Text style={styles.babyText}>6 歲以後才要自己選。現在直接按「過一年」。</Text>
               </View>
             ) : null}
             <View style={styles.between}>

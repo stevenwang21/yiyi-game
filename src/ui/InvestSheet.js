@@ -224,11 +224,11 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
         numberOfLines={2}
         style={[styles.msg, !msg && styles.msgEmpty, msg && msg.bad && { color: C.red, backgroundColor: C.redSoft }]}
       >
-        {msg ? msg.text : '買賣後的結果會顯示在這裡'}
+        {msg ? msg.text : ''}
       </Text>
 
       {locked ? (
-        <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能自己開戶投資、買房和貸款（還差 {E.INVEST_MIN_AGE - s.age} 年）。在那之前，零用錢和紅包會先存成現金；小時候選「學理財」可以先把投資眼光練起來。</Text></Card>
+        <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能投資（還差 {E.INVEST_MIN_AGE - s.age} 年）。現在先選「學理財」練投資眼光。</Text></Card>
       ) : null}
 
 
@@ -353,16 +353,16 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                       trades={E.tradesOf(s, a.key).map((t) => ({ age: t.age, amt: t.amt }))}
                       tradeFormat={(v) => E.formatMoney(v)}
                     />
-                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的指數和漲跌．▲ 是你買進、▼ 是賣出</Text>
+                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住看每年．▲ 買進　▼ 賣出</Text>
                     {a.key === 'crypto' ? (
                       <Text style={[styles.muted, { color: C.red, marginTop: 6 }]}>
-                        ⚠️ 波動大會「來回磨損」：漲 50% 再跌 50% 剩下的是 75%，不是 100%。加密幣長期實際拿到的，通常比平均報酬看起來的少很多，不要全押。
+                        ⚠️ 漲 50% 再跌 50% 只剩 75%。波動會吃掉報酬，不要全押。
                       </Text>
                     ) : null}
                     <Text style={styles.muted}>
                       {a.key === 'stock'
-                        ? `大盤 ${Math.round(hist[hist.length - 1].etf)}．我的個股 ${Math.round(myNow)}${myNow >= hist[hist.length - 1].etf ? '，贏過大盤！' : '，輸給大盤。'}選股準不準看「投資眼光」。`
-                        : `指數 ${Math.round(now)}（出生時 = 100），去年 ${pct(now / prev - 1)}．紅色直條 = 疫情、戰爭、金融海嘯`}
+                        ? `大盤 ${Math.round(hist[hist.length - 1].etf)}．我的 ${Math.round(myNow)}${myNow >= hist[hist.length - 1].etf ? '（贏）' : '（輸）'}．準不準看投資眼光`
+                        : `指數 ${Math.round(now)}（出生 100）．紅條＝股災`}
                     </Text>
                   </>
                 ) : null}
@@ -392,7 +392,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                           ) : null}
                         </View>
                       </View>
-                      <Text style={styles.costNote}>投入本金 = 買進＋定期定額 − 賣出。賣掉的部分不算在裡面，所以這是「還放在裡面的錢」賺賠多少。</Text>
+                      <Text style={styles.costNote}>投入本金 = 買進 ＋ 定期定額 − 賣出</Text>
 
                       <Text style={[styles.h, { marginTop: 10 }]}>交易紀錄</Text>
                       {list.slice(0, showAll ? 999 : 6).map((t, i) => (
@@ -465,12 +465,12 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
             {s.world ? <Text style={styles.muted}>今年：{s.world.title}．通膨 {pct(s.inflation)}．物價是出生時的 {s.priceIndex.toFixed(2)} 倍</Text> : null}
           </Card>
           <Text style={[styles.muted, { marginTop: 10 }]}>
-            點上面任一張卡就能單獨看、單獨買賣那一樣。🔒 遊戲不會自己賣掉你的資產，現金變負的會先算成負債（有利息）。
+            點卡片進去看細節和買賣。現金變負的會算成負債，不會自動賣你的資產。
           </Text>
           {yearRows.length ? (
             <Card>
               <Text style={styles.h}>每年明細：大盤 vs 我的投資</Text>
-              <Text style={styles.muted}>大盤指數出生時 = 100；「我的報酬」是當年投資的漲跌（不含新買進的錢）。</Text>
+              <Text style={styles.muted}>指數出生時 = 100．「我的報酬」不含新買進的錢</Text>
               <View style={[styles.tr, styles.thead]}>
                 <Text style={[styles.th, styles.cAge]}>年齡／大事</Text>
                 <Text style={[styles.th, styles.cNum, { textAlign: 'right' }]}>大盤</Text>
@@ -531,7 +531,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
 
       {!locked && tab === 1 ? (
         <>
-          <Text style={[styles.muted, { marginTop: 10 }]}>付 {E.DOWN_PAYMENT * 100}% 頭期款就能買，剩下的每年繳房貸。第一間自己住（省房租），第二間起可以收租金。房價會跟著房市和通膨變動。</Text>
+          <Text style={[styles.muted, { marginTop: 10 }]}>付 {E.DOWN_PAYMENT * 100}% 頭期款，其餘每年繳房貸。第一間自住省房租，第二間起收租。</Text>
           <Card>
             <Text style={styles.h}>房價走勢</Text>
             <LineChart
@@ -644,13 +644,13 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
           <Card>
             <Text style={styles.h}>🏷 收購公司</Text>
             <Text style={[styles.muted, { marginTop: 6 }]}>
-              等你的淨資產突破一個億，就會有人排隊想把公司賣給你。到時候這裡每年都會有幾家待售公司，買下來的公司直接併進你的集團，不占「自己開的兩家」名額（集團最多 {E.MAX_GROUP} 家）。
+              淨資產破一億之後，這裡每年會有待售公司，買下來併進集團（最多 {E.MAX_GROUP} 家）。
             </Text>
           </Card>
         ) : (
           <>
             <Text style={[styles.muted, { marginTop: 10 }]}>
-              收購來的公司會併進集團（目前 {s.bizs.length} / {E.MAX_GROUP} 家），一樣會每年成長、配息，也會受世界大事影響。名單每年換一批。
+              併進集團（{s.bizs.length} / {E.MAX_GROUP} 家），一樣會成長配息。名單每年換。
             </Text>
             {(s.targets || []).length ? (s.targets || []).map((d) => {
               const okReq = E.meetsReq(s, d);
@@ -738,7 +738,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
       {!locked && tab === 4 && s.money < 0 ? (
         <Card style={{ backgroundColor: C.redSoft }}>
           <Text style={[styles.body, { color: C.red }]}>⚠️ 現金透支 {E.formatMoney(-s.money)}</Text>
-          <Text style={styles.muted}>入不敷出的部分先記成透支，每年滾利息。按下面一鍵賣投資補回來，或是到「金融」分頁自己選要賣什麼。</Text>
+          <Text style={styles.muted}>透支會滾利息。按下面一鍵賣投資補回來。</Text>
           <Button
             kind="red"
             title="賣投資，把透支還清"
@@ -757,7 +757,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
           ) : (
             <Text style={styles.muted}>
               還可以借 {E.formatMoney(loan.limit)}．利率 {(loan.rate * 100).toFixed(0)}%．分 {loan.years} 年還{loan.owed ? `．已借 ${E.formatMoney(loan.owed)}` : ''}
-              {'\n'}額度看收入和資產：薪水越高、存款、投資和房子越多，能借越多。錢會直接進現金，每年自動扣還款。
+              {'\n'}薪水、存款、投資、房子越多，能借越多。每年自動扣還款。
             </Text>
           )}
           <AmountSlider
@@ -848,7 +848,7 @@ const styles = StyleSheet.create({
   tab: { flex: 1, textAlign: 'center', paddingVertical: 8, fontSize: 14, color: C.muted, fontWeight: '700', borderRadius: 12, overflow: 'hidden' },
   tabOn: { backgroundColor: C.card, fontWeight: '600', color: C.primaryInk },
   msg: { marginTop: 10, paddingHorizontal: 8, paddingVertical: 6, height: 46, borderRadius: 10, backgroundColor: C.greenSoft, color: C.green, fontSize: 13, lineHeight: 17, overflow: 'hidden' },
-  msgEmpty: { backgroundColor: C.page, color: C.muted },
+  msgEmpty: { height: 10, paddingVertical: 0, backgroundColor: 'transparent' },
   label: { fontSize: 12.5, color: C.muted, marginBottom: 6 },
   row: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
