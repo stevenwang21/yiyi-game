@@ -31,6 +31,11 @@ export default function MatesSheet({ visible, onClose, game }) {
                   {x.name}{x.me ? '（你）' : `（${x.title}）`}
                 </Text>
                 {!x.me && m ? <Text style={styles.story}>{mateStory(m)}</Text> : null}
+                {!x.me && m && m.tips && m.tips.n ? (
+                  <Text style={[styles.story, { color: m.tips.wrong >= E.TIP_STRIKES ? C.red : C.goldInk, fontWeight: '700' }]}>
+                    📈 報明牌 {m.tips.n} 次：對 {m.tips.right}、錯 {m.tips.wrong}{m.tips.wrong >= E.TIP_STRIKES ? '．他的話要小心' : m.tips.right >= 3 && m.tips.wrong === 0 ? '．很準' : ''}
+                  </Text>
+                ) : null}
                 {x.me ? <Text style={styles.story}>{E.stageOf(s)}</Text> : null}
               </View>
               <Text style={[styles.money, x.me && { color: C.primaryInk }]}>{x.label}</Text>

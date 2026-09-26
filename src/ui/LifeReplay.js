@@ -1,7 +1,7 @@
 // 人生回顧：資產曲線一年一年畫出來，走到重要的年紀就跳出「幾歲發生了什麼」。
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as E from '../game/engine';
 import { haptic } from './celebrate';
@@ -81,6 +81,28 @@ export function buildHighlights(s) {
   return [...byAge.values()].sort((a, b) => a.age - b.age);
 }
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
+
+// 淨資產數字：自己聽時鐘、一秒更新十幾次就夠了（字看不出 60fps），而且只重畫自己這一個字
+function NwText({ tv, hist }) {
+  const [v, setV] = useState(hist[0] || 0);
+  useEffect(() => {
+    let lastAt = 0;
+    const id = tv.addListener(({ value }) => {
+      const now = Date.now();
+      if (now - lastAt < 70) return;
+      lastAt = now;
+      const i = Math.min(hist.length - 1, Math.floor(value)); const j = Math.min(hist.length - 1, i + 1);
+      const f = Math.min(1, value - i);
+      setV((hist[i] || 0) + ((hist[j] || 0) - (hist[i] || 0)) * f);
+    });
+    return () => tv.removeListener(id);
+  }, [tv, hist]);
+  return <Text style={[styles.nw, v >= E.YI && { color: '#ffd76a' }, v < 0 && { color: '#ff8a80' }]} numberOfLines={1}>{E.formatMoney(v)}</Text>;
+}
+
 const stageName = (age) => (age < 6 ? '童年' : age < 12 ? '國小' : age < 15 ? '國中' : age < 18 ? '高中' : age < 23 ? '大學' : age < 40 ? '打拚' : age < 60 ? '中年' : '退休');
 
 // 一句話（上下跳出來）
@@ -107,33 +129,54 @@ export default function LifeReplay({ game, visible, onClose }) {
   const lastAge = hist.length - 1;
   const highlights = useMemo(() => buildHighlights(game), [game]);
   const crashAges = useMemo(() => new Set((game.worldHistory || []).filter((w) => ['pandemic', 'war', 'crisis'].includes(w.id)).map((w) => w.age)), [game]);
+  // 兩個時鐘：
+  //   tv   Animated.Value，每一格（60fps）更新，只推動曲線露出多少、小點的位置、進度條、數字 ——
+  //        這些都綁在 Animated 上，直接改 DOM，React 不用重畫。
+  //   age  整數歲，一年才變一次，才讓 React 重畫（小劇場換階段、字幕、大事的小點）。
+  // 以前是每 260ms 把整個畫面重畫一次、曲線一格一格跳，看起來就是卡的。
+  const tv = useRef(new Animated.Value(0)).current;
+  const tRef = useRef(0);
   const [age, setAge] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [shown, setShown] = useState([]);
-  const timer = useRef(null);
 
-  const reset = () => { setAge(0); setShown([]); setPlaying(true); };
+  const reset = () => { tRef.current = 0; tv.setValue(0); setAge(0); setShown([]); setPlaying(true); };
   useEffect(() => { if (visible) reset(); }, [visible]);
 
   useEffect(() => {
     if (!visible || !playing) return undefined;
-    if (age >= lastAge) { setPlaying(false); haptic('small'); return undefined; }
-    const next = age + 1;
-    const hit = highlights.filter((x) => x.age === next);
-    // 這一年剛跳出大事：多停一下讓人看完
-    const cur = highlights.filter((x) => x.age === age);
-    const hold = cur.some((x) => x.score >= 9) ? HOLD_MS : cur.length ? HOLD_MS * 0.6 : 0;
-    timer.current = setTimeout(() => {
-      setAge(next);
-      if (hit.length) {
-        setShown((q) => [...q, ...hit].slice(-4));
-        haptic(hit.some((x) => x.tone === 'gold' && x.score >= 20) ? 'big' : 'tap');
+    if (tRef.current >= lastAge) { setPlaying(false); haptic('small'); return undefined; }
+    let raf = 0; let last = null; let holdUntil = 0;
+    const tick = (now) => {
+      if (last == null) last = now;
+      const dt = Math.min(64, now - last);   // 切到背景再回來不要一次跳好幾歲
+      last = now;
+      if (now >= holdUntil) {
+        const before = tRef.current;
+        let next = before + dt / YEAR_MS;
+        // 跨過整數歲的那一刻：這一年有大事就停在這一年讓人看完
+        if (Math.floor(next) > Math.floor(before)) {
+          const crossed = Math.floor(before) + 1;
+          const hit = highlights.filter((x) => x.age === crossed);
+          if (hit.length) {
+            next = crossed;
+            setShown((q) => [...q, ...hit].slice(-4));
+            haptic(hit.some((x) => x.tone === 'gold' && x.score >= 20) ? 'big' : 'tap');
+            holdUntil = now + (hit.some((x) => x.score >= 9) ? HOLD_MS : HOLD_MS * 0.6);
+          }
+          setAge(Math.min(lastAge, crossed));
+        }
+        tRef.current = Math.min(lastAge, next);
+        tv.setValue(tRef.current);
+        if (tRef.current >= lastAge) { setPlaying(false); haptic('small'); return; }
       }
-    }, YEAR_MS + hold);
-    return () => clearTimeout(timer.current);
-  }, [visible, playing, age]);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [visible, playing]);
 
-  const skip = () => { clearTimeout(timer.current); setAge(lastAge); setShown(highlights.slice(-4)); setPlaying(false); };
+  const skip = () => { tRef.current = lastAge; tv.setValue(lastAge); setAge(lastAge); setShown(highlights.slice(-4)); setPlaying(false); };
 
   // 曲線
   const CW = W - 32; const CH = Math.max(110, Math.min(150, height * 0.18));
@@ -147,13 +190,68 @@ export default function LifeReplay({ game, visible, onClose }) {
     const vv = Number.isFinite(v) ? Math.max(minV, Math.min(maxV, v)) : 0;
     return PAD.t + (1 - (vv - minV) / (maxV - minV)) * (CH - PAD.t - PAD.b);
   };
-  const pts = hist.slice(0, age + 1).map((v, i) => [x(i), y(v)]);
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
-  const area = pts.length > 1 ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${y(minV)} L${pts[0][0].toFixed(1)},${y(minV)} Z` : '';
-  const head = pts[pts.length - 1] || [x(0), y(0)];
-  const nw = hist[Math.min(age, lastAge)] || 0;
+  // 整條曲線只算一次。露出多少用 strokeDashoffset 控制（GPU 畫，不用重算路徑），
+  // 底下的漸層用 clipPath 切到現在的 x；這兩個每一格只是改一個數字。
+  const curve = useMemo(() => {
+    const pts = hist.map((v, i) => [x(i), y(v)]);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const area = pts.length > 1 ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${y(minV)} L${pts[0][0].toFixed(1)},${y(minV)} Z` : '';
+    const cum = [0];
+    for (let i = 1; i < pts.length; i += 1) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+    return { pts, line, area, cum, len: cum[cum.length - 1] || 1 };
+  }, [hist, CW, CH, minV, maxV]);
+  // 每一歲一個節點，Animated 的 interpolate 本來就是分段線性：小數歲會自動落在兩點之間
+  const ages = useMemo(() => hist.map((_, i) => i), [hist]);
+  const safe = (arr) => (arr.length > 1 ? arr : [arr[0] || 0, arr[0] || 0]);
+  const agesIn = ages.length > 1 ? ages : [0, 1];
+  const dashOff = tv.interpolate({ inputRange: agesIn, outputRange: safe(curve.cum.map((c) => curve.len - c)), extrapolate: 'clamp' });
+  const headMove = tv.interpolate({ inputRange: agesIn, outputRange: safe(curve.pts.map((p) => `translate(${p[0].toFixed(1)}px, ${p[1].toFixed(1)}px)`)), extrapolate: 'clamp' });
+  const clipScale = tv.interpolate({ inputRange: [0, Math.max(1, lastAge)], outputRange: [`scaleX(${(x(0) / CW).toFixed(4)})`, `scaleX(${(x(lastAge) / CW).toFixed(4)})`], extrapolate: 'clamp' });
+  const progScale = tv.interpolate({ inputRange: [0, Math.max(1, lastAge)], outputRange: [0, 1], extrapolate: 'clamp' });
   const yiY = y(E.YI);
   const showYi = maxV >= E.YI * 0.45;
+  // 整張圖只建一次。災難年份和大事的小點也放在 clipPath 底下，時間走到才露出來，
+  // 所以圖裡沒有任何東西跟 age 有關 —— 回顧播放的整段時間 React 都不用重畫這張圖。
+  const chart = useMemo(() => (
+    <Svg width={CW} height={CH} viewBox={`0 0 ${CW} ${CH}`}>
+      <Defs>
+        <LinearGradient id="rpArea" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#ffb547" stopOpacity="0.45" />
+          <Stop offset="1" stopColor="#ffb547" stopOpacity="0" />
+        </LinearGradient>
+        {/* 漸層、災難、小點都用這個矩形切；矩形用 scaleX 拉開，改的是 CSS，瀏覽器自己畫 */}
+        <ClipPath id="rpClip"><AnimatedRect x={0} y={0} width={CW} height={CH} style={{ transform: clipScale }} /></ClipPath>
+      </Defs>
+      <G clipPath="url(#rpClip)">
+        {[...crashAges].map((a) => (
+          <Rect key={a} x={x(a) - 3} y={PAD.t} width={6} height={CH - PAD.t - PAD.b} fill="#ff5d52" opacity={0.28} />
+        ))}
+      </G>
+      {showYi ? (
+        <>
+          <Line x1={PAD.l} x2={CW - PAD.r} y1={yiY} y2={yiY} stroke="#ff8a80" strokeDasharray="5,5" strokeWidth={1.2} />
+          <SvgText x={PAD.l + 4} y={yiY - 5} fontSize={11} fill="#ff8a80">1 億</SvgText>
+        </>
+      ) : null}
+      <Line x1={PAD.l} x2={CW - PAD.r} y1={y(0)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
+      {curve.area ? <Path d={curve.area} fill="url(#rpArea)" clipPath="url(#rpClip)" /> : null}
+      {curve.line ? (
+        <AnimatedPath
+          d={curve.line} stroke="#ffb547" strokeWidth={3} fill="none" strokeLinejoin="round" strokeLinecap="round"
+          strokeDasharray={[curve.len, curve.len]} style={{ strokeDashoffset: dashOff }}
+        />
+      ) : null}
+      <G clipPath="url(#rpClip)">
+        {highlights.map((h) => (
+          <Circle key={`h${h.age}`} cx={x(h.age)} cy={y(hist[h.age] || 0)} r={3.5} fill={h.tone === 'bad' ? '#ff8a80' : h.tone === 'gold' ? '#ffd76a' : '#7ee2b8'} />
+        ))}
+      </G>
+      <AnimatedCircle cx={0} cy={0} r={11} fill="#ffd76a" opacity={0.25} style={{ transform: headMove }} />
+      <AnimatedCircle cx={0} cy={0} r={5.5} fill="#ffd76a" stroke="#fff" strokeWidth={2} style={{ transform: headMove }} />
+      <SvgText x={PAD.l} y={CH - 5} fontSize={11} fill="rgba(255,255,255,0.5)">0歲</SvgText>
+      <SvgText x={CW - PAD.r} y={CH - 5} fontSize={11} fill="rgba(255,255,255,0.5)" textAnchor="end">{lastAge}歲</SvgText>
+    </Svg>
+  ), [curve, CW, CH, crashAges, highlights, showYi, yiY, lastAge]);
   const done = age >= lastAge && !playing;
   const sum = done ? E.summary(game) : null;
 
@@ -184,43 +282,15 @@ export default function LifeReplay({ game, visible, onClose }) {
               </View>
               <View style={[styles.pill, { alignItems: 'flex-end' }]}>
                 <Text style={styles.nwLabel}>淨資產</Text>
-                <Text style={[styles.nw, nw >= E.YI && { color: '#ffd76a' }, nw < 0 && { color: '#ff8a80' }]} numberOfLines={1}>{E.formatMoney(nw)}</Text>
+                <NwText tv={tv} hist={hist} />
               </View>
             </View>
           </View>
 
           <View style={styles.chartCard}>
-            <Svg width={CW} height={CH} viewBox={`0 0 ${CW} ${CH}`}>
-              <Defs>
-                <LinearGradient id="rpArea" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor="#ffb547" stopOpacity="0.45" />
-                  <Stop offset="1" stopColor="#ffb547" stopOpacity="0" />
-                </LinearGradient>
-              </Defs>
-              {/* 災難年份 */}
-              {[...crashAges].filter((a) => a <= age).map((a) => (
-                <Rect key={a} x={x(a) - 3} y={PAD.t} width={6} height={CH - PAD.t - PAD.b} fill="#ff5d52" opacity={0.28} />
-              ))}
-              {showYi ? (
-                <>
-                  <Line x1={PAD.l} x2={CW - PAD.r} y1={yiY} y2={yiY} stroke="#ff8a80" strokeDasharray="5,5" strokeWidth={1.2} />
-                  <SvgText x={PAD.l + 4} y={yiY - 5} fontSize={11} fill="#ff8a80">1 億</SvgText>
-                </>
-              ) : null}
-              <Line x1={PAD.l} x2={CW - PAD.r} y1={y(0)} y2={y(0)} stroke="rgba(255,255,255,0.15)" strokeWidth={1} />
-              {area ? <Path d={area} fill="url(#rpArea)" /> : null}
-              {line ? <Path d={line} stroke="#ffb547" strokeWidth={3} fill="none" strokeLinejoin="round" strokeLinecap="round" /> : null}
-              {/* 大事的小點 */}
-              {highlights.filter((h) => h.age <= age).map((h) => (
-                <Circle key={`h${h.age}`} cx={x(h.age)} cy={y(hist[h.age] || 0)} r={3.5} fill={h.tone === 'bad' ? '#ff8a80' : h.tone === 'gold' ? '#ffd76a' : '#7ee2b8'} />
-              ))}
-              <Circle cx={head[0]} cy={head[1]} r={11} fill="#ffd76a" opacity={0.25} />
-              <Circle cx={head[0]} cy={head[1]} r={5.5} fill="#ffd76a" stroke="#fff" strokeWidth={2} />
-              <SvgText x={PAD.l} y={CH - 5} fontSize={11} fill="rgba(255,255,255,0.5)">0歲</SvgText>
-              <SvgText x={CW - PAD.r} y={CH - 5} fontSize={11} fill="rgba(255,255,255,0.5)" textAnchor="end">{lastAge}歲</SvgText>
-            </Svg>
+            {chart}
             {/* 進度條 */}
-            <View style={styles.prog}><View style={[styles.progFill, { width: `${(age / Math.max(1, lastAge)) * 100}%` }]} /></View>
+            <View style={styles.prog}><Animated.View style={[styles.progFill, { width: '100%', transformOrigin: 'left', transform: [{ scaleX: progScale }] }]} /></View>
           </View>
 
           <View style={styles.caps}>

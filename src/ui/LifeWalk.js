@@ -1,6 +1,6 @@
 // 人生回顧上方的小劇場：主角從嬰兒爬、學走路、背書包上學、畢業、上班、到老，一路往前走。
 // 背景（家 → 幼兒園 → 小學 → 中學 → 大學 → 辦公大樓 → 公園）會跟著年紀換，並且一直往後捲，看起來像在走路。
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import { Sprite, WalkFigure, canWalk, HEAD, spriteId, SPRITE_SIZE, stageOf } from './Character';
@@ -93,80 +93,90 @@ function GradCap({ size }) {
   );
 }
 
-export default function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
+// memo：回顧畫面現在每一格都會重畫（曲線要連續動），但這個小劇場只有「歲數變了」才需要跟著動。
+// 沒有 memo 的話，整片背景（幾十個 SVG 方塊）會每秒重畫 60 次，低階電腦就是在這裡卡住。
+function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
   const stage = lifeStage(age);
-  const [frame, setFrame] = useState(0);
   const scroll = useRef(new Animated.Value(0)).current;
   const bob = useRef(new Animated.Value(0)).current;
 
-  // 走路：兩格動畫輪流
+  // 背景一直往後捲。不再在換階段時歸零重來（那會看到背景突然跳一下），
+  // 速度固定，換階段只換道具。
+  useEffect(() => {
+    if (!playing) return undefined;
+    const loop = Animated.loop(Animated.timing(scroll, { toValue: 1, duration: 7000, easing: Easing.linear, useNativeDriver: ND }));
+    loop.start();
+    return () => loop.stop();
+  }, [playing, width]);
+
   useEffect(() => {
     if (!playing) return undefined;
     const ms = stage === 'old' ? 360 : stage === 'baby' ? 300 : 220;
-    const id = setInterval(() => setFrame((f) => 1 - f), ms);
-    return () => clearInterval(id);
-  }, [playing, stage]);
-
-  // 背景一直往後捲
-  useEffect(() => {
-    scroll.setValue(0);
-    if (!playing) return undefined;
-    const speed = stage === 'old' ? 9000 : stage === 'baby' ? 10000 : 6000;
-    const loop = Animated.loop(Animated.timing(scroll, { toValue: 1, duration: speed, easing: Easing.linear, useNativeDriver: ND }));
-    loop.start();
-    return () => loop.stop();
-  }, [playing, stage, width]);
-
-  useEffect(() => {
-    if (!playing) return undefined;
     const loop = Animated.loop(Animated.sequence([
-      Animated.timing(bob, { toValue: 1, duration: 200, useNativeDriver: ND }),
-      Animated.timing(bob, { toValue: 0, duration: 200, useNativeDriver: ND }),
+      Animated.timing(bob, { toValue: 1, duration: ms, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
+      Animated.timing(bob, { toValue: 0, duration: ms, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
     ]));
     loop.start();
     return () => loop.stop();
-  }, [playing]);
+  }, [playing, stage]);
 
   const g = height - 26; // 地面
   const sky = SKY[stage];
 
+  // 天空和背景道具只在換階段或換尺寸時重建
+  const skyLayer = useMemo(() => (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+      <Defs>
+        <LinearGradient id="lwSky" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={sky[0]} /><Stop offset="1" stopColor={sky[1]} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width={width} height={height} fill="url(#lwSky)" />
+      {stage === 'old' ? <Circle cx={width * 0.8} cy={height * 0.42} r={22} fill="#ffb36b" opacity={0.9} /> : <Circle cx={width * 0.85} cy={36} r={16} fill={stage === 'adult' ? '#fff4c2' : '#ffe07a'} opacity={0.95} />}
+      <Ellipse cx={width * 0.25} cy={40} rx={30} ry={9} fill="rgba(255,255,255,0.7)" />
+      <Ellipse cx={width * 0.55} cy={58} rx={22} ry={7} fill="rgba(255,255,255,0.55)" />
+    </Svg>
+  ), [stage, width, height]);
+  const hero = <Hero age={age} gender={gender} height={height} width={width} grad={grad} playing={playing} bob={bob} g={g} />;
+  const propsLayer = useMemo(() => (
+    <Svg width={width * 2} height={height}>
+      <Props stage={stage} w={width} h={height} ground={g} offset={0} />
+      <Props stage={stage} w={width} h={height} ground={g} offset={width} />
+      <Rect x={0} y={g} width={width * 2} height={height - g} fill={stage === 'adult' ? '#3a4278' : '#7ccf8a'} />
+      {Array.from({ length: 24 }).map((_, i) => <Rect key={i} x={i * (width / 12)} y={g + 10} width={width / 24} height={3} fill="rgba(255,255,255,0.35)" />)}
+    </Svg>
+  ), [stage, width, height]);
+
   return (
     <View style={{ width, height, borderRadius: 20, overflow: 'hidden' }}>
-      <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <LinearGradient id="lwSky" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={sky[0]} /><Stop offset="1" stopColor={sky[1]} />
-          </LinearGradient>
-        </Defs>
-        <Rect x={0} y={0} width={width} height={height} fill="url(#lwSky)" />
-        {stage === 'old' ? <Circle cx={width * 0.8} cy={height * 0.42} r={22} fill="#ffb36b" opacity={0.9} /> : <Circle cx={width * 0.85} cy={36} r={16} fill={stage === 'adult' ? '#fff4c2' : '#ffe07a'} opacity={0.95} />}
-        <Ellipse cx={width * 0.25} cy={40} rx={30} ry={9} fill="rgba(255,255,255,0.7)" />
-        <Ellipse cx={width * 0.55} cy={58} rx={22} ry={7} fill="rgba(255,255,255,0.55)" />
-      </Svg>
+      {skyLayer}
       {/* 捲動的背景：兩份接在一起 */}
       <Animated.View style={[StyleSheet.absoluteFill, { width: width * 2, transform: [{ translateX: scroll.interpolate({ inputRange: [0, 1], outputRange: [0, -width] }) }] }]}>
-        <Svg width={width * 2} height={height}>
-          <Props stage={stage} w={width} h={height} ground={g} offset={0} />
-          <Props stage={stage} w={width} h={height} ground={g} offset={width} />
-          <Rect x={0} y={g} width={width * 2} height={height - g} fill={stage === 'adult' ? '#3a4278' : '#7ccf8a'} />
-          {Array.from({ length: 24 }).map((_, i) => <Rect key={i} x={i * (width / 12)} y={g + 10} width={width / 24} height={3} fill="rgba(255,255,255,0.35)" />)}
-        </Svg>
+        {propsLayer}
       </Animated.View>
       {/* 主角：正式人物母版，依年齡自動換階段 */}
-      {(() => {
-        const st = stageOf(age);
-        const id = spriteId(age, gender);
-        const hh = height * (st === 'baby' ? 0.4 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
-        const ww = (hh * SPRITE_SIZE[id][0]) / SPRITE_SIZE[id][1];
-        const hx = ww * HEAD[id][0];
-        const hs = hh * HEAD[id][1];
-        return (
+      {hero}
+    </View>
+  );
+}
+
+// 主角那一塊只有換階段（換立繪）、戴不戴學士帽、暫不暫停時才需要重建。
+// 走路的擺動全部綁在 Animated 上，年紀一歲一歲過的時候不用碰它。
+function Hero({ age, gender, height, width, grad, playing, bob, g }) {
+  const st = stageOf(age);
+  const id = spriteId(age, gender);
+  const hh = height * (st === 'baby' ? 0.4 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
+  const ww = (hh * SPRITE_SIZE[id][0]) / SPRITE_SIZE[id][1];
+  const hx = ww * HEAD[id][0];
+  const hs = hh * HEAD[id][1];
+  return useMemo(() => {
+    return (
           <Animated.View
             style={{
               position: 'absolute', left: width / 2 - ww / 2, top: g - hh + 4, width: ww, height: hh,
               transform: [
                 { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, st === 'baby' ? -2 : -3] }) },
-                { rotate: playing ? (frame ? '1.6deg' : '-1.6deg') : '0deg' },
+                { rotate: playing ? bob.interpolate({ inputRange: [0, 1], outputRange: ['-1.6deg', '1.6deg'] }) : '0deg' },
               ],
             }}
           >
@@ -174,8 +184,8 @@ export default function LifeWalk({ age, name, gender, width, height = 210, grad,
             {canWalk(id) ? <WalkFigure id={id} width={ww} height={hh} walking={playing} speed={st === 'kid' ? 520 : 620} /> : <Sprite age={age} gender={gender} height={hh} />}
             {grad ? <View style={{ position: 'absolute', left: hx - hs * 0.42, top: -hs * 0.22 }}><GradCap size={hs * 0.84} /></View> : null}
           </Animated.View>
-        );
-      })()}
-    </View>
-  );
+    );
+  }, [id, st, hh, ww, grad, playing, g, width, bob]);
 }
+
+export default memo(LifeWalk);

@@ -2,6 +2,7 @@
 import { addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { addSkill, addPoints, netWorth, diffOf } from './actions.js';
 import { reunionText, ranking, lockClassmates } from './mates.js';
+import { makeTip, pickTipster, followTip, tipQuote, tipRecordText } from './tips.js';
 import { BUSINESSES } from './data.js';
 import { MAX_GROUP, synergy } from './mna.js';
 
@@ -37,8 +38,13 @@ function settleRival(s) {
 export const REUNION_EVENT = {
   id: 'reunion', minAge: 20, maxAge: 99, weight: 0, // 由引擎在固定年紀觸發
   title: '同學會',
-  before: (s) => { lockClassmates(s); s.flags.rivalResult = settleRival(s); },
-  text: (s) => `${s.flags.rivalResult || ''}${reunionText(s, netWorth(s))}`,
+  before: (s, rng) => {
+    lockClassmates(s);
+    s.flags.rivalResult = settleRival(s);
+    // 席間一定有人講股票。講的是真的市場，明年對答案，對錯記在他身上
+    if (!s.flags.tip && rng) { const m = pickTipster(s, rng); if (m) makeTip(s, rng, m); }
+  },
+  text: (s) => `${s.flags.rivalResult || ''}${reunionText(s, netWorth(s))}${s.flags.tip ? `酒過三巡，「${s.flags.tip.mate}」（${s.flags.tip.title}）壓低聲音跟你說：${tipQuote(s.flags.tip)}` : ''}`,
   choices: [
     {
       label: '大方請客',
@@ -62,16 +68,22 @@ export const REUNION_EVENT = {
       effect: (s) => `你安靜地吃完這一餐，聽大家講這些年的故事。${addStats(s, { happy: 3, charm: 1 })}`,
     },
     {
-      label: '跟同學交換投資情報',
-      sub: '可能學到東西，也可能被帶進坑',
+      // 以前這裡是擲骰子（60% 眼光+1、40% 莫名賠一筆）。現在是真的：
+      // 上面那位同學講了什麼，你跟著做，明年拿真的漲跌對答案。
+      label: (s) => (s.flags.tip ? `跟「${s.flags.tip.mate}」的明牌` : '跟同學交換投資情報'),
+      sub: (s) => {
+        const t = s.flags.tip;
+        if (!t) return '可能學到東西';
+        const m = (s.mates || []).find((x) => x.name === t.mate);
+        return `${tipRecordText(m)}．錢是真的進市場`;
+      },
       effect: (s, rng) => {
-        if (chance(rng, 0.6)) {
+        const t = s.flags.tip;
+        if (!t) {
           addSkill(s, 1);
           return good(`一位在金融業的同學跟你聊了很多，投資眼光提升！${addStats(s, { int: 2 })}`);
         }
-        const c = Math.round(Math.min(Math.max(5 * WAN * s.priceIndex, netWorth(s) * 0.01), 300 * WAN * s.priceIndex));
-        s.money -= c;
-        return bad(`你聽了同學的「內線」，結果賠了 ${formatMoney(c)}。${addStats(s, { happy: -5, int: 1 })}`);
+        return { text: `${followTip(s, t)}${addStats(s, { int: 1 })}`, tone: 'neutral' };
       },
     },
     {
@@ -83,6 +95,37 @@ export const REUNION_EVENT = {
         s.flags.rivalName = top.name;
         return `你敬了「${top.name}」一杯，心裡默默立下目標：下次同學會一定要超過他。${addStats(s, { happy: -2, int: 2, charm: 1 })}`;
       },
+    },
+  ],
+};
+
+// 老同學約吃飯：同學會五年才一次，光靠它一輩子記不了幾筆。
+// 這個每隔幾年就會來一次，同一套機制，同學的紀錄才會累積到「可以判斷誰能信」。
+export const MATE_TIP_EVENT = {
+  id: 'mate_tip', minAge: 23, maxAge: 72, weight: 3,
+  cond: (s) => !s.flags.tip && (s.mates || []).some((m) => m.stage === 'work'),
+  title: '老同學約吃飯',
+  before: (s, rng) => { const m = pickTipster(s, rng); if (m) makeTip(s, rng, m); },
+  text: (s) => {
+    const t = s.flags.tip;
+    if (!t) return '幾個老同學約吃飯，聊了一晚上的近況。';
+    return `「${t.mate}」（${t.title}）約你吃飯，喝了兩杯之後壓低聲音：${tipQuote(t)}`;
+  },
+  choices: [
+    {
+      label: '跟著做',
+      sub: (s) => {
+        const t = s.flags.tip;
+        const m = t && (s.mates || []).find((x) => x.name === t.mate);
+        return t ? `${tipRecordText(m)}．錢是真的進市場，明年見真章` : '';
+      },
+      cond: (s) => !!s.flags.tip,
+      effect: (s) => ({ text: followTip(s, s.flags.tip), tone: 'neutral' }),
+    },
+    {
+      label: '聽聽就好',
+      sub: '不動錢，但明年會知道他準不準',
+      effect: (s) => `你笑笑沒接話，但把這句話記下來了。${addStats(s, { happy: 2, charm: 1 })}`,
     },
   ],
 };

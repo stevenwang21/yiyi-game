@@ -19,7 +19,7 @@ import { EVENTS3 } from './events3.js';
 import { BABY_EVENTS } from './events_baby.js';
 import { TALENT_EVENT } from './talents.js';
 import { MEET_EVENT, DATE_EVENT, LOVE_EVENTS } from './events_love.js';
-import { REUNION_EVENT, MNA_EVENTS } from './events_rival.js';
+import { REUNION_EVENT, MATE_TIP_EVENT, MNA_EVENTS } from './events_rival.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const pctText = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100)}%`;
@@ -717,6 +717,6 @@ export const EVENTS = [
   },
 ];
 
-EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, ...LOVE_EVENTS, REUNION_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS);
+EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS);
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);

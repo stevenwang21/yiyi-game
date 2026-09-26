@@ -14,6 +14,8 @@ import { EVENTS, eventById } from './events.js';
 import { MILESTONES, GRAD_TUITION, examScore } from './milestones.js';
 import { ROUTES } from './routes.js';
 import { WORLD_EVENTS, INDEX_META } from './world.js';
+import { settleTip } from './tips.js';
+export { tipRecord, tipRecordText, TIP_STRIKES } from './tips.js';
 import { perksOf } from './perks.js';
 import { currentType, partnerIncome, PARTNER_TYPES } from './partners.js';
 import { makeMates, mateYear, ranking, myRank, rankMode, reunionText, selectedClassmates, REUNION_AGES, START_AGE as MATE_START } from './mates.js';
@@ -529,7 +531,10 @@ function rollWorld(s, rng) {
   const lastCrash = s.world && s.world.crash;
   const pool = lastCrash ? WORLD_EVENTS.filter((w) => !w.crash) : WORLD_EVENTS;
   const crashW = diffOf(s).crashW || 1;
-  const w = weightedPick(rng, pool, (x) => x.w * (x.crash || x.layoff ? crashW : 1));
+  // 同學報明牌的時候會先把這一年的大事抽好（tips.js 的 prerollWorld），這裡直接用
+  const pre = s.flags && s.flags.nextWorld ? pool.find((x) => x.id === s.flags.nextWorld) : null;
+  const w = pre || weightedPick(rng, pool, (x) => x.w * (x.crash || x.layoff ? crashW : 1));
+  if (s.flags) s.flags.nextWorld = null;
   const m = w.m || {};
   const rebound = lastCrash ? 0.12 : 0;
   const d = diffOf(s);
@@ -1838,6 +1843,7 @@ export function nextYear(s0, rng = Math.random) {
   mateYear(s, rng);
   refreshTargets(s, rng);
   economy(s, rng);
+  settleTip(s, log);   // 去年同學報的明牌，拿今年真的漲跌對答案
   careerYear(s, rng);
   careerHit(s, rng);
   petYear(s, rng);
