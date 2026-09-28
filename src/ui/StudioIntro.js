@@ -1,7 +1,8 @@
 // 開場：工作室片頭。淡入 1.1 秒 → 停 2.3 秒 → 淡出 1.5 秒，總共約 5 秒。
 // 點畫面任何地方可以跳過。載入存檔的時間剛好被它蓋住。
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PHOTO } from './art/photos';
 
 const ND = Platform.OS !== 'web';
 export const STUDIO_NAME = '大漢工作室';
@@ -43,10 +44,8 @@ export default function StudioIntro({ onDone }) {
       <Animated.View style={[styles.glow, { opacity: glow }]} pointerEvents="none" />
 
       <Animated.View style={{ opacity: fade, transform: [{ scale }], alignItems: 'center' }}>
-        <Animated.View style={[styles.line, { width: lineW }]} />
-        <Text style={styles.name}>{STUDIO_NAME}</Text>
-        <Animated.View style={[styles.line, { width: lineW, marginTop: 14 }]} />
-        <Text style={styles.sub}>{STUDIO_SUB}</Text>
+        {/* 工作室標誌（logo_studio：玻璃漸層方章＋大漢工作室） */}
+        <Image source={PHOTO.logo_studio} style={{ width: 190, height: 190 * 706 / 480 }} resizeMode="contain" accessibilityLabel={STUDIO_NAME} />
       </Animated.View>
 
       <Animated.Text style={[styles.skip, { opacity: fade }]}>點一下跳過</Animated.Text>
@@ -61,7 +60,7 @@ const styles = StyleSheet.create({
   },
   glow: {
     position: 'absolute', width: 420, height: 420, borderRadius: 210,
-    backgroundColor: '#ffd76a',
+    backgroundColor: '#8a6bff',
     ...(Platform.OS === 'web' ? { filter: 'blur(110px)' } : { opacity: 0.18 }),
   },
   line: { height: 1.5, backgroundColor: '#ffd76a', opacity: 0.75, marginBottom: 16, borderRadius: 1 },

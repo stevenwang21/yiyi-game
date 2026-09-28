@@ -93,6 +93,8 @@ export const PHOTO = {
   walk60_junior_f: require('../../../assets/art/walk60_junior_f.webp'),
   walk60_univ_m: require('../../../assets/art/walk60_univ_m.webp'),
   walk60_univ_f: require('../../../assets/art/walk60_univ_f.webp'),
+  logo_title: require('../../../assets/art/logo_title.webp'),
+  logo_studio: require('../../../assets/art/logo_studio.webp'),
   pet_cat_01: require('../../../assets/art/pet_cat_01.webp'),
   pet_cat_02: require('../../../assets/art/pet_cat_02.webp'),
   pet_cat_03: require('../../../assets/art/pet_cat_03.webp'),

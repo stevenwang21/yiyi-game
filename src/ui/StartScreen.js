@@ -117,11 +117,14 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
         {/* 頂列 */}
         <View style={styles.topBar}>
           <View style={[styles.lvPill, GLASS]}><Text style={styles.lvText}>第 {m.lives + 1} 世</Text></View>
-          <Text style={styles.brand}>一個億的小目標</Text>
+          <View style={{ flex: 1 }} />
           <Pressable onPress={() => { setMetaMsg(null); setShowMeta(true); }} style={[styles.ptsPill, GLASS]}>
             <Text style={styles.ptsText}>⭐ {m.points}</Text>
           </Pressable>
         </View>
+
+        {/* 標題字（logo_title：1億｜一個億的小目標） */}
+        <Image source={PHOTO.logo_title} style={{ width: Math.min(W - 48, 360), height: Math.min(W - 48, 360) * 219 / 720, alignSelf: 'center', marginTop: 6, marginBottom: 10 }} resizeMode="contain" accessibilityLabel="一個億的小目標" />
 
         {/* 主視覺 */}
         <Image source={PHOTO.hero} style={{ width: W, height: Math.round(W * 444 / 780) }} resizeMode="cover" />

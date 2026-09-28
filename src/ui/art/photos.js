@@ -92,6 +92,8 @@ export const PHOTO = {
   walk60_junior_f: { uri: 'art/walk60_junior_f.webp' },
   walk60_univ_m: { uri: 'art/walk60_univ_m.webp' },
   walk60_univ_f: { uri: 'art/walk60_univ_f.webp' },
+  logo_title: { uri: 'art/logo_title.webp' },
+  logo_studio: { uri: 'art/logo_studio.webp' },
   pet_cat_01: { uri: 'art/pet_cat_01.webp' },
   pet_cat_02: { uri: 'art/pet_cat_02.webp' },
   pet_cat_03: { uri: 'art/pet_cat_03.webp' },
