@@ -294,7 +294,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
       </Text>
 
       {locked ? (
-        <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能投資（還差 {E.INVEST_MIN_AGE - s.age} 年）。現在先選「學理財」練投資眼光。</Text></Card>
+        <Card><Text style={styles.muted}>🔒 滿 {E.INVEST_MIN_AGE} 歲才能投資（還差 {E.INVEST_MIN_AGE - s.age} 年）</Text></Card>
       ) : null}
 
 
@@ -813,7 +813,6 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
       {!locked && tab === 4 && s.money < 0 ? (
         <Card style={{ backgroundColor: C.redSoft }}>
           <Text style={[styles.body, { color: C.red }]}>⚠️ 現金透支 {E.formatMoney(-s.money)}</Text>
-          <Text style={styles.muted}>透支會滾利息。按下面一鍵賣投資補回來。</Text>
           <Button
             kind="red"
             title="賣投資，把透支還清"

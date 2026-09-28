@@ -10,6 +10,7 @@ import { addMoney, addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { familyById } from './data.js';
 import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRisky, startDating, diffOf, scaleBiz, motherAge, heProposes as he, conceiveChance, downsChance } from './actions.js';
 import { MAX_KIDS, TREAT_COST } from './data.js';
+import { lottoChoices } from './lotto.js';
 import { EXTRA_EVENTS } from './events2.js';
 import { SCHOOL_EVENTS, BAND_EVENTS, IDOL_EVENTS } from './events_school.js';
 import { SELF_EVENTS } from './events_self.js';
@@ -20,6 +21,7 @@ import { BABY_EVENTS } from './events_baby.js';
 import { TALENT_EVENT } from './talents.js';
 import { MEET_EVENT, DATE_EVENT, LOVE_EVENTS } from './events_love.js';
 import { REUNION_EVENT, MATE_TIP_EVENT, MNA_EVENTS } from './events_rival.js';
+import { PET_EVENTS } from './events_pet.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const pctText = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100)}%`;
@@ -277,31 +279,8 @@ export const EVENTS = [
   {
     id: 'lottery', minAge: 20, maxAge: 79, weight: 2,
     title: '買樂透',
-    text: '這期頭獎累積到 5 億，大家都在排隊買。',
-    choices: [
-      {
-        label: '買一張試試（100 元）',
-        effect: (s, rng) => {
-          s.money -= 100;
-          const r = rng();
-          if (r < 0.001) return good(`中頭獎了！！！人生翻轉！${addMoney(s, 20000 * WAN)}${addStats(s, { happy: 30 })}`);
-          if (r < 0.03) return good(`中了小獎。${addMoney(s, 2000)}${addStats(s, { happy: 2 })}`);
-          return '槓龜。100 元就當作買個希望。';
-        },
-      },
-      {
-        label: '豪賭 10 萬元',
-        cond: (s) => s.money >= 10 * WAN,
-        effect: (s, rng) => {
-          s.money -= 10 * WAN;
-          const r = rng();
-          if (r < 0.003) return good(`中了頭獎！！！${addMoney(s, 20000 * WAN)}${addStats(s, { happy: 30 })}`);
-          if (r < 0.2) return `中了一些小獎，拿回 3 萬。${addMoney(s, 3 * WAN)}`;
-          return bad(`10 萬元全部槓龜。${addStats(s, { happy: -6 })}`);
-        },
-      },
-      { label: '不買', effect: () => '你相信靠自己比較實在。' },
-    ],
+    text: '這期頭獎累積到 2 億，大家都在排隊買。一張 100 元，你要買幾張？',
+    choices: lottoChoices(),
   },
   {
     id: 'love', minAge: 24, maxAge: 45, weight: 4, cond: (s) => !s.married && !s.partner,
@@ -717,6 +696,6 @@ export const EVENTS = [
   },
 ];
 
-EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS);
+EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS, ...PET_EVENTS);
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);

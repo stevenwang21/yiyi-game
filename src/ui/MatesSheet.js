@@ -43,9 +43,6 @@ export default function MatesSheet({ visible, onClose, game }) {
           );
         })}
       </Card>
-      <Text style={[styles.muted, { marginTop: 10 }]}>
-        同學會依成績升學（高中／高職 → 大學／頂大／直接工作 → 研究所），出社會後才有職業，每隔幾年靠努力升一級。資產也會受世界大事影響。退休結算時會比最後的名次。
-      </Text>
     </Sheet>
   );
 }

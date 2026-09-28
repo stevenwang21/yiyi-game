@@ -91,13 +91,6 @@ export default function HealthSheet({ visible, onClose, game, setGame }) {
         />
       </Card>
 
-      <Card style={{ backgroundColor: C.goldSoft }}>
-        <Text style={styles.h}>怎麼讓身體變好？</Text>
-        <Text style={styles.tip}>・年度重點選「運動健身」：健康大幅上升，風險下降最多。</Text>
-        <Text style={styles.tip}>・選「休息旅遊」或「家庭時光」：快樂上升，也能降低風險。</Text>
-        <Text style={styles.tip}>・連續好幾年「認真工作」「經營事業」，過勞風險會越來越高。</Text>
-        <Text style={styles.tip}>・健康檢查發現問題時，及早治療最划算。</Text>
-      </Card>
     </Sheet>
   );
 }

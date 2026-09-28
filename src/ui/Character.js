@@ -26,13 +26,13 @@ const gk = (gender) => (gender === 'female' ? 'f' : 'm');
 // 圖片原始尺寸（寬、高），用來算比例
 const SIZE = {
   baby_m: [90, 169], baby_f: [95, 167], kid_m: [107, 366], kid_f: [108, 332],
-  teen_m: [117, 427], teen_f: [111, 382], young_m: [114, 432], young_f: [112, 402],
+  teen_m: [117, 427], teen_f: [111, 382], young_m: [111, 432], young_f: [112, 402],
   mid_m: [118, 434], mid_f: [98, 396], old_m: [129, 427], old_f: [107, 389],
 };
 // 頭的位置（中心 x 佔寬度比例）與大小（佔身高比例）
 export const HEAD = {
   baby_m: [0.58, 0.62], baby_f: [0.54, 0.62], kid_m: [0.68, 0.25], kid_f: [0.43, 0.25],
-  teen_m: [0.67, 0.2], teen_f: [0.44, 0.2], young_m: [0.71, 0.19], young_f: [0.41, 0.19],
+  teen_m: [0.67, 0.2], teen_f: [0.44, 0.2], young_m: [0.613, 0.19], young_f: [0.41, 0.19],
   mid_m: [0.66, 0.19], mid_f: [0.43, 0.19], old_m: [0.67, 0.19], old_f: [0.4, 0.19],
 };
 export const spriteId = (age, gender) => cid(stageOf(age), gk(gender));
@@ -124,7 +124,7 @@ export function Sprite({ age, stage: st, gender = 'male', height = 200, style })
 // 一開始就把 24 張人物圖先載好，事件跳出來時不用等
 if (WEB && typeof window !== 'undefined') {
   setTimeout(() => {
-    Object.keys(PHOTO).filter((k) => k.startsWith('char_') || k.startsWith('head_')).forEach((k) => {
+    Object.keys(PHOTO).filter((k) => k.startsWith('char_') || k.startsWith('head_') || k.startsWith('pet_')).forEach((k) => {
       const im = new window.Image(); im.src = PHOTO[k].uri;
     });
     Object.values(EMOJI3D).forEach((n) => { const im = new window.Image(); im.src = `art/${n}.webp`; });
@@ -264,6 +264,42 @@ function Actor({ age, stage, gender, h, left, from = -1, delay = 0, bad, bob, an
       }}
     >
       <Sprite age={age} stage={stage} gender={gender} height={h} />
+    </Animated.View>
+  );
+}
+
+// 寵物：坐在主角腳邊，會小小地上下動；狗會跟著主角的節奏晃尾巴（整隻微微左右擺）
+const PET_SIZE = {
+  pet_cat_01: [349, 320], pet_cat_02: [305, 320], pet_cat_03: [338, 320], pet_cat_04: [380, 320], pet_cat_05: [346, 320],
+  pet_dog_01: [347, 320], pet_dog_02: [299, 320], pet_dog_03: [350, 320], pet_dog_04: [349, 320], pet_dog_05: [355, 320],
+};
+// 寵物的圖：依品種（pet_<type>_<breed>），舊存檔沒品種就用 uid 算
+export const petImgId = (p) => `pet_${p.type}_${String(p.breed || (1 + (parseInt(String(p.uid || '0').replace(/\D/g, ''), 10) || 0) % 5)).padStart(2, '0')}`;
+export function PetPic({ pet, height, style }) {
+  const id = petImgId(pet);
+  const [w, h] = PET_SIZE[id] || [340, 320];
+  return <Pic src={PHOTO[id]} width={(height * w) / h} height={height} style={style} />;
+}
+export function PetActor({ pet, type, size, left, bottom, delay = 0, z = 2, flip }) {
+  const inV = useRef(new Animated.Value(0)).current;
+  const wag = useLoop(type === 'dog' ? 420 : 1600);
+  useEffect(() => {
+    Animated.timing(inV, { toValue: 1, duration: 480, delay, easing: Easing.out(Easing.back(1.5)), useNativeDriver: ND }).start();
+  }, []);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={{
+        position: 'absolute', left, bottom, zIndex: z, opacity: inV,
+        transform: [
+          { scale: inV.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
+          { scaleX: flip ? -1 : 1 },
+          { translateY: wag.interpolate({ inputRange: [0, 1], outputRange: [0, type === 'dog' ? -3 : -1.5] }) },
+          { rotate: wag.interpolate({ inputRange: [0, 1], outputRange: [type === 'dog' ? '-4deg' : '-1deg', type === 'dog' ? '4deg' : '1deg'] }) },
+        ],
+      }}
+    >
+      {pet ? <PetPic pet={pet} height={size} /> : <Emo e={type === 'cat' ? '🐈' : '🐕'} size={size} />}
     </Animated.View>
   );
 }
@@ -555,7 +591,7 @@ const cmHead = (a) => { const [, , cx, hw] = CM[cmKey(a)]; return { cx: isAlt(a)
 // cut：脖子在身高的幾成｜ncx：脖子中心在寬度的幾成（旋轉的軸心）
 const RIG = {
   baby_m: [0.5385, 0.478], baby_f: [0.6527, 0.663], kid_m: [0.2158, 0.528], kid_f: [0.2169, 0.495],
-  teen_m: [0.1733, 0.55], teen_f: [0.1728, 0.491], young_m: [0.1644, 0.557], young_f: [0.1642, 0.473],
+  teen_m: [0.1733, 0.55], teen_f: [0.1728, 0.491], young_m: [0.1644, 0.61], young_f: [0.1642, 0.473],
   mid_m: [0.1659, 0.517], mid_f: [0.1641, 0.413], old_m: [0.1639, 0.535], old_f: [0.1671, 0.35],
   cm_civil_f: [0.1703, 0.457], cm_designer_f: [0.1641, 0.492], cm_engineer_m: [0.1625, 0.545],
   cm_founder_m: [0.1516, 0.426], cm_nurse_f: [0.1828, 0.494], cm_owner_m: [0.1422, 0.439],
@@ -1022,7 +1058,7 @@ export function ReunionStage({ game, choice, style }) {
 }
 
 export function CharScene({
-  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates,
+  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates, pets,
 }) {
   const cfg = KIND[kind] || KIND.desk;
   const pal = PAL[cfg.pal] || PAL.night;
@@ -1044,6 +1080,8 @@ export function CharScene({
   const social = kind === 'social' && !noProps;
   const crowd = !!(mates && mates.length > 1) && !noProps;
   const compact = compactIn != null ? compactIn : height < 110;
+  // 有真的寵物在腳邊時，道具裡的 🐶 就不要再放一次
+  const propList = pets && pets.length ? cfg.props.filter(([e]) => e !== '🐶' && e !== '🐱') : cfg.props;
   const heroX = w * (compact ? 0.24 : withP ? 0.2 : crash ? 0.66 : social ? 0.26 : crowd ? 0.17 : 0.3) - heroW / 2;
   const pid = cid(stage, gk(other));
   const pH = heroH * (SIZE[pid][1] / SIZE[hid][1]);
@@ -1072,10 +1110,10 @@ export function CharScene({
           {crowd && !compact ? <Crowd mates={mates} w={w} height={height} age={age} /> : null}
           {!noProps && !(social && !compact) && !(crowd && !compact) ? (compact
             // 小卡（主畫面右上）：只放兩個大圖示在右半邊，人物留在左邊
-            ? cfg.props.slice(0, 2).map(([e, , , , float], i) => (
+            ? propList.slice(0, 2).map(([e, , , , float], i) => (
               <Prop key={`${kind}-${i}`} k={i} e={e} x={i ? 84 : 68} y={i ? 72 : 34} size={Math.round(height * (i ? 0.5 : 0.6))} float={float} delay={260 + i * 130} />
             ))
-            : cfg.props.map(([e, x, y, size, float], i) => (
+            : propList.map(([e, x, y, size, float], i) => (
               <Prop key={`${kind}-${i}`} k={i} e={e} x={x} y={y} size={Math.round(size * 1.6 * Math.max(0.72, s))} float={float} delay={260 + i * 130} />
             ))) : null}
           {withP ? (
@@ -1085,6 +1123,13 @@ export function CharScene({
           {baby && stage !== 'baby' ? (
             <Actor stage="baby" gender={baby} h={height * 0.46} left={w * 0.31 - height * 0.12} from={0} delay={420} anchor="bottom" bottom={2} z={3} />
           ) : null}
+          {/* 寵物坐在主角腳邊（最多兩隻，一左一右）；股災、社群那種特殊構圖不放 */}
+          {pets && pets.length && stage !== 'baby' && !crash && !social && !crowd ? pets.slice(0, 2).map((p, i) => {
+            const ps = Math.round(height * (compact ? 0.4 : 0.3));
+            // 圖片都是面向左邊：右邊那隻直接用（看著主角），左邊那隻翻過來
+            const lx = i === 0 ? heroX + heroW * 0.6 : Math.max(2, heroX - ps * 0.85);
+            return <PetActor key={p.uid || i} pet={p} type={p.type} size={ps} left={lx} bottom={compact ? 0 : 4} delay={520 + i * 150} z={3} flip={i === 1} />;
+          }) : null}
           <Bubble
             mood={face} size={bubble}
             // 平常泡泡放在頭的右邊；但有另一半的時候「你」在左、對方在中間，

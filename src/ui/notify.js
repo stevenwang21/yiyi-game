@@ -30,6 +30,9 @@ const RULES = [
   { re: /你的努力被老闆看見/, icon: '💼', title: '加薪 10%', target: null },
   { re: /還清了！/, icon: '✨', title: '債務還清', target: 'invest:4' },
   { re: /通告變少，年薪降到/, icon: '📉', title: '偶像被新人擠了', target: null },
+  { re: /安詳地離開了/, icon: '🌈', title: (t) => { const m = /「([^」]+)」安詳/.exec(t); return m ? `${m[1]} 走了` : '寵物走了'; }, target: 'family' },
+  { re: /再也沒有回來|沒有回來。/, icon: '🐾', title: '寵物走失了', target: 'family' },
+  { re: /成了寵物網紅/, icon: '⭐', title: '你家的寵物紅了', target: 'family' },
   { re: /^【世界】/, icon: (t, l) => (String(l.tone).includes('bad') ? '📉' : '🌅'), title: (t) => t.replace(/^【世界】/, '').split('：')[0], target: 'invest', worldOnly: true },
 ];
 

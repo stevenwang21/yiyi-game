@@ -137,7 +137,6 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
             marks={game.worldHistory.filter((w) => ['pandemic', 'war', 'crisis'].includes(w.id)).map((w) => w.age)}
             format={(v) => (Math.abs(v) >= 1e8 ? `${(v / 1e8).toFixed(1)}億` : `${Math.round(v / 1e4)}萬`)}
           />
-          <Text style={styles.axisNote}>紅色直條：疫情、戰爭、金融海嘯的年份（一生遇到 {sum.crashes} 次）</Text>
         </Card>
 
 

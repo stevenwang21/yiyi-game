@@ -44,7 +44,7 @@ export function lifeScore(s) {
   const rank = (s.mates || []).length ? myRank(s, nw) : null;
   return lifePoints(s, rank, nw);
 }
-export { motherAge, conceiveChance, downsChance, bizLevel, BIZ_LEVELS, canOpenSecondBiz } from './actions.js';
+export { motherAge, conceiveChance, downsChance, bizLevel, BIZ_LEVELS, canOpenSecondBiz, alivePets, petBreedName, petImg } from './actions.js';
 export { LEGENDS, legendById };
 export { TITLES, lifeTitle } from './titles.js';
 import { lifeTitle } from './titles.js';
@@ -1020,7 +1020,7 @@ function petYear(s, rng) {
     if (petAge >= p.life) {
       p.alive = false;
       p.diedAt = s.age;
-      log(s, `陪伴你 ${petAge} 年的「${p.name}」安詳地離開了，總共在牠身上花了 ${formatMoney(p.spent)}。${addStats(s, { happy: -8 })}`, 'bad');
+      log(s, `陪伴你 ${petAge} 年的「${p.name}」安詳地離開了。你在牠身上花了 ${formatMoney(p.spent)}，牠給你的沒辦法算。${addStats(s, { happy: -8 })}`, 'bad');
       continue;
     }
     const food = cost(s, def.food);
@@ -1032,6 +1032,32 @@ function petYear(s, rng) {
       petExpense(s, p, '老年保健', old);
     }
     addStats(s, { happy: 2, hp: p.type === 'dog' ? 1 : 0 });
+    // 寵物網紅：代言費一年比一年少（熱度會退）
+    if (p.famous && p.income > 0) {
+      s.money += p.income;
+      log(s, `${p.kind === '貓' ? '🐱' : '🐶'} ${p.name} 的代言費 ${formatMoney(p.income)}`, 'money');
+      p.income = Math.round(p.income * 0.75);
+      if (p.income < cost(s, 1 * WAN)) p.income = 0;
+    }
+    // 牠今年做了什麼：不是每年都講，講的時候叫牠的名字
+    if (rng() < 0.45) {
+      const dogLines = [
+        `${p.name} 每天在門口等你回家，聽到鑰匙聲就開始轉圈。`,
+        `${p.name} 把你的拖鞋藏起來了，第三次。`,
+        `${p.name} 今年學會了握手，但只肯跟你握。`,
+        `下雨天 ${p.name} 不肯出門，你只好撐傘抱著牠去尿尿。`,
+        `${p.name} 在公園交了一個新朋友，是隻柯基。`,
+      ];
+      const catLines = [
+        `${p.name} 今年最愛的位置是你的鍵盤。`,
+        `${p.name} 半夜三點準時在你臉上踩奶。`,
+        `${p.name} 盯著牆角看了十分鐘，那裡什麼都沒有。`,
+        `你買了一個新貓窩，${p.name} 睡在旁邊的紙箱裡。`,
+        `${p.name} 今年第一次主動蹭你的臉。你截圖了。`,
+      ];
+      const lines = p.type === 'cat' ? catLines : dogLines;
+      log(s, `${p.kind === '貓' ? '🐱' : '🐶'} ${lines[Math.floor(rng() * lines.length)]}`, 'neutral');
+    }
     if (s.lastYear) {
       if (!s.lastYear.pets) s.lastYear.pets = [];
       const total = food + vac + (petAge >= 10 ? cost(s, 1.5 * WAN) : 0);

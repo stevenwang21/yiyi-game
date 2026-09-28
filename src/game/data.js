@@ -318,8 +318,8 @@ export const retireCost = (extra) => 6 + extra * 2; // 已經延長 extra 年時
 
 // 寵物：每年固定花費（出生時的物價）
 export const PETS = {
-  dog: { kind: '狗', names: ['小黑', '旺財', '豆豆', '球球', '阿福', '皮皮'], life: [12, 16], food: 2.4 * WAN, groom: 0.8 * WAN },
-  cat: { kind: '貓', names: ['咪咪', '橘子', '奶茶', '小花', '胖虎', '雪球'], life: [13, 18], food: 1.8 * WAN, groom: 0 },
+  dog: { kind: '狗', names: ['小黑', '旺財', '豆豆', '球球', '阿福', '皮皮'], life: [12, 16], food: 2.4 * WAN, groom: 0.8 * WAN, breeds: ['柴犬', '黃金獵犬', '柯基', '貴賓', '黑拉布拉多'] },
+  cat: { kind: '貓', names: ['咪咪', '橘子', '奶茶', '小花', '胖虎', '雪球'], life: [13, 18], food: 1.8 * WAN, groom: 0, breeds: ['橘貓', '賓士貓', '英國短毛貓', '布偶貓', '三花貓'] },
 };
 export const PET_VACCINE = 0.5 * WAN; // 每年疫苗＋健檢
 

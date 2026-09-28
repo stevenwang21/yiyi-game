@@ -96,6 +96,7 @@ function ResultBackdrop({ r, game, good, bad }) {
         key={`${r.title}-${r.choice}`}
         kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
         mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
+        pets={E.alivePets(game)}
         height={250} radius={18} name={game.name} hidePhone
       />
     </View>
@@ -130,6 +131,7 @@ function EventScene({ p, game }) {
       key={`${p.id || p.title}-${game.age}`}
       kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby} name={game.name}
       crashPct={(() => { const m = /ETF\s*-(\d+)%/.exec(p.text || ''); return m ? Number(m[1]) : undefined; })()}
+      pets={E.alivePets(game)}
       height={h} radius={18} style={{ marginBottom: 10 }}
     />
   );

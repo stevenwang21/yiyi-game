@@ -288,14 +288,10 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           })}
         </View>
         {metaMsg ? <Text style={styles.metaMsg}>{metaMsg}</Text> : null}
-        <Text style={styles.foot}>每玩完一輩子，會依照那一生的成就換成點數（難度越高換越多）。買了的升級每一輩子都有效。</Text>
       </Sheet>
 
       {/* 傳說職業圖鑑 */}
       <Sheet visible={showLegend} onClose={() => setShowLegend(false)} title="傳說職業圖鑑" tall>
-        <Text style={styles.foot}>
-          這 {LEGENDS.length} 個職業沒辦法在「找工作」裡選到。每一輩子只會遇到一次，而且要真的達到條件，才會有人來找你。解鎖過的會永久記在這裡。
-        </Text>
         <View style={[styles.card, { marginTop: 12 }]}>
           {LEGENDS.map((l, i) => {
             const on = got[l.id];
@@ -331,7 +327,6 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
 
       {/* 排行榜：歷代人生 */}
       <Sheet visible={showBoard} onClose={() => setShowBoard(false)} title="排行榜" tall>
-        <Text style={styles.boardHint}>你玩過的每一輩子都會上榜，依最後的淨資產排名。</Text>
         {(board || []).length === 0 ? (
           <View style={styles.ptsBox}><Text style={styles.ptsLabel}>還沒有人上榜，玩完一輩子就會出現。</Text></View>
         ) : (
@@ -369,7 +364,6 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
             </View>
           ))}
         </View>
-        <Text style={styles.foot}>開始遊戲後，畫面上還會有一步步的新手教學帶你走一遍。</Text>
         <Button title="知道了" style={{ marginTop: 14, marginBottom: 6 }} onPress={() => setShowHow(false)} />
       </Sheet>
     </View>

@@ -136,6 +136,8 @@ const SONGS = {
     pad: [['C3', 1.5, 2.4, 0.24], ['G3', 1.5, 2.4, 0.2], ['E4', 1.5, 2.4, 0.18]],
     type: 'sawtooth', cut: 3000,
   },
+  // 星探、出道：聚光燈打下來，亮亮的上行三音＋長音
+  spotlight: { bpm: 120, lead: [['E5', 0.5, 0.25, 0.3], ['G#5', 0.75, 0.25, 0.32], ['B5', 1, 1.8, 0.4]], pad: [['E4', 1, 2, 0.12], ['B4', 1, 2, 0.1]], type: 'triangle', cut: 6500 },
   // 升職、找到工作：俐落的三個上行音
   promote: { bpm: 150, lead: [['G4', 0, 0.25, 0.4], ['B4', 0.25, 0.25, 0.4], ['D5', 0.5, 0.8, 0.45]], type: 'triangle' },
   // 買房：溫暖的琶音
@@ -174,6 +176,18 @@ export function play(name) {
     if (name === 'year') { blip(a, t, 300, 0.12, 0.2); blip(a, t + 0.06, 460, 0.14, 0.14); return; }
     if (name === 'coin') { blip(a, t, 1180, 0.07, 0.24); blip(a, t + 0.07, 1560, 0.16, 0.2); return; }
     if (name === 'firework') { noise(a, t, 0.5); return; }
+    // 狗仔的快門：一連串「喀嚓」，時間點故意不整齊，像一群記者在按
+    if (name === 'shutter' || name === 'clicks' || name === 'snap') {
+      // snap：拍全家福，只有三下（跟 celebrate.js 寶寶的閃光時間對齊）
+      const ks = name === 'snap' ? [0, 0.5, 1.6] : [0, 0.13, 0.21, 0.36, 0.42, 0.55, 0.71, 0.78, 0.95, 1.1, 1.18, 1.4, 1.62, 1.7, 1.95];
+      for (const k of ks) {
+        noise(a, t + k, 0.06, { from: 5200, to: 1800, gain: 0.16 });
+        blip(a, t + k + 0.015, 2400, 0.03, 0.08);
+      }
+      // shutter 後面墊一個亮亮的和弦：被看見了；clicks 只有快門聲（結婚那種本來就有自己的曲子）
+      if (name === 'shutter') song(a, 'spotlight');
+      return;
+    }
     song(a, name);
     if (name === 'achieve' || name === 'wedding') { noise(a, t + 0.02, 0.6, { gain: 0.08 }); }
   } catch (_) { /* 有聲音只是加分，壞了不能影響遊戲 */ }

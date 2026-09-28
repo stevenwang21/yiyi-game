@@ -2,6 +2,7 @@
 // 沒有 choices 的是「小事件」，每年可能發生 1～2 件；有 choices 的會跳出來讓玩家選
 import { addMoney, addStats, chance, formatMoney, formatMoneyFine, rint, WAN } from './utils.js';
 import { addPet, addSkill, alivePets, mainBiz, petExpense, diffOf, scaleBiz, underIdolContract } from './actions.js';
+import { petBreedName } from './actions.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const bad = (text) => ({ text, tone: 'bad' });
@@ -360,12 +361,12 @@ export const EXTRA_EVENTS = [
       {
         label: '養狗',
         sub: '每年約 3～4 萬，還要常帶去散步',
-        effect: (s, rng) => { const p = addPet(s, rng, 'dog'); petExpense(s, p, '結紮、晶片、第一次疫苗', P(s, 0.8 * WAN)); return good(`你領養了小狗「${p.name}」。（-${formatMoneyFine(P(s, 0.8 * WAN))}）${addStats(s, { happy: 8, hp: 2 })}`); },
+        effect: (s, rng) => { const p = addPet(s, rng, 'dog'); petExpense(s, p, '結紮、晶片、第一次疫苗', P(s, 0.8 * WAN)); return good(`你領養了一隻${petBreedName(p)}，叫「${p.name}」。（-${formatMoneyFine(P(s, 0.8 * WAN))}）${addStats(s, { happy: 8, hp: 2 })}`); },
       },
       {
         label: '養貓',
         sub: '每年約 2～3 萬',
-        effect: (s, rng) => { const p = addPet(s, rng, 'cat'); petExpense(s, p, '結紮、晶片、第一次疫苗', P(s, 0.6 * WAN)); return good(`你領養了小貓「${p.name}」。（-${formatMoneyFine(P(s, 0.6 * WAN))}）${addStats(s, { happy: 7 })}`); },
+        effect: (s, rng) => { const p = addPet(s, rng, 'cat'); petExpense(s, p, '結紮、晶片、第一次疫苗', P(s, 0.6 * WAN)); return good(`你領養了一隻${petBreedName(p)}，叫「${p.name}」。（-${formatMoneyFine(P(s, 0.6 * WAN))}）${addStats(s, { happy: 7 })}`); },
       },
       { label: '先不要', effect: () => '你覺得現在沒時間照顧。' },
     ],

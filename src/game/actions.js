@@ -298,7 +298,9 @@ export const addPet = (s, rng, type = 'dog') => {
   const pool = def.names.filter((n) => !used.has(n));
   const name = pool.length ? pool[Math.floor(rng() * pool.length)] : `${def.kind}${s.pets.length + 1}`;
   const life = def.life[0] + Math.floor(rng() * (def.life[1] - def.life[0] + 1));
-  const pet = { uid: `p${s.uid++}`, type, kind: def.kind, name, since: s.age, life, alive: true, spent: 0, bills: [] };
+  // 品種：五種裡隨機一種，決定牠長什麼樣子（圖片 pet_<type>_<breed>）
+  const breed = 1 + Math.floor(rng() * def.breeds.length);
+  const pet = { uid: `p${s.uid++}`, type, kind: def.kind, name, since: s.age, life, alive: true, spent: 0, bills: [], breed };
   s.pets.push(pet);
   return pet;
 };
@@ -316,6 +318,10 @@ export const petExpense = (s, pet, item, amount) => {
 };
 
 export const alivePets = (s) => (s.pets || []).filter((p) => p.alive);
+// 舊存檔沒有品種：用 uid 的數字算一個固定的
+export const petBreed = (p) => (p.breed ? p.breed : 1 + (parseInt(String(p.uid || '0').replace(/\D/g, ''), 10) || 0) % 5);
+export const petBreedName = (p) => PETS[p.type].breeds[petBreed(p) - 1];
+export const petImg = (p) => `pet_${p.type}_${String(petBreed(p)).padStart(2, '0')}`;
 
 // 偶像合約期內（出道時簽八年）不能找別的工作
 // 公司等級：看「價值是投入本金的幾倍」和經營年數（追加投資會同時增加本金，所以買不到等級）

@@ -5,7 +5,7 @@ import { Bar, Button, Card } from './components';
 import { C } from './theme';
 import * as E from '../game/engine';
 import { Avatar, Art } from './art';
-import { Head, MateFace } from './Character';
+import { Emo, Head, MateFace, PetPic } from './Character';
 import { mateCareer, START_AGE, REUNION_AGES } from '../game/mates';
 
 export default function FamilySheet({ visible, onClose, game, setGame }) {
@@ -94,10 +94,6 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
           </View>
           <Bar value={s.partner.love} color={s.partner.love < 30 ? C.red : C.pink} height={7} />
           {ptype ? <Text style={styles.perk}>✨ {ptype.perkText}</Text> : null}
-          {ptype ? <Text style={styles.muted}>結婚後，對方每年還會為家裡賺約 {E.formatMoney(ptype.income * 10000 * s.priceIndex)}。</Text> : null}
-          <Text style={[styles.muted, { marginTop: 8 }]}>
-            選「約會」感情 +24；太久沒約會會慢慢變淡。
-          </Text>
           {pInfo.ok ? (
             <>
               <Text style={[styles.perk, { marginTop: 10 }]}>{he ? '💍 感情夠穩了，他在等一個訊號' : '💍 可以求婚了！'}</Text>
@@ -137,20 +133,10 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
           <Text style={styles.muted}>到目前為止，花在孩子身上的錢</Text>
           <Text style={styles.total}>{E.formatMoney(s.kidSpent)}</Text>
         </View>
-        <Text style={styles.muted}>
-          {s.married
-            ? `年度重點選「家庭時光」，年底就能決定要不要再生一個（最多 ${E.MAX_KIDS} 個）。養小孩的花費會隨物價上漲。`
-            : `還沒結婚。交往滿 1 年、感情 40 以上${he ? '他就會開口' : '就能求婚'}，結婚後才能生小孩。`}
-        </Text>
         {s.married ? (
           <View style={styles.fertBox}>
             <Text style={styles.fertTitle}>
               🤰 媽媽今年 {E.motherAge(s)} 歲．受孕成功率約 {Math.round(E.conceiveChance(E.motherAge(s)) * 100)}%
-            </Text>
-            <Text style={styles.fertText}>
-              35 歲後不容易懷上，40 歲後更低，風險也比較高
-              （遊戲用的是接近真實的數字：35 歲約 0.4%、40 歲約 1%、43 歲約 2.8%、45 歲以上約 4%）。
-              目前這個年紀約 {(E.downsChance(E.motherAge(s)) * 100).toFixed(1)}%。
             </Text>
           </View>
         ) : null}
@@ -217,11 +203,11 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
             return (
               <View key={p.uid} style={styles.petBox}>
                 <Pressable onPress={() => setOpenPet(open ? null : p.uid)} style={styles.kidTop}>
-                  <View style={[styles.avatar, { backgroundColor: p.alive ? C.greenSoft : C.page }]}>
-                    <Text style={[styles.avatarText, { color: p.alive ? C.green : C.muted }]}>{p.kind}</Text>
+                  <View style={[styles.avatar, { backgroundColor: p.alive ? C.greenSoft : C.page, opacity: p.alive ? 1 : 0.45, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                    <PetPic pet={p} height={36} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.h}>{p.name}{p.alive ? '' : '（已離開）'}</Text>
+                    <Text style={styles.h}>{p.name}<Text style={styles.muted}>　{E.petBreedName(p)}</Text>{p.alive ? '' : p.lost ? '（走失了）' : '（已離開 🌈）'}{p.famous ? '　⭐ 網紅' : ''}</Text>
                     <Text style={styles.muted}>
                       {p.alive ? `${s.age - p.since} 歲．陪伴你 ${s.age - p.since} 年` : `陪伴了你 ${p.diedAt - p.since} 年`}．共 {p.bills.length} 筆花費
                     </Text>
@@ -249,15 +235,6 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
         </Card>
       ) : null}
 
-      <Card style={{ backgroundColor: C.goldSoft }}>
-        <Text style={styles.h}>每個孩子每年的花費（出生時的物價）</Text>
-        <Text style={styles.tip}>0–5 歲：約 20 萬（托嬰、奶粉、尿布）</Text>
-        <Text style={styles.tip}>6–11 歲：約 12 萬</Text>
-        <Text style={styles.tip}>12–17 歲：約 15 萬</Text>
-        <Text style={styles.tip}>18–21 歲：約 25 萬（大學學費、生活費）</Text>
-        <Text style={styles.tip}>以上是「標準」的費用。窮養 ×0.55、富養 ×2.2，隨時可以改。</Text>
-        <Text style={styles.tip}>22 歲獨立，之後不用再花錢，還會依成就每年給你孝親費（25 歲起，普通上班族 3 萬／專業人士 8 萬／很有成就 18 萬），富養的孩子出人頭地的機率高很多。</Text>
-      </Card>
       </>
       )}
     </Sheet>
@@ -306,9 +283,6 @@ function Classmates({ s }) {
           </View>
         );
       })}
-      <Text style={[styles.muted, { marginTop: 8 }]}>
-        只看職位，不看存款。要比資產去排行榜。
-      </Text>
     </Card>
   );
 }

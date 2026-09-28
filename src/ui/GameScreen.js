@@ -231,24 +231,13 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
     const net = ly ? (ly.salary + ly.bizIncome + ly.rent + ly.spouse + (ly.filial || 0) + (ly.side || 0))
       - (ly.living + ly.kids + ly.debtPay + (ly.dating || 0) + (ly.tax || 0)) : 0;
     if (s.age >= 18 && s.money < 0) {
-      return { key: 'overdraft', amt: -s.money, text: `現金透支 ${E.formatMoney(-s.money)}，會滾利息。點這裡一鍵賣投資還清。` };
+      return { key: 'overdraft', amt: -s.money, text: `現金透支 ${E.formatMoney(-s.money)}` };
     }
     // 照去年的收支，明年現金就會變負的才提醒
     if (s.age >= 18 && invest > 0 && ly && s.money + net < 0) {
-      return { key: 'cash', text: '照去年的收支，明年現金會不夠。點這裡看貸款，或先賣一點投資。' };
+      return { key: 'cash', text: '明年現金會不夠' };
     }
-    if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了！選「運動」或「休息旅遊」，歸零就結束。' };
-    if (s.partner && !s.married && E.proposeInfo(s).ok) {
-      return {
-        key: 'propose',
-        text: E.heProposes(s)
-          ? `感情夠穩定了，點「家庭」讓「${s.partner.name}」知道你想定下來了。`
-          : `感情夠穩定了，點「家庭」可以跟「${s.partner.name}」求婚。`,
-      };
-    }
-    if (!s.job && !s.bizs.length && !s.studying && s.age >= 18) return { key: 'nojob', text: '沒有工作。選「找新工作」，年底會有職缺。' };
-    if (invest === 0 && s.money > 30 * 10000 && E.canInvest(s)) return { key: 'idle', text: '現金放著會被通膨吃掉。去「投資」買點 ETF 或設定期定額。' };
-    if (s.route && !s.route.done && s.job && s.age >= 22) return { key: 'route', text: '多選「認真工作」或「經營事業」，逆襲路線比較容易觸發。' };
+    if (s.stats.hp < 32) return { key: 'hp', gap: 3, text: '健康快見底了' };
     return null;
   })();
   const seen = (s.flags && s.flags.hintSeen) || {};
@@ -338,6 +327,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                 kind={sceneForState(s)} age={s.age} gender={s.gender}
                 partner={castFor(sceneForState(s), s).partner}
                 mood={s.stats.happy < 30 ? '😞' : undefined}
+                pets={E.alivePets(s)}
                 height={130} radius={0} compact
               />
               {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 26, backgroundImage: `linear-gradient(to bottom, rgba(27,34,86,0), ${C.card})` }} /> : null}
@@ -348,7 +338,6 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             {!focusOpts.length ? (
               <View style={styles.babyNote}>
                 <Text style={styles.babyTitle}>🍼 還小，只要健康長大就好</Text>
-                <Text style={styles.babyText}>6 歲以後才要自己選。現在直接按「過一年」。</Text>
               </View>
             ) : null}
             <View style={styles.between}>
@@ -432,9 +421,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           ) : null}
 
           {hint ? (
-            <Pressable onPress={hint.includes('貸款') ? () => { setInvestTab(4); setShowInvest(true); } : undefined}>
+            <Pressable onPress={hintInfo.key !== 'hp' ? () => { setInvestTab(4); setShowInvest(true); } : undefined}>
               <Card style={[styles.hint, { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }]}>
-                <Text style={[styles.hintText, { flex: 1 }]}>💡 {hint}{hint.includes('貸款') ? ' ›' : ''}</Text>
+                <Text style={[styles.hintText, { flex: 1 }]}>{hintInfo.key === 'hp' ? '❤️' : '💸'} {hint}{hintInfo.key !== 'hp' ? ' ›' : ''}</Text>
                 <Pressable onPress={closeHint} hitSlop={10}><Text style={{ color: C.muted, fontSize: 16, fontWeight: '700' }}>✕</Text></Pressable>
               </Card>
             </Pressable>
@@ -617,7 +606,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       <MatesSheet visible={showMates && !s.pending} onClose={() => setShowMates(false)} game={s} />
 
       <Sheet visible={showMenu} onClose={() => setShowMenu(false)} title="選單">
-        <Text style={[styles.small, { marginBottom: 12 }]}>性別：{E.genderById(s.gender).name}．難度：{E.diffOf(s).name}（{E.diffOf(s).sub}）。遊戲每一年都會自動存檔，換難度要開新的人生。</Text>
+        <Text style={[styles.small, { marginBottom: 12 }]}>{E.genderById(s.gender).name}．{E.diffOf(s).name}</Text>
         <Button kind="soft" title={hapticsOn ? '震動：開' : '震動：關'} icon="📳" onPress={() => { const v = !hapticsOn; setHaptics(v); setHapticsOn(v); if (v) haptic('small'); }} />
         <Button kind="soft" title={sfxOn ? '音效：開' : '音效：關'} icon="🔊" onPress={() => { const v = !sfxOn; setSfx(v); setSfxOn(v); }} />
         {notifSupported() ? (

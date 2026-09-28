@@ -1,6 +1,7 @@
 // 第三批事件：天災、意外、官司、工作機會、興趣、社區…讓每一年更有變化
 import { addMoney, addStats, chance, formatMoney, formatMoneyFine, rint, WAN } from './utils.js';
 import { addSkill, alivePets, mainBiz, netWorth, regularJob } from './actions.js';
+import { scratchChoices } from './lotto.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const bad = (text) => ({ text, tone: 'bad' });
@@ -271,7 +272,8 @@ export const EVENTS3 = [
   // ───────── 生活、興趣、社區 ─────────
   {
     id: 'lottery_small', minAge: 18, maxAge: 99, weight: 2, title: '刮刮樂',
-    effect: (s, rng) => (chance(rng, 0.25) ? good(`買了一張刮刮樂，中了小獎！${addMoney(s, P(s, rint(rng, 1, 10) * WAN))}${addStats(s, { happy: 3 })}`) : `買了一張刮刮樂，沒中。${addMoney(s, -200)}`),
+    text: '便利商店櫃台前面掛了一整排刮刮樂，一張 200 元。你要買幾張？',
+    choices: scratchChoices(),
   },
   {
     id: 'marathon2', minAge: 20, maxAge: 70, weight: 2, cond: (s) => s.stats.hp >= 55, title: '報名鐵人三項',
