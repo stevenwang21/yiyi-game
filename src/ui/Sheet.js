@@ -41,14 +41,14 @@ export default function Sheet({ visible, onClose, title, children, tall, clear }
 }
 
 const styles = StyleSheet.create({
-  dim: { flex: 1, backgroundColor: 'rgba(4,6,24,0.55)' },
+  dim: { flex: 1, backgroundColor: C.veil },
   sheet: {
     backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: C.cardLine,
     paddingHorizontal: 18, paddingTop: 10, maxHeight: '90%',
     shadowColor: '#0f1426', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 20,
   },
   clearSheet: { maxHeight: '74%', shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 30, shadowOffset: { width: 0, height: -10 }, borderColor: 'rgba(157,140,255,0.6)' },
-  grab: { width: 36, height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.25)', alignSelf: 'center', marginBottom: 12 },
+  grab: { width: 36, height: 5, borderRadius: 3, backgroundColor: C.grab, alignSelf: 'center', marginBottom: 12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   title: { fontSize: 20, fontWeight: '700', color: C.ink, flex: 1 },
   close: { paddingHorizontal: 4, paddingVertical: 6 },

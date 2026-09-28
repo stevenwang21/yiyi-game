@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
   headline: { textAlign: 'center', fontSize: 30, fontWeight: '700', color: C.primary, marginTop: 6 },
   playBadge: {
     alignSelf: 'center', alignItems: 'center', marginTop: 10, paddingVertical: 10, paddingHorizontal: 18,
-    borderRadius: 14, backgroundColor: 'rgba(30,38,96,0.75)', borderWidth: 1, borderColor: 'rgba(157,140,255,0.4)',
+    borderRadius: 14, backgroundColor: C.frost, borderWidth: 1, borderColor: C.accentLine,
   },
   playName: { fontSize: 19, fontWeight: '900', color: C.primaryInk, letterSpacing: 1 },
   playDesc: { fontSize: 12, color: C.muted, marginTop: 4, textAlign: 'center' },

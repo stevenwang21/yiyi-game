@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Sheet from './Sheet';
 import { Tag } from './components';
-import { C, STAT_META, toneColor } from './theme';
+import { C, STAT_META, toneColor, isLight } from './theme';
 import { Button } from './components';
 import { formatMoney } from '../game/engine';
 import { artForEvent } from './art';
@@ -208,10 +208,10 @@ function EventBody({ pending, onChoose, game }) {
 }
 
 const styles = StyleSheet.create({
-  resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: 'rgba(38,46,99,0.72)', borderRadius: 18, padding: 14, marginTop: 120 },
+  resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.frost, borderRadius: 18, padding: 14, marginTop: 120 },
   resIcon: { fontSize: 30 },
   resTitleWrap: { height: 150, justifyContent: 'flex-end', paddingHorizontal: 4 },
-  resTitle: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: 0.5, textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  resTitle: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: 0.5, textShadowColor: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
   resKicker: { fontSize: 12.5, fontWeight: '500', color: C.muted },
   resChoice: { fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 2 },
   resText: { fontSize: 15.5, lineHeight: 25, marginTop: 14 },
@@ -232,9 +232,9 @@ const styles = StyleSheet.create({
   group: { marginTop: 14, gap: 8 },
   choice: {
     flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 10, paddingLeft: 18, paddingRight: 14,
-    borderRadius: 18, backgroundColor: C.card, borderWidth: 1, borderColor: 'rgba(157,140,255,0.45)',
+    borderRadius: 18, backgroundColor: C.card, borderWidth: 1, borderColor: C.accentLine,
   },
-  choiceFirst: { backgroundColor: C.primarySoft, borderColor: '#9d8cff' },
+  choiceFirst: { backgroundColor: C.primarySoft, borderColor: C.primary },
   choiceLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
   choiceLocked: { opacity: 0.55, borderStyle: 'dashed' },
   choicePressed: { backgroundColor: C.primary, transform: [{ scale: 0.98 }] },

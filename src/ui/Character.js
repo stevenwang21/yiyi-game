@@ -1058,7 +1058,7 @@ export function ReunionStage({ game, choice, style }) {
 }
 
 export function CharScene({
-  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates, pets,
+  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates, pets, heroAt,
 }) {
   const cfg = KIND[kind] || KIND.desk;
   const pal = PAL[cfg.pal] || PAL.night;
@@ -1082,7 +1082,7 @@ export function CharScene({
   const compact = compactIn != null ? compactIn : height < 110;
   // 有真的寵物在腳邊時，道具裡的 🐶 就不要再放一次
   const propList = pets && pets.length ? cfg.props.filter(([e]) => e !== '🐶' && e !== '🐱') : cfg.props;
-  const heroX = w * (compact ? 0.24 : withP ? 0.2 : crash ? 0.66 : social ? 0.26 : crowd ? 0.17 : 0.3) - heroW / 2;
+  const heroX = w * (heroAt != null ? heroAt : compact ? 0.24 : withP ? 0.2 : crash ? 0.66 : social ? 0.26 : crowd ? 0.17 : 0.3) - heroW / 2;
   const pid = cid(stage, gk(other));
   const pH = heroH * (SIZE[pid][1] / SIZE[hid][1]);
   const pW = (pH * SIZE[pid][0]) / SIZE[pid][1];
@@ -1111,7 +1111,7 @@ export function CharScene({
           {!noProps && !(social && !compact) && !(crowd && !compact) ? (compact
             // 小卡（主畫面右上）：只放兩個大圖示在右半邊，人物留在左邊
             ? propList.slice(0, 2).map(([e, , , , float], i) => (
-              <Prop key={`${kind}-${i}`} k={i} e={e} x={i ? 84 : 68} y={i ? 72 : 34} size={Math.round(height * (i ? 0.5 : 0.6))} float={float} delay={260 + i * 130} />
+              <Prop key={`${kind}-${i}`} k={i} e={e} x={heroAt != null ? (i ? 90 : 79) : (i ? 84 : 68)} y={i ? 72 : 34} size={Math.round(height * (heroAt != null ? (i ? 0.42 : 0.5) : (i ? 0.5 : 0.6)))} float={float} delay={260 + i * 130} />
             ))
             : propList.map(([e, x, y, size, float], i) => (
               <Prop key={`${kind}-${i}`} k={i} e={e} x={x} y={y} size={Math.round(size * 1.6 * Math.max(0.72, s))} float={float} delay={260 + i * 130} />

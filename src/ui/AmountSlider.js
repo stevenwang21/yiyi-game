@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   trackHit: { height: 40, justifyContent: 'center' },
   track: { height: 8, borderRadius: 4, backgroundColor: C.page, overflow: 'visible' },
   fill: { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 4 },
-  tick: { position: 'absolute', top: -3, width: 2, height: 14, marginLeft: -1, borderRadius: 1, backgroundColor: 'rgba(255,255,255,0.25)' },
+  tick: { position: 'absolute', top: -3, width: 2, height: 14, marginLeft: -1, borderRadius: 1, backgroundColor: C.grab },
   thumb: {
     position: 'absolute', top: 8, width: 24, height: 24, marginLeft: -12, borderRadius: 12, backgroundColor: '#fff', borderWidth: 4,
     shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 3,

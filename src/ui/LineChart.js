@@ -189,8 +189,8 @@ export default function LineChart({
 const styles = StyleSheet.create({
   tip: {
     position: 'absolute', top: 4, maxWidth: 172,
-    backgroundColor: 'rgba(16,21,56,0.94)', borderRadius: 10,
-    borderWidth: 1, borderColor: 'rgba(157,140,255,0.5)',
+    backgroundColor: C.tip, borderRadius: 10,
+    borderWidth: 1, borderColor: C.accentLine,
     paddingHorizontal: 9, paddingVertical: 6, gap: 3,
   },
   tipAge: { fontSize: 11.5, fontWeight: '700', color: C.ink },
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   tipLabel: { fontSize: 11, color: C.muted, flexShrink: 1 },
   tipVal: { fontSize: 12.5, fontWeight: '700', color: C.ink, fontVariant: ['tabular-nums'] },
   tipPct: { fontSize: 10.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
-  tipTrade: { marginTop: 2, paddingTop: 3, borderTopWidth: 1, borderTopColor: 'rgba(157,140,255,0.25)' },
+  tipTrade: { marginTop: 2, paddingTop: 3, borderTopWidth: 1, borderTopColor: C.line },
   tipTradeText: { fontSize: 11, fontWeight: '700' },
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },

@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     flexBasis: '31%', flexGrow: 1, borderWidth: 1, borderColor: C.cardLine, backgroundColor: C.page,
     borderRadius: 14, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center',
   },
-  chipOn: { borderColor: '#9d8cff', backgroundColor: C.primarySoft },
+  chipOn: { borderColor: C.primary, backgroundColor: C.primarySoft },
   chipText: { fontSize: 14, color: C.ink, fontWeight: '500' },
   chipTextOn: { fontWeight: '700', color: C.primaryInk },
   chipSub: { fontSize: 10.5, lineHeight: 13.5, textAlign: 'center', color: C.muted },
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   chipUrgent: { borderColor: C.gold },
   costTag: {
     position: 'absolute', top: -7, left: -5, paddingHorizontal: 5, paddingVertical: 1,
-    borderRadius: 8, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: 'rgba(157,140,255,0.55)',
+    borderRadius: 8, backgroundColor: C.primarySoft, borderWidth: 1, borderColor: C.accentLine,
   },
   costTagText: { fontSize: 9.5, fontWeight: '800', color: C.primaryInk },
   urgentDot: { position: 'absolute', top: -4, right: -3, width: 9, height: 9, borderRadius: 5, backgroundColor: C.gold },

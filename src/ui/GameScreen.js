@@ -3,7 +3,7 @@ import { Platform, ScrollView, StyleSheet, Text, View, Pressable } from 'react-n
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bar, Button, Card, Chip } from './components';
 import { RollingNumber, SmoothBar, FadeIn, TabItem, GroupHead, BLUR } from './ios';
-import { C, SHADOW, STAT_META, toneColor } from './theme';
+import { C, SHADOW, STAT_META, toneColor, isLight, setTheme } from './theme';
 import EventSheet, { ResultSheet } from './EventSheet';
 import InvestSheet from './InvestSheet';
 import HealthSheet from './HealthSheet';
@@ -265,7 +265,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <DarkBackdrop width={Math.min(win.width, 480)} height={win.height} />
+      {isLight
+        ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(120% 60% at 90% 40%, rgba(106,92,255,0.10) 0%, rgba(106,92,255,0) 60%), radial-gradient(90% 50% at 0% 90%, rgba(46,144,250,0.08) 0%, rgba(46,144,250,0) 60%)' } : null]} />
+        : <DarkBackdrop width={Math.min(win.width, 480)} height={win.height} />}
       {/* 固定在上面：名字列 */}
       <View style={[styles.fixedTop, BLUR]}>
         {/* 上方：名字、身分、點數 */}
@@ -318,8 +320,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             <View
               pointerEvents="none"
               style={[
-                { position: 'absolute', top: 0, right: 0, width: '54%', height: 130 },
-                Platform.OS === 'web' ? { maskImage: 'linear-gradient(to right, transparent 0%, #000 22%)', WebkitMaskImage: 'linear-gradient(to right, transparent 0%, #000 22%)' } : null,
+                // 插圖鋪滿整張卡的上半部，左邊用很長的漸層淡掉（文字壓在淡掉的地方），人物站在右邊
+                { position: 'absolute', top: 0, left: 0, right: 0, height: 146 },
+                Platform.OS === 'web' ? { maskImage: HERO_MASK, WebkitMaskImage: HERO_MASK } : null,
               ]}
             >
               <CharScene
@@ -328,9 +331,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                 partner={castFor(sceneForState(s), s).partner}
                 mood={s.stats.happy < 30 ? '😞' : undefined}
                 pets={E.alivePets(s)}
-                height={130} radius={0} compact
+                height={146} radius={0} compact heroAt={0.64}
               />
-              {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 26, backgroundImage: `linear-gradient(to bottom, rgba(27,34,86,0), ${C.card})` }} /> : null}
+              {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 26, backgroundImage: `linear-gradient(to bottom, ${C.card}00, ${C.card})` }} /> : null}
             </View>
             <View style={styles.heroBar}>
               <SmoothBar value={progress} color={progress >= 1 ? C.gold : C.primary} height={6} />
@@ -372,9 +375,18 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               <View style={styles.stats}>
                 {STAT_META.map((m) => (
                   <Pressable key={m.key} style={styles.stat} onPress={m.key === 'hp' ? () => setShowHealth(true) : undefined}>
-                    <Text style={styles.statLabel} numberOfLines={1}>{m.icon} {m.label}</Text>
-                    <Text style={[styles.statVal, s.stats[m.key] < 25 && { color: C.red }]}>{s.stats[m.key]}</Text>
-                    <Bar value={s.stats[m.key]} color={m.color} height={6} />
+                    {(() => {
+                      const v = s.stats[m.key];
+                      const d = s.prevStats ? v - (s.prevStats[m.key] ?? v) : 0;
+                      return (
+                        <View style={styles.statHead}>
+                          <Text style={styles.statLabel} numberOfLines={1}>{m.icon} {m.label}</Text>
+                          <Text style={[styles.statVal, v < 25 && { color: C.red }]}>{v}</Text>
+                          {d ? <Text style={[styles.statDelta, { color: d > 0 ? C.green : C.red }]}>{d > 0 ? `▲${d}` : `▼${-d}`}</Text> : null}
+                        </View>
+                      );
+                    })()}
+                    <Bar value={s.stats[m.key]} color={m.color} height={10} />
                   </Pressable>
                 ))}
               </View>
@@ -609,6 +621,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         <Text style={[styles.small, { marginBottom: 12 }]}>{E.genderById(s.gender).name}．{E.diffOf(s).name}</Text>
         <Button kind="soft" title={hapticsOn ? '震動：開' : '震動：關'} icon="📳" onPress={() => { const v = !hapticsOn; setHaptics(v); setHapticsOn(v); if (v) haptic('small'); }} />
         <Button kind="soft" title={sfxOn ? '音效：開' : '音效：關'} icon="🔊" onPress={() => { const v = !sfxOn; setSfx(v); setSfxOn(v); }} />
+        {Platform.OS === 'web' ? <Button kind="soft" title={isLight ? '淺色模式' : '深色模式'} icon={isLight ? '☀️' : '🌙'} onPress={() => setTheme(isLight ? 'dark' : 'light')} /> : null}
         {notifSupported() ? (
           <Button kind="soft" title={notifOn ? '系統通知：開' : '系統通知：關'} icon="🔔" onPress={async () => { const v = !notifOn; const p = await setNotif(v); setNotifOn(v && p === 'granted'); }} />
         ) : null}
@@ -691,9 +704,12 @@ function Asset({ label, value, bad }) {
   );
 }
 
+// 主卡插圖的淡出：左邊 0～25% 幾乎看不到（文字區），到 60% 才完整
+const HERO_MASK = 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 25%, rgba(0,0,0,0.6) 42%, #000 60%)';
+
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingBottom: 120, paddingTop: 0 },
-  fixedTop: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: 'rgba(15,22,54,0.85)', zIndex: 2 },
+  fixedTop: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: C.glass, zIndex: 2 },
   tabs: { flexDirection: 'row', gap: 6, backgroundColor: C.page, borderRadius: 999, padding: 4, marginTop: 10 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 999 },
   tabOn: { backgroundColor: C.card, ...SHADOW, shadowOpacity: 0.06 },
@@ -741,13 +757,13 @@ const styles = StyleSheet.create({
   heroMoney: { color: C.ink, fontSize: 36, fontWeight: '700', marginTop: 2, letterSpacing: -1, fontVariant: ['tabular-nums'] },
   pctBox: { alignItems: 'flex-end' },
   pctNum: { color: C.primaryInk, fontSize: 13, fontWeight: '600', fontVariant: ['tabular-nums'] },
-  pctLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 10.5 },
+  pctLabel: { color: C.muted, fontSize: 10.5 },
   heroBar: { marginTop: 14 },
   cpBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(140,170,255,0.18)',
+    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: C.line,
   },
-  cpLabel: { fontSize: 12, color: 'rgba(200,215,255,0.75)', flexShrink: 1 },
+  cpLabel: { fontSize: 12, color: C.muted, flexShrink: 1 },
   cpAge: { fontWeight: '800', color: C.goldInk },
   cpGap: { fontSize: 12, fontWeight: '700', color: C.goldInk, fontVariant: ['tabular-nums'] },
   heroFoot: { color: C.muted, fontSize: 11.5, marginTop: 8, fontWeight: '400', flex: 1 },
@@ -757,10 +773,13 @@ const styles = StyleSheet.create({
   link: { fontSize: 13, color: C.primaryInk, fontWeight: '500' },
 
   statCard: { paddingVertical: 12 },
-  stats: { flexDirection: 'row', gap: 8 },
-  stat: { flex: 1, gap: 3 },
-  statLabel: { fontSize: 11, color: C.muted, fontWeight: '500' },
-  statVal: { fontSize: 17, fontWeight: '700', color: C.ink, marginBottom: 1, fontVariant: ['tabular-nums'] },
+  // 2×2：每一格「圖示 名稱 數字 ▲變化」一行，下面一條粗色條
+  stats: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 12 },
+  stat: { width: '46%', flexGrow: 1, gap: 6 },
+  statHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
+  statLabel: { fontSize: 15, color: C.ink, fontWeight: '700' },
+  statVal: { fontSize: 19, fontWeight: '800', color: C.ink, fontVariant: ['tabular-nums'] },
+  statDelta: { fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   assets: { flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.line },
   assetLabel: { fontSize: 11, color: C.muted, fontWeight: '500' },
@@ -811,7 +830,7 @@ const styles = StyleSheet.create({
 
   actions: {
     flexDirection: 'row', paddingHorizontal: 8, paddingTop: 4,
-    backgroundColor: 'rgba(14,19,52,0.88)', borderTopWidth: 1, borderTopColor: C.cardLine,
+    backgroundColor: C.tabBar, borderTopWidth: 1, borderTopColor: C.cardLine,
     alignItems: 'center',
   },
   iconRow: { flexDirection: 'row', gap: 6, flex: 1.7 },

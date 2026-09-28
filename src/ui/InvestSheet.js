@@ -169,7 +169,7 @@ const BIZ_IMG = (type) => {
   return 'company';
 };
 
-const ICON_BG = { deposit: C.page, etf: C.greenSoft, stock: C.blueSoft, gold: C.goldSoft, crypto: '#2e2560' };
+const ICON_BG = { deposit: C.page, etf: C.greenSoft, stock: C.blueSoft, gold: C.goldSoft, crypto: C.primarySoft };
 const ICON_FG = { deposit: C.muted, etf: C.green, stock: C.blue, gold: C.goldInk, crypto: C.purple };
 const CRASH_IDS = ['pandemic', 'war', 'crisis'];
 
@@ -892,14 +892,14 @@ const styles = StyleSheet.create({
   backText: { color: C.ink, fontWeight: '700', fontSize: 14 },
   pickRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
   pick: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.cardLine },
-  pickOn: { backgroundColor: C.primarySoft, borderColor: '#9d8cff' },
+  pickOn: { backgroundColor: C.primarySoft, borderColor: C.primary },
   pickIcon: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   pickIconText: { fontSize: 12, fontWeight: '800' },
   pickName: { fontSize: 11.5, fontWeight: '700', color: C.muted, marginTop: 4 },
   pickVal: { fontSize: 10.5, color: C.muted, marginTop: 1, fontVariant: ['tabular-nums'] },
   dcaBox: { marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.line },
   lvRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-  lvPill: { backgroundColor: C.primarySoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: '#9d8cff' },
+  lvPill: { backgroundColor: C.primarySoft, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: C.primary },
   lvMax: { backgroundColor: '#ffd76a', borderColor: '#ffe9a3' },
   lvText: { fontSize: 12.5, fontWeight: '800', color: C.ink },
   lvDots: { flexDirection: 'row', gap: 4 },
@@ -915,7 +915,7 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10.5, color: C.muted },
   statVal: { fontSize: 13.5, fontWeight: '800', color: C.ink, fontVariant: ['tabular-nums'] },
   newsChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingLeft: 8, paddingRight: 12, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.cardLine },
-  newsChipOn: { borderColor: '#9d8cff', backgroundColor: C.primarySoft },
+  newsChipOn: { borderColor: C.primary, backgroundColor: C.primarySoft },
   newsChipAge: { fontSize: 10.5, color: C.muted },
   newsChipTitle: { fontSize: 12.5, fontWeight: '700', maxWidth: 120 },
   newsBody: { fontSize: 12.5, lineHeight: 18, marginTop: 6, paddingHorizontal: 4 },

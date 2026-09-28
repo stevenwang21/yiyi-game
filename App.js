@@ -42,7 +42,7 @@ export default function App() {
     })();
   }, []);
 
-  useEffect(() => { setPageBase(screen === 'start' || screen === 'create' ? '#0f1636' : '#121840'); }, [screen]);
+  useEffect(() => { setPageBase(screen === 'start' || screen === 'create' ? '#0f1636' : C.bg); }, [screen]);
 
   const recordBest = useCallback((s) => {
     const sum = E.summary(s);

@@ -1856,6 +1856,8 @@ function smallEvents(s, rng) {
 export function nextYear(s0, rng = Math.random) {
   if (s0.pending || s0.ended) return s0;
   const s = clone(s0);
+  // 記下過這一年之前的四項數值，主畫面拿來顯示「比去年 +3 / −2」
+  s.prevStats = { ...s0.stats };
   s.focus = defaultFocus(s);
   s.age += 1;
   s.perk = perksOf(s);
