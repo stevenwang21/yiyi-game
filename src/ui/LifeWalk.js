@@ -1,11 +1,75 @@
 // 人生回顧上方的小劇場：主角從嬰兒爬、學走路、背書包上學、畢業、上班、到老，一路往前走。
 // 背景（家 → 幼兒園 → 小學 → 中學 → 大學 → 辦公大樓 → 公園）會跟著年紀換，並且一直往後捲，看起來像在走路。
 import { memo, useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Platform, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, Platform, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, Line, LinearGradient, Path, Polygon, Rect, Stop, Text as SvgText } from 'react-native-svg';
-import { Sprite, WalkFigure, canWalk, HEAD, spriteId, SPRITE_SIZE, stageOf } from './Character';
+import { spriteId, stageOf } from './Character';
+import { PHOTO } from './art/photos';
 
 const ND = Platform.OS !== 'web';
+
+// 走路動畫：每個階段、男女各一張 8 格的長條圖（public/art/walk_*.webp，320px 高）。
+// w/h 是一格的原始尺寸；headX 是頭在一格裡的水平位置（比例），學士帽要用。
+export const WALK = {
+  walk_baby_m: { w: 323, h: 320, frames: 8, fps: 10, headX: 0.699, headH: 0.2 },
+  walk_baby_f: { w: 284, h: 320, frames: 8, fps: 10, headX: 0.653, headH: 0.2 },
+  walk_kid_m: { w: 166, h: 320, frames: 8, fps: 10, headX: 0.594, headH: 0.2 },
+  walk_kid_f: { w: 168, h: 320, frames: 8, fps: 10, headX: 0.516, headH: 0.2 },
+  walk_teen_m: { w: 189, h: 320, frames: 8, fps: 10, headX: 0.584, headH: 0.17 },
+  walk_teen_f: { w: 188, h: 320, frames: 8, fps: 10, headX: 0.493, headH: 0.17 },
+  walk_young_m: { w: 177, h: 320, frames: 8, fps: 10, headX: 0.616, headH: 0.17 },
+  walk_young_f: { w: 176, h: 320, frames: 8, fps: 10, headX: 0.478, headH: 0.17 },
+  walk_mid_m: { w: 187, h: 320, frames: 8, fps: 10, headX: 0.709, headH: 0.17 },
+  walk_mid_f: { w: 160, h: 320, frames: 8, fps: 10, headX: 0.554, headH: 0.17 },
+  walk_old_m: { w: 165, h: 320, frames: 8, fps: 10, headX: 0.652, headH: 0.17 },
+  walk_old_f: { w: 184, h: 320, frames: 8, fps: 10, headX: 0.563, headH: 0.17 },
+  // 60 格版：你給的 frames_png 逐格接起來（001→060），一秒 30 格，2 秒一個循環
+  walk60_elem_m: { w: 170, h: 320, frames: 60, fps: 30, headX: 0.609, headH: 0.19 },
+  walk60_elem_f: { w: 175, h: 320, frames: 60, fps: 30, headX: 0.579, headH: 0.19 },
+  walk60_junior_m: { w: 211, h: 320, frames: 60, fps: 30, headX: 0.709, headH: 0.16 },
+  walk60_junior_f: { w: 216, h: 320, frames: 60, fps: 30, headX: 0.554, headH: 0.16 },
+  walk60_univ_m: { w: 207, h: 320, frames: 60, fps: 30, headX: 0.671, headH: 0.16 },
+  walk60_univ_f: { w: 215, h: 320, frames: 60, fps: 30, headX: 0.58, headH: 0.16 },
+};
+
+// 回顧畫面的走路圖：國小、國高中、大學有 60 格的細版；嬰兒、出社會之後還是 8 格版
+export const walkId = (age, gender) => {
+  const g = gender === 'female' ? 'f' : 'm';
+  if (age >= 6 && age < 13) return `walk60_elem_${g}`;
+  if (age >= 13 && age < 19) return `walk60_junior_${g}`;
+  if (age >= 19 && age < 23) return `walk60_univ_${g}`;
+  return `walk_${stageOf(age)}_${g}`;
+};
+
+// 先把 12 張走路圖抓進快取，換階段的時候才不會閃一下空白
+export function prefetchWalk() {
+  if (Platform.OS !== 'web') return;
+  for (const k of Object.keys(WALK)) { try { Image.prefetch(PHOTO[k].uri); } catch (_) { /* 沒網路就算了 */ } }
+}
+
+// 8 格一格一格切：一張寬圖放在一個只露出一格的框裡，用 translateX 跳格。
+// 跳格用 Animated 的 easing 做成階梯（floor），整段都在 Animated 裡跑，React 不用重畫。
+function WalkStrip({ id, height, playing, cycleMs }) {
+  const m = WALK[id];
+  const n = m.frames || 8;
+  const fw = (height * m.w) / m.h;
+  const total = fw * n;
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!playing) return undefined;
+    const loop = Animated.loop(Animated.timing(t, {
+      toValue: 1, duration: cycleMs, easing: (x) => Math.min(n - 1, Math.floor(x * n)) / n, useNativeDriver: ND,
+    }));
+    loop.start();
+    return () => loop.stop();
+  }, [playing, cycleMs, id, n]);
+  const tx = t.interpolate({ inputRange: [0, 1], outputRange: [0, -total] });
+  return (
+    <View style={{ width: fw, height, overflow: 'hidden' }}>
+      <Animated.Image source={PHOTO[id]} resizeMode="stretch" style={{ width: total, height, transform: [{ translateX: tx }] }} />
+    </View>
+  );
+}
 
 export function lifeStage(age) {
   if (age < 1) return 'baby';
@@ -98,7 +162,6 @@ function GradCap({ size }) {
 function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
   const stage = lifeStage(age);
   const scroll = useRef(new Animated.Value(0)).current;
-  const bob = useRef(new Animated.Value(0)).current;
 
   // 背景一直往後捲。不再在換階段時歸零重來（那會看到背景突然跳一下），
   // 速度固定，換階段只換道具。
@@ -108,17 +171,6 @@ function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
     loop.start();
     return () => loop.stop();
   }, [playing, width]);
-
-  useEffect(() => {
-    if (!playing) return undefined;
-    const ms = stage === 'old' ? 360 : stage === 'baby' ? 300 : 220;
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(bob, { toValue: 1, duration: ms, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
-      Animated.timing(bob, { toValue: 0, duration: ms, easing: Easing.inOut(Easing.sin), useNativeDriver: ND }),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [playing, stage]);
 
   const g = height - 26; // 地面
   const sky = SKY[stage];
@@ -137,7 +189,7 @@ function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
       <Ellipse cx={width * 0.55} cy={58} rx={22} ry={7} fill="rgba(255,255,255,0.55)" />
     </Svg>
   ), [stage, width, height]);
-  const hero = <Hero age={age} gender={gender} height={height} width={width} grad={grad} playing={playing} bob={bob} g={g} />;
+  const hero = <Hero age={age} gender={gender} height={height} width={width} grad={grad} playing={playing} g={g} />;
   const propsLayer = useMemo(() => (
     <Svg width={width * 2} height={height}>
       <Props stage={stage} w={width} h={height} ground={g} offset={0} />
@@ -160,32 +212,25 @@ function LifeWalk({ age, name, gender, width, height = 210, grad, playing }) {
   );
 }
 
-// 主角那一塊只有換階段（換立繪）、戴不戴學士帽、暫不暫停時才需要重建。
-// 走路的擺動全部綁在 Animated 上，年紀一歲一歲過的時候不用碰它。
-function Hero({ age, gender, height, width, grad, playing, bob, g }) {
+// 主角那一塊只有換階段（換一張走路圖）、戴不戴學士帽、暫不暫停時才需要重建。
+// 走路本身是 8 格真的畫出來的動畫，所以以前那些左右擺、上下彈的假動作都拿掉了。
+function Hero({ age, gender, height, grad, playing, g, width }) {
   const st = stageOf(age);
-  const id = spriteId(age, gender);
-  const hh = height * (st === 'baby' ? 0.4 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
-  const ww = (hh * SPRITE_SIZE[id][0]) / SPRITE_SIZE[id][1];
-  const hx = ww * HEAD[id][0];
-  const hs = hh * HEAD[id][1];
-  return useMemo(() => {
-    return (
-          <Animated.View
-            style={{
-              position: 'absolute', left: width / 2 - ww / 2, top: g - hh + 4, width: ww, height: hh,
-              transform: [
-                { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, st === 'baby' ? -2 : -3] }) },
-                { rotate: playing ? bob.interpolate({ inputRange: [0, 1], outputRange: ['-1.6deg', '1.6deg'] }) : '0deg' },
-              ],
-            }}
-          >
-            <View style={{ position: 'absolute', left: ww * 0.1, right: ww * 0.1, bottom: -3, height: 6, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.18)' }} />
-            {canWalk(id) ? <WalkFigure id={id} width={ww} height={hh} walking={playing} speed={st === 'kid' ? 520 : 620} /> : <Sprite age={age} gender={gender} height={hh} />}
-            {grad ? <View style={{ position: 'absolute', left: hx - hs * 0.42, top: -hs * 0.22 }}><GradCap size={hs * 0.84} /></View> : null}
-          </Animated.View>
-    );
-  }, [id, st, hh, ww, grad, playing, g, width, bob]);
+  const id = walkId(age, gender);
+  const m = WALK[id];
+  // 各階段在畫面上的高度：嬰兒趴著所以矮，越大越高
+  const hh = height * (st === 'baby' ? 0.38 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
+  const ww = (hh * m.w) / m.h;
+  const hs = hh * m.headH;
+  // 循環時間：60 格版就是 60/30 = 2 秒（一格一格照 001→060 播）；8 格版照階段給
+  const cycleMs = m.frames >= 60 ? (m.frames / m.fps) * 1000 : st === 'baby' ? 1100 : st === 'kid' ? 720 : st === 'old' ? 1000 : 820;
+  return useMemo(() => (
+    <View style={{ position: 'absolute', left: width / 2 - ww / 2, top: g - hh + 4, width: ww, height: hh }}>
+      <View style={{ position: 'absolute', left: ww * 0.15, right: ww * 0.15, bottom: -3, height: 6, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.18)' }} />
+      <WalkStrip id={id} height={hh} playing={playing} cycleMs={cycleMs} />
+      {grad ? <View style={{ position: 'absolute', left: ww * m.headX - hs * 0.5, top: -hs * 0.2 }}><GradCap size={hs} /></View> : null}
+    </View>
+  ), [id, hh, ww, grad, playing, g, width]);
 }
 
 export default memo(LifeWalk);

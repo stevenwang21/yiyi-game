@@ -5,7 +5,7 @@ import Svg, { Circle, ClipPath, Defs, G, Line, LinearGradient, Path, Rect, Stop,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as E from '../game/engine';
 import { haptic } from './celebrate';
-import LifeWalk from './LifeWalk';
+import LifeWalk, { prefetchWalk } from './LifeWalk';
 
 const ND = Platform.OS !== 'web';
 const WAN = 10000;
@@ -141,7 +141,7 @@ export default function LifeReplay({ game, visible, onClose }) {
   const [shown, setShown] = useState([]);
 
   const reset = () => { tRef.current = 0; tv.setValue(0); setAge(0); setShown([]); setPlaying(true); };
-  useEffect(() => { if (visible) reset(); }, [visible]);
+  useEffect(() => { if (visible) { prefetchWalk(); reset(); } }, [visible]);
 
   useEffect(() => {
     if (!visible || !playing) return undefined;

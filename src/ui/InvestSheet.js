@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { PHOTO } from './art/photos';
+import { Emo } from './Character';
+import { WORLD_EVENTS } from '../game/world';
 import Sheet from './Sheet';
 import LineChart from './LineChart';
 import { Button, Card, Chip, Tag } from './components';
@@ -104,6 +106,69 @@ function InvestTile({ img, name, risk, desc, held, ret, big, onPress }) {
     </Pressable>
   );
 }
+// 世界大事 → 3D 圖示。新聞列只放圖示和標題，點了才展開那一句
+const WORLD_ICON = {
+  calm: '🌅', ai: '💡', chips: '⚡', pandemic: '🏥', war: '💥', crisis: '📉', rateUp: '💸', rateDown: '💰', oil: '⛽',
+  houseCool: '🏠', houseHot: '🏙️', cryptoBull: '🚀', cryptoWinter: '📉', lowBirth: '🍼', tourism: '✈️', ecommerce: '💻',
+  wellness: '⚽', hyperInfl: '💸', aging: '🏥', foodSafety: '🍜', esportsBoom: '🏆', infra: '🏙️', education: '🏫',
+};
+// 從一條 log 認出是哪件世界大事（標題比對）；不是世界大事的就給一個通用圖示
+function newsIcon(l) {
+  const m = /【世界】([^：]+)：/.exec(l.text || '');
+  if (m) { const w = WORLD_EVENTS.find((x) => x.title === m[1]); if (w) return { e: WORLD_ICON[w.id] || '🌅', title: w.title, body: w.desc }; }
+  const t = (l.text || '').replace(/^【[^】]+】/, '');
+  const short = t.split(/[。！，]/)[0].slice(0, 14);
+  return { e: l.tone === 'bad' ? '📉' : l.tone === 'good' ? '📈' : '💡', title: short, body: t };
+}
+const NEWS_COLOR = (tone) => (String(tone).includes('bad') ? C.red : tone === 'good' ? C.green : C.ink);
+
+// 圖片橫幅：一張圖 ＋ 左下角標題，取代原本那一段文字
+function Banner({ img, title, sub, right, height = 96, onPress, style }) {
+  const inner = (
+    <>
+      <Image source={PHOTO[img]} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <View style={[StyleSheet.absoluteFill, FADE('to right')]} />
+      <View style={styles.bannerBody}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.bannerTitle} numberOfLines={1}>{title}</Text>
+          {sub ? <Text style={styles.bannerSub} numberOfLines={1}>{sub}</Text> : null}
+        </View>
+        {right}
+      </View>
+    </>
+  );
+  const box = [styles.banner, { height }, style];
+  return onPress ? <Pressable onPress={onPress} style={box}>{inner}</Pressable> : <View style={box}>{inner}</View>;
+}
+
+// 一個 3D 圖示 ＋ 一行數字：拿來取代一整句說明
+function Stat({ e, label, value, color }) {
+  return (
+    <View style={styles.stat}>
+      <Emo e={e} size={22} />
+      <View>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Text style={[styles.statVal, color && { color }]} numberOfLines={1}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+// 房子：三種等級各 10 種外觀（house_<tier>_<01..10>）。
+// 每一間買下來的房子都有自己固定的外觀（用 uid 算），不會每次打開都變
+const HOUSE_TIER = { studio: 'cheap', apartment: 'middle', mansion: 'luxury' };
+const houseImg = (id, look) => `house_${HOUSE_TIER[id] || 'cheap'}_${String(((look || 0) % 10) + 1).padStart(2, '0')}`;
+const lookOf = (h) => (parseInt(String(h.uid || '').replace(/\D/g, ''), 10) || 0) + (h.name || '').length;
+// 公司：依行業挑一張圖當橫幅
+const BIZ_IMG = (type) => {
+  if (['cram', 'school', 'education'].includes(type)) return 'school';
+  if (['food', 'restaurant', 'bakery', 'store', 'salon', 'petshop', 'brand', 'ecommerce'].includes(type)) return 'startup';
+  if (['tech', 'startup', 'esportsco', 'studio', 'fund'].includes(type)) return 'desk';
+  if (['clinic', 'pharmacy', 'care'].includes(type)) return 'hospital';
+  if (['rental', 'agency', 'developer', 'archfirm', 'contractor'].includes(type)) return 'house';
+  return 'company';
+};
+
 const ICON_BG = { deposit: C.page, etf: C.greenSoft, stock: C.blueSoft, gold: C.goldSoft, crypto: '#2e2560' };
 const ICON_FG = { deposit: C.muted, etf: C.green, stock: C.blue, gold: C.goldInk, crypto: C.purple };
 const CRASH_IDS = ['pandemic', 'war', 'crisis'];
@@ -119,7 +184,8 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
   useEffect(() => { if (visible) setAsset(null); }, [visible]);
   const [chartKey, setChartKey] = useState('compare');
   const [asset, setAsset] = useState(null); // null = 投資中心（卡片牆）
-  const [allNews, setAllNews] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(null);
+  const [showYears, setShowYears] = useState(false);
   const [msg, setMsg] = useState(null);
   const [showAllYears, setShowAllYears] = useState(false);
   const [bids, setBids] = useState({});
@@ -233,19 +299,26 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
 
 
       {tab === 0 && news.length ? (
-        <Card style={{ marginTop: 8, paddingVertical: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={styles.h}>📈 市場消息</Text>
-            {news.length > 3 ? (
-              <Text style={styles.link} onPress={() => setAllNews(!allNews)}>{allNews ? '收起 ▲' : `全部 ${news.length} 則 ▼`}</Text>
-            ) : null}
-          </View>
-          {(allNews ? news : news.slice(0, 3)).map((l, i) => (
-            <Text key={`${l.age}-${i}`} style={[styles.newsItem, { color: toneColor(l.tone) }]}>
-              <Text style={styles.newsAge}>{l.age} 歲　</Text>{l.text.replace(/（(智力|健康|快樂|人緣)[+-]\d+[^）]*）/g, '')}
-            </Text>
-          ))}
-        </Card>
+        <View style={{ marginTop: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+            {news.slice(0, 8).map((l, i) => {
+              const n = newsIcon(l);
+              const on = newsOpen === i;
+              return (
+                <Pressable key={`${l.age}-${i}`} onPress={() => setNewsOpen(on ? null : i)} style={[styles.newsChip, on && styles.newsChipOn]}>
+                  <Emo e={n.e} size={30} />
+                  <View>
+                    <Text style={styles.newsChipAge}>{l.age} 歲</Text>
+                    <Text style={[styles.newsChipTitle, { color: NEWS_COLOR(l.tone) }]} numberOfLines={1}>{n.title}</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {newsOpen != null && news[newsOpen] ? (
+            <Text style={[styles.newsBody, { color: NEWS_COLOR(news[newsOpen].tone) }]}>{newsIcon(news[newsOpen]).body}</Text>
+          ) : null}
+        </View>
       ) : null}
 
       {!locked && tab === 0 ? (
@@ -328,20 +401,20 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                 <Text style={styles.backText}>‹ 回投資中心</Text>
               </Pressable>
               <Card>
-                <View style={styles.assetTop}>
-                  <View style={[styles.icon, { backgroundColor: ICON_BG[a.key] }]}>
-                    <Text style={[styles.iconText, { color: ICON_FG[a.key] }]}>{a.short}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.h}>{a.name}　<Text style={styles.risk}>{'●'.repeat(a.risk)}<Text style={{ color: C.line }}>{'●'.repeat(5 - a.risk)}</Text></Text></Text>
-                    <Text style={styles.muted}>{a.key === 'deposit' && s.world ? `今年利率 ${pct(s.world.returns.deposit)}` : a.desc}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.muted}>持有</Text>
-                    <Text style={styles.val}>{E.formatMoney(s[a.key])}</Text>
-                    {r != null && s[a.key] > 0 ? <Text style={[styles.small, { color: r >= 0 ? C.green : C.red }]}>去年 {pct(r)}</Text> : null}
-                  </View>
-                </View>
+                <Banner
+                  img={`inv_${a.key}`}
+                  title={a.key === 'etf' ? 'ETF' : a.key === 'crypto' ? '加密幣' : a.name}
+                  sub={a.key === 'deposit' && s.world ? `今年利率 ${pct(s.world.returns.deposit)}` : RISK(a.risk)[0]}
+                  height={104}
+                  style={{ marginHorizontal: -2 }}
+                  right={(
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.bannerSub}>持有</Text>
+                      <Text style={styles.bannerVal}>{E.formatMoney(s[a.key])}</Text>
+                      {r != null && s[a.key] > 0 ? <Text style={[styles.bannerSub, { color: r >= 0 ? '#3ddc97' : '#ff8a80', fontWeight: '800' }]}>去年 {pct(r)}</Text> : null}
+                    </View>
+                  )}
+                />
 
                 {series ? (
                   <>
@@ -353,17 +426,12 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                       trades={E.tradesOf(s, a.key).map((t) => ({ age: t.age, amt: t.amt }))}
                       tradeFormat={(v) => E.formatMoney(v)}
                     />
-                    <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住看每年．▲ 買進　▼ 賣出</Text>
-                    {a.key === 'crypto' ? (
-                      <Text style={[styles.muted, { color: C.red, marginTop: 6 }]}>
-                        ⚠️ 漲 50% 再跌 50% 只剩 75%。波動會吃掉報酬，不要全押。
-                      </Text>
-                    ) : null}
-                    <Text style={styles.muted}>
+                    <View style={[styles.row, { marginTop: 6 }]}>
                       {a.key === 'stock'
-                        ? `大盤 ${Math.round(hist[hist.length - 1].etf)}．我的 ${Math.round(myNow)}${myNow >= hist[hist.length - 1].etf ? '（贏）' : '（輸）'}．準不準看投資眼光`
-                        : `指數 ${Math.round(now)}（出生 100）．紅條＝股災`}
-                    </Text>
+                        ? <Tag text={`我的 ${Math.round(myNow)} vs 大盤 ${Math.round(hist[hist.length - 1].etf)}${myNow >= hist[hist.length - 1].etf ? '　贏' : '　輸'}`} color={myNow >= hist[hist.length - 1].etf ? C.green : C.red} bg={C.page} />
+                        : <Tag text={`指數 ${Math.round(now)}`} color={C.ink} bg={C.page} />}
+                      {a.key === 'crypto' ? <Tag text="⚠️ 大起大落，別全押" color={C.red} bg={C.redSoft} /> : null}
+                    </View>
                   </>
                 ) : null}
 
@@ -392,17 +460,15 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                           ) : null}
                         </View>
                       </View>
-                      <Text style={styles.costNote}>投入本金 = 買進 ＋ 定期定額 − 賣出</Text>
-
                       <Text style={[styles.h, { marginTop: 10 }]}>交易紀錄</Text>
-                      {list.slice(0, showAll ? 999 : 6).map((t, i) => (
+                      {list.slice(0, showAll ? 999 : 3).map((t, i) => (
                         <View key={i} style={styles.tradeRow}>
                           <Text style={styles.tradeAge}>{t.age} 歲</Text>
                           <Text style={[styles.tradeKind, { color: t.amt > 0 ? C.green : C.red }]}>{TRADE_NAME[t.kind] || (t.amt > 0 ? '買進' : '賣出')}</Text>
                           <Text style={[styles.tradeAmt, { color: t.amt > 0 ? C.green : C.red }]}>{t.amt > 0 ? '+' : '−'}{E.formatMoney(Math.abs(t.amt))}</Text>
                         </View>
                       ))}
-                      {list.length > 6 ? (
+                      {list.length > 3 ? (
                         <Text onPress={() => setShowAll(!showAll)} style={styles.moreLink}>
                           {showAll ? '收合' : `看全部 ${list.length} 筆 ›`}
                         </Text>
@@ -427,8 +493,10 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
 
                 {a.key === 'etf' ? (
                   <View style={styles.dcaBox}>
-                    <Text style={styles.h}>定期定額</Text>
-                    <Text style={styles.muted}>每年自動把{s.job ? '薪水' : s.studying || s.age < 18 ? '零用錢' : '收入'}的一部分買進 ETF，越早開始複利越大。</Text>
+                    <View style={[styles.between, { alignItems: 'center' }]}>
+                      <Text style={styles.h}>定期定額</Text>
+                      <Text style={styles.muted}>每年自動買，越早越好</Text>
+                    </View>
                     <View style={[styles.row, { marginTop: 8 }]}>
                       {DCA_OPTIONS.map((p) => (
                         <Chip key={p} label={`${p}%`} on={s.dca === p} onPress={() => setGame(E.setDca(s, p))} style={styles.dcaChip} plain />
@@ -447,9 +515,9 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
           {!asset ? (
           <>
           <Card>
-            <View style={styles.between}>
+            <View style={[styles.between, { alignItems: 'center' }]}>
               <Text style={styles.h}>大盤 vs 我的個股</Text>
-              <Text style={styles.muted}>出生時 = 100</Text>
+              {s.world ? <Tag text={`${WORLD_ICON[s.world.id] || '🌅'} ${s.world.title}`} color={C.ink} bg={C.page} /> : null}
             </View>
             <LineChart
               series={[
@@ -461,16 +529,22 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
               marks={crashAges}
               format={(v) => String(Math.round(v))}
             />
-            <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的數字，左右滑動換年份</Text>
-            {s.world ? <Text style={styles.muted}>今年：{s.world.title}．通膨 {pct(s.inflation)}．物價是出生時的 {s.priceIndex.toFixed(2)} 倍</Text> : null}
+            {s.world ? (
+              <View style={[styles.row, { marginTop: 6 }]}>
+                <Tag text={`通膨 ${pct(s.inflation)}`} color={C.muted} bg={C.page} />
+                <Tag text={`物價 ×${s.priceIndex.toFixed(2)}`} color={C.muted} bg={C.page} />
+              </View>
+            ) : null}
           </Card>
-          <Text style={[styles.muted, { marginTop: 10 }]}>
-            點卡片進去看細節和買賣。現金變負的會算成負債，不會自動賣你的資產。
-          </Text>
-          {yearRows.length ? (
+          {yearRows.length && !showYears ? (
+            <Button small kind="ghost" title="📋 每年明細" style={{ marginTop: 8 }} onPress={() => setShowYears(true)} />
+          ) : null}
+          {yearRows.length && showYears ? (
             <Card>
-              <Text style={styles.h}>每年明細：大盤 vs 我的投資</Text>
-              <Text style={styles.muted}>指數出生時 = 100．「我的報酬」不含新買進的錢</Text>
+              <View style={styles.between}>
+                <Text style={styles.h}>每年明細</Text>
+                <Text style={styles.link} onPress={() => setShowYears(false)}>收起 ▲</Text>
+              </View>
               <View style={[styles.tr, styles.thead]}>
                 <Text style={[styles.th, styles.cAge]}>年齡／大事</Text>
                 <Text style={[styles.th, styles.cNum, { textAlign: 'right' }]}>大盤</Text>
@@ -521,7 +595,6 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                 format={shortMoney}
                 tipFormat={(v) => E.formatMoney(v)}
               />
-              <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年投資總共值多少</Text>
             </Card>
           ) : null}
           </>
@@ -531,15 +604,17 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
 
       {!locked && tab === 1 ? (
         <>
-          <Text style={[styles.muted, { marginTop: 10 }]}>付 {E.DOWN_PAYMENT * 100}% 頭期款，其餘每年繳房貸。第一間自住省房租，第二間起收租。</Text>
+          <Banner img="house" title="房地產" sub={`頭期款 ${E.DOWN_PAYMENT * 100}%．第一間自住，第二間起收租`} height={92} style={{ marginTop: 10 }} />
           <Card>
-            <Text style={styles.h}>房價走勢</Text>
+            <View style={[styles.between, { alignItems: 'center' }]}>
+              <Text style={styles.h}>房價走勢</Text>
+              {(() => { const v = s.idxHistory.map((h) => h.house); const r = v.length > 1 ? v[v.length - 1] / v[v.length - 2] - 1 : 0; return <Tag text={`去年 ${pct(r)}`} color={r >= 0 ? C.green : C.red} bg={C.page} />; })()}
+            </View>
             <LineChart
               series={[{ key: 'house', label: '房價', color: C.red, values: s.idxHistory.map((h) => h.house) }]}
-              height={120}
+              height={110}
               marks={crashAges}
             />
-            <Text style={[styles.muted, { color: C.primaryInk }]}>👆 按住圖表可以看那一年的房價指數和漲跌</Text>
           </Card>
           {s.houses.length ? (
             <Card>
@@ -549,11 +624,14 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                 const gain = h.value / h.price - 1;
                 return (
                   <View key={h.uid} style={styles.line}>
+                    <Image source={PHOTO[houseImg(h.id, lookOf(h))]} style={styles.houseThumb} resizeMode="contain" />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.body}>{h.name}{i === 0 ? '（自住）' : '（出租中）'}</Text>
-                      <Text style={styles.muted}>
-                        市值 {E.formatMoney(h.value)}（<Text style={{ color: gain >= 0 ? C.green : C.red }}>{pct(gain)}</Text>）{d ? `．房貸剩 ${E.formatMoney(d.balance)}` : '．已繳清'}
-                      </Text>
+                      <Text style={styles.body}>{h.name} <Text style={styles.muted}>{i === 0 ? '自住' : '出租中'}</Text></Text>
+                      <View style={[styles.row, { marginTop: 3 }]}>
+                        <Tag text={E.formatMoney(h.value)} color={C.ink} bg={C.page} />
+                        <Tag text={pct(gain)} color={gain >= 0 ? C.green : C.red} bg={C.page} />
+                        <Tag text={d ? `房貸 ${E.formatMoney(d.balance)}` : '已繳清'} color={d ? C.goldInk : C.green} bg={C.page} />
+                      </View>
                     </View>
                     <Button small kind="ghost" title="賣掉" onPress={() => run(E.sellHouse(s, h.uid), `賣掉${h.name}`)} />
                   </View>
@@ -561,102 +639,95 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
               })}
             </Card>
           ) : null}
-          <Card>
-            <Text style={styles.h}>買房（現在的房價）</Text>
+          <View style={styles.houseRow}>
             {E.HOUSES.map((h) => {
               const price = E.housePrice(s, h);
+              const ok = s.money >= price * E.DOWN_PAYMENT;
               return (
-                <View key={h.id} style={styles.line}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.body}>{h.name}</Text>
-                    <Text style={styles.muted}>總價 {E.formatMoney(price)}．頭期款 {E.formatMoney(price * E.DOWN_PAYMENT)}</Text>
-                  </View>
-                  <Button small kind="green" title="買下" onPress={() => run(E.buyHouse(s, h.id), `買下${h.name}！`)} />
-                </View>
+                <Pressable key={h.id} onPress={() => run(E.buyHouse(s, h.id), `買下${h.name}！`)} style={({ pressed }) => [styles.houseCard, pressed && { opacity: 0.85 }]}>
+                  <Image source={PHOTO[houseImg(h.id, s.age)]} style={styles.housePic} resizeMode="contain" />
+                  <Text style={styles.houseName}>{h.name}</Text>
+                  <Text style={styles.housePrice} numberOfLines={1} adjustsFontSizeToFit>{E.formatMoney(price)}</Text>
+                  <Text style={styles.houseDown}>頭期 {E.formatMoney(price * E.DOWN_PAYMENT)}</Text>
+                  <View style={[styles.houseBtn, !ok && { backgroundColor: C.page }]}><Text style={[styles.houseBtnText, !ok && { color: C.muted }]}>{ok ? '買下' : '現金不夠'}</Text></View>
+                </Pressable>
               );
             })}
-          </Card>
+          </View>
         </>
       ) : null}
 
       {!locked && tab === 2 ? (
         <>
-          <Text style={[styles.muted, { marginTop: 10 }]}>
-            自己開的公司最多 {E.MAX_BIZ} 家（目前 {s.bizs.filter((b) => !b.group).length} 家）；收購來的不算在內。集團現在共 {s.bizs.length} 家。
-          </Text>
           {s.bizs.map((b) => {
             const L = E.bizLevel(b, s);
             return (
-            <Card key={b.uid}>
-              <View style={styles.between}>
-                <Text style={styles.h}>{b.name}{b.group ? ' 🏷' : ''}</Text>
-                <Text style={styles.muted}>{E.BUSINESSES[b.type].name}{b.group ? '．收購' : ''}</Text>
-              </View>
-              {!b.group ? (
-                <View style={styles.lvRow}>
+            <Card key={b.uid} style={{ paddingTop: 0, paddingHorizontal: 0, overflow: 'hidden' }}>
+              <Banner
+                img={BIZ_IMG(b.type)}
+                title={b.name}
+                sub={`${E.BUSINESSES[b.type].name}${b.group ? '．收購' : ''}`}
+                height={96}
+                style={{ borderRadius: 0, marginTop: 0 }}
+                right={!b.group ? (
                   <View style={[styles.lvPill, L.lv >= 5 && styles.lvMax]}>
-                    <Text style={[styles.lvText, L.lv >= 5 && { color: '#3a2600' }]}>Lv{L.lv} {L.name}{L.lv >= 5 ? (L.byRoute ? '（逆襲完成・滿級）' : '（滿級）') : ''}</Text>
+                    <Text style={[styles.lvText, L.lv >= 5 && { color: '#3a2600' }]}>Lv{L.lv} {L.name}</Text>
                   </View>
-                  <View style={styles.lvDots}>
-                    {E.BIZ_LEVELS.map((x) => <View key={x.lv} style={[styles.lvDot, x.lv <= L.lv && styles.lvDotOn]} />)}
-                  </View>
-                </View>
-              ) : null}
-              <Text style={[styles.big, { marginTop: 4 }]}>{E.formatMoney(b.value)}</Text>
-              <Text style={styles.muted}>
-                已經營 {b.years} 年．去年成長 <Text style={{ color: b.lastR >= 0 ? C.green : C.red }}>{pct(b.lastR)}</Text>．投入本金 {E.formatMoney(b.capital)}
-              </Text>
-              {b.joint ? (
-                <Text style={[styles.muted, { marginTop: 4, color: C.goldInk, fontWeight: '700' }]}>
-                  🤝 跟「{b.joint.name}」合資．登記在兩個人名下，分手的話會被分走一半（{E.formatMoney(Math.round(b.value * b.joint.share))}）。結婚之後就整間都是你們的。
-                </Text>
-              ) : null}
-              {!b.group && L.next ? (
-                <Text style={[styles.muted, { marginTop: 4 }]}>
-                  升到 Lv{L.next.lv}：公司價值達本金 {L.next.mult} 倍（現在 {L.mult.toFixed(1)} 倍）、經營滿 {L.next.years} 年（現在 {b.years} 年）
-                </Text>
-              ) : null}
-              <AmountSlider
-                modes={[{ key: 'add', label: '追加', max: s.money, verb: '追加投資', color: '#1fa971' }]}
-                disabledText="沒有現金可以追加"
-                preview={(k, amt) => {
-                  const after = E.bizLevel({ ...b, value: b.value + amt, capital: b.capital + amt }, s);
-                  return after.lv < L.lv && !b.group
-                    ? `⚠️ 本金變多，倍數會降到 ${after.mult.toFixed(1)} 倍（掉到 Lv${after.lv}）`
-                    : `投入後剩現金 ${E.formatMoney(s.money - amt)}`;
-                }}
-                onConfirm={(k, amt) => run((x) => E.investBiz(x, b.uid, amt), `追加投資「${b.name}」${E.formatMoney(amt)}`)}
+                ) : <Tag text="🏷 集團" color={C.ink} bg={C.page} />}
               />
-              <Button small kind="ghost" title="整間賣掉" style={{ marginTop: 8 }} onPress={() => run(E.sellBiz(s, b.uid), `「${b.name}」已賣出`)} />
+              <View style={{ paddingHorizontal: 14, paddingTop: 10 }}>
+                <View style={styles.between}>
+                  <Text style={styles.big}>{E.formatMoney(b.value)}</Text>
+                  {!b.group ? (
+                    <View style={styles.lvDots}>
+                      {E.BIZ_LEVELS.map((x) => <View key={x.lv} style={[styles.lvDot, x.lv <= L.lv && styles.lvDotOn]} />)}
+                    </View>
+                  ) : null}
+                </View>
+                <View style={styles.statRow}>
+                  <Stat e="📈" label="去年" value={pct(b.lastR)} color={b.lastR >= 0 ? C.green : C.red} />
+                  <Stat e="💰" label="本金" value={E.formatMoney(b.capital)} />
+                  <Stat e="📊" label="倍數" value={`${L.mult.toFixed(1)}×`} />
+                  <Stat e="🏢" label="經營" value={`${b.years} 年`} />
+                </View>
+                <View style={[styles.row, { marginTop: 6 }]}>
+                  {b.joint ? <Tag text={`🤝 跟「${b.joint.name}」合資．分手分一半`} color={C.goldInk} bg={C.goldSoft} /> : null}
+                  {!b.group && L.next ? <Tag text={`Lv${L.next.lv}：本金 ${L.next.mult} 倍 ＋ 滿 ${L.next.years} 年`} color={C.muted} bg={C.page} /> : null}
+                </View>
+                <AmountSlider
+                  modes={[{ key: 'add', label: '追加', max: s.money, verb: '追加投資', color: '#1fa971' }]}
+                  disabledText="沒有現金可以追加"
+                  preview={(k, amt) => {
+                    const after = E.bizLevel({ ...b, value: b.value + amt, capital: b.capital + amt }, s);
+                    return after.lv < L.lv && !b.group
+                      ? `⚠️ 倍數會降到 ${after.mult.toFixed(1)} 倍（掉到 Lv${after.lv}）`
+                      : `投入後剩現金 ${E.formatMoney(s.money - amt)}`;
+                  }}
+                  onConfirm={(k, amt) => run((x) => E.investBiz(x, b.uid, amt), `追加投資「${b.name}」${E.formatMoney(amt)}`)}
+                />
+                <Button small kind="ghost" title="整間賣掉" style={{ marginTop: 8, marginBottom: 4 }} onPress={() => run(E.sellBiz(s, b.uid), `「${b.name}」已賣出`)} />
+              </View>
             </Card>
             );
           })}
           {s.bizs.filter((b) => !b.group).length < E.MAX_BIZ ? (
-            <Card>
-              <Text style={styles.body}>
-                {s.bizs.filter((b) => !b.group).length
-                  ? (E.canOpenSecondBiz(s) ? '第一家公司已經是產業龍頭，可以開第二家了！' : '第一家公司升到 Lv5「產業龍頭」，才能開第二家。')
-                  : '你還沒有自己的公司。'}
-              </Text>
-              <Text style={[styles.muted, { marginTop: 4 }]}>方法一：年度重點選「創業」（需要 50 萬現金）。{'\n'}方法二：認真工作，等職業的逆襲路線出現開店機會。</Text>
-            </Card>
+            <Banner
+              img="startup"
+              height={110}
+              style={{ marginTop: 10 }}
+              title={s.bizs.filter((b) => !b.group).length ? (E.canOpenSecondBiz(s) ? '可以開第二家了' : '第一家升到 Lv5 才能開第二家') : '還沒有自己的公司'}
+              sub={s.bizs.filter((b) => !b.group).length ? `自己開的最多 ${E.MAX_BIZ} 家` : '年度重點選「創業」（50 萬起）'}
+            />
           ) : null}
         </>
       ) : null}
 
       {tab === 3 ? (
         !E.canAcquire(s) ? (
-          <Card>
-            <Text style={styles.h}>🏷 收購公司</Text>
-            <Text style={[styles.muted, { marginTop: 6 }]}>
-              淨資產破一億之後，這裡每年會有待售公司，買下來併進集團（最多 {E.MAX_GROUP} 家）。
-            </Text>
-          </Card>
+          <Banner img="deal" title="收購公司" sub={`淨資產破一億後開放．最多 ${E.MAX_GROUP} 家`} height={110} style={{ marginTop: 10, opacity: 0.85 }} />
         ) : (
           <>
-            <Text style={[styles.muted, { marginTop: 10 }]}>
-              併進集團（{s.bizs.length} / {E.MAX_GROUP} 家），一樣會成長配息。名單每年換。
-            </Text>
+            <Banner img="deal" title="收購公司" sub={`集團 ${s.bizs.length} / ${E.MAX_GROUP} 家．名單每年換`} height={84} style={{ marginTop: 10 }} />
             {(s.targets || []).length ? (s.targets || []).map((d) => {
               const okReq = E.meetsReq(s, d);
               const syn = E.synergy(s, d.type);
@@ -677,18 +748,17 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
                   </View>
                   <Text style={[styles.h, { marginTop: 6 }]}>{d.name}</Text>
                   <Text style={[styles.big, { marginTop: 2 }]}>{E.formatMoney(price)}</Text>
-                  <Text style={styles.muted}>
-                    公司價值 {E.formatMoney(d.value)}．
-                    <Text style={{ color: d.premium > 0 ? C.red : C.green, fontWeight: '700' }}>
-                      {d.premium > 0 ? `溢價 ${d.premium}%` : `折價 ${-d.premium}%`}
-                    </Text>
-                    {d.roll ? '．實際價值接手後才知道' : ''}
-                  </Text>
-                  <Text style={styles.muted}>
-                    年成長約 {((E.BUSINESSES[d.type].mean + d.bonus + syn) * 100).toFixed(1)}%．波動 {((E.BUSINESSES[d.type].sd + (d.sdBump || 0) - (d.sdCut || 0)) * 100).toFixed(0)}%
-                    {syn > 0 ? `（含同產業綜效 +${(syn * 100).toFixed(1)}%）` : ''}
-                  </Text>
-                  <Text style={[styles.muted, { marginTop: 4 }]}>{d.note}</Text>
+                  <View style={styles.statRow}>
+                    <Stat e="🏢" label="價值" value={E.formatMoney(d.value)} />
+                    <Stat e={d.premium > 0 ? '💸' : '💰'} label={d.premium > 0 ? '溢價' : '折價'} value={`${Math.abs(d.premium)}%`} color={d.premium > 0 ? C.red : C.green} />
+                    <Stat e="📈" label="年成長" value={`${((E.BUSINESSES[d.type].mean + d.bonus + syn) * 100).toFixed(1)}%`} />
+                    <Stat e="📊" label="波動" value={`${((E.BUSINESSES[d.type].sd + (d.sdBump || 0) - (d.sdCut || 0)) * 100).toFixed(0)}%`} />
+                  </View>
+                  <View style={[styles.row, { marginTop: 4 }]}>
+                    {syn > 0 ? <Tag text={`同產業綜效 +${(syn * 100).toFixed(1)}%`} color={C.green} bg={C.greenSoft} /> : null}
+                    {d.roll ? <Tag text="實際價值接手才知道" color={C.goldInk} bg={C.goldSoft} /> : null}
+                  </View>
+                  <Text style={[styles.muted, { marginTop: 4 }]} numberOfLines={2}>{d.note}</Text>
                   {d.reqText ? (
                     <Text style={[styles.muted, { color: okReq ? C.green : C.red, fontWeight: '700' }]}>
                       {okReq ? '✓ ' : '✗ '}{d.reqText}
@@ -756,14 +826,19 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
       ) : null}
       {!locked && tab === 4 ? (
         <Card style={{ backgroundColor: C.blueSoft }}>
-          <Text style={styles.body}>🏦 信用貸款</Text>
+          <View style={[styles.between, { alignItems: 'center' }]}>
+            <Text style={styles.h}>信用貸款</Text>
+            <Emo e="💸" size={36} />
+          </View>
           {loan.why ? (
             <Text style={styles.muted}>{loan.why}</Text>
           ) : (
-            <Text style={styles.muted}>
-              還可以借 {E.formatMoney(loan.limit)}．利率 {(loan.rate * 100).toFixed(0)}%．分 {loan.years} 年還{loan.owed ? `．已借 ${E.formatMoney(loan.owed)}` : ''}
-              {'\n'}薪水、存款、投資、房子越多，能借越多。每年自動扣還款。
-            </Text>
+            <View style={styles.statRow}>
+              <Stat e="💰" label="還能借" value={E.formatMoney(loan.limit)} />
+              <Stat e="📈" label="利率" value={`${(loan.rate * 100).toFixed(0)}%`} />
+              <Stat e="📅" label="分期" value={`${loan.years} 年`} />
+              {loan.owed ? <Stat e="🏦" label="已借" value={E.formatMoney(loan.owed)} color={C.red} /> : null}
+            </View>
           )}
           <AmountSlider
             modes={[{ key: 'borrow', label: '借款', max: loan.limit, verb: '借', color: C.primary }]}
@@ -789,7 +864,7 @@ export default function InvestSheet({ visible, onClose, game, setGame, initialTa
             ))}
           </Card>
         ) : (
-          <Card><Text style={styles.body}>目前沒有任何貸款。</Text></Card>
+          <Card style={{ alignItems: 'center', paddingVertical: 18 }}><Emo e="✨" size={40} /><Text style={[styles.muted, { marginTop: 6 }]}>沒有任何貸款</Text></Card>
         )
       ) : null}
     </Sheet>
@@ -831,6 +906,29 @@ const styles = StyleSheet.create({
   lvDots: { flexDirection: 'row', gap: 4 },
   lvDot: { width: 14, height: 6, borderRadius: 3, backgroundColor: C.page },
   lvDotOn: { backgroundColor: '#ffd76a' },
+  banner: { borderRadius: 18, overflow: 'hidden', backgroundColor: '#1a2150', marginTop: 8 },
+  bannerBody: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', padding: 12, gap: 8 },
+  bannerTitle: { fontSize: 20, fontWeight: '900', color: '#fff', textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 6 },
+  bannerSub: { fontSize: 12, color: 'rgba(255,255,255,0.88)', marginTop: 2, textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4 },
+  bannerVal: { fontSize: 17, fontWeight: '800', color: '#fff', textShadowColor: 'rgba(0,0,0,0.7)', textShadowRadius: 4, fontVariant: ['tabular-nums'] },
+  statRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  stat: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 8, borderRadius: 12, backgroundColor: C.page, borderWidth: 1, borderColor: C.cardLine, flexGrow: 1, flexBasis: '45%' },
+  statLabel: { fontSize: 10.5, color: C.muted },
+  statVal: { fontSize: 13.5, fontWeight: '800', color: C.ink, fontVariant: ['tabular-nums'] },
+  newsChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, paddingLeft: 8, paddingRight: 12, borderRadius: 14, backgroundColor: C.card, borderWidth: 1, borderColor: C.cardLine },
+  newsChipOn: { borderColor: '#9d8cff', backgroundColor: C.primarySoft },
+  newsChipAge: { fontSize: 10.5, color: C.muted },
+  newsChipTitle: { fontSize: 12.5, fontWeight: '700', maxWidth: 120 },
+  newsBody: { fontSize: 12.5, lineHeight: 18, marginTop: 6, paddingHorizontal: 4 },
+  houseRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  houseCard: { flex: 1, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 6, borderRadius: 18, backgroundColor: C.card, borderWidth: 1, borderColor: C.cardLine },
+  housePic: { width: '100%', aspectRatio: 1, maxHeight: 118 },
+  houseThumb: { width: 54, height: 54 },
+  houseName: { fontSize: 13.5, fontWeight: '800', color: C.ink, marginTop: 6 },
+  housePrice: { fontSize: 14, fontWeight: '800', color: C.ink, marginTop: 2, fontVariant: ['tabular-nums'] },
+  houseDown: { fontSize: 10.5, color: C.muted, marginTop: 1 },
+  houseBtn: { marginTop: 8, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, backgroundColor: '#1fa971' },
+  houseBtnText: { color: '#fff', fontWeight: '800', fontSize: 12.5 },
   cashRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   cashLabel: { fontSize: 13, color: C.muted },
   cash: { fontSize: 22, fontWeight: '600', color: C.ink },

@@ -22,6 +22,7 @@ import { routeLabel } from '../game/routes';
 import { TALENTS, learned, talentBonusText } from '../game/talents';
 import { loadTutorialDone, writeTutorialDone } from '../storage';
 import Celebration, { detect, haptic, getHaptics, setHaptics } from './celebrate';
+import Notify, { detectNotices, osNotify, getNotif, setNotif, notifSupported } from './notify';
 import { DarkBackdrop } from './StartScreen';
 import { useWindowDimensions } from 'react-native';
 
@@ -85,15 +86,29 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const [cel, setCel] = useState([]);
   const [hapticsOn, setHapticsOn] = useState(getHaptics());
   const [sfxOn, setSfxOn] = useState(getSfx());
+  // ── 通知：過一年之後，這一年的大事跳橫幅；App 在背景時再發成系統通知 ──
+  const [notices, setNotices] = useState([]);
+  const [notifOn, setNotifOn] = useState(getNotif());
   useLayoutEffect(() => {
-    const d = detect(prevRef.current, s);
+    const prev = prevRef.current;
+    const d = detect(prev, s);
     prevRef.current = s;
     if (d) {
       setCel((q) => [...q, d]);
       // 震動要在點擊的同一刻觸發（iPhone 才吃得到），畫面特效稍後才出來
       haptic(d.tier);
     }
+    const n = detectNotices(prev, s);
+    if (n.length) {
+      setNotices((q) => [...q, ...n].slice(-6));
+      osNotify(n);
+    }
   }, [s]);
+  const openTarget = (t) => {
+    if (t === 'mates') setShowMates(true);
+    else if (t === 'family') setShowFamily(true);
+    else if (t.startsWith('invest')) { const tab = t.split(':')[1]; if (tab != null) setInvestTab(Number(tab)); setShowInvest(true); }
+  };
 
   // 做完選擇：先算出這個選擇造成的變化，給玩家看結果
   const choose = (i) => {
@@ -605,12 +620,22 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         <Text style={[styles.small, { marginBottom: 12 }]}>性別：{E.genderById(s.gender).name}．難度：{E.diffOf(s).name}（{E.diffOf(s).sub}）。遊戲每一年都會自動存檔，換難度要開新的人生。</Text>
         <Button kind="soft" title={hapticsOn ? '震動：開' : '震動：關'} icon="📳" onPress={() => { const v = !hapticsOn; setHaptics(v); setHapticsOn(v); if (v) haptic('small'); }} />
         <Button kind="soft" title={sfxOn ? '音效：開' : '音效：關'} icon="🔊" onPress={() => { const v = !sfxOn; setSfx(v); setSfxOn(v); }} />
+        {notifSupported() ? (
+          <Button kind="soft" title={notifOn ? '系統通知：開' : '系統通知：關'} icon="🔔" onPress={async () => { const v = !notifOn; const p = await setNotif(v); setNotifOn(v && p === 'granted'); }} />
+        ) : null}
         <Button kind="soft" title="重看新手教學" icon="💡" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); setTut(0); }} />
         <Button kind="ghost" title="回到首頁" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); onHome(); }} />
         <Button kind="red" title="放棄這一生，重新開始" style={{ marginTop: 10 }} onPress={() => { setShowMenu(false); onRestart(); }} />
       </Sheet>
 
       <Celebration data={cel.length ? cel[0] : null} onDone={() => setCel((q) => q.slice(1))} />
+      {/* 事件／結果卡開著的時候先不跳（那些是 Modal，會蓋在橫幅上面），關掉再一起跳 */}
+      <Notify
+        items={s.pending || result ? [] : notices}
+        top={insets.top + 8}
+        onClose={(id) => setNotices((q) => q.filter((x) => x.id !== id))}
+        onOpen={openTarget}
+      />
 
       <Tutorial
         visible={tut >= 0 && !s.pending && !result}

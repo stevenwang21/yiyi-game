@@ -99,3 +99,14 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))),
   );
 });
+
+// 點系統通知：App 還開著就切回去，關掉了就重新打開
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((cs) => {
+      const c = cs.find((x) => 'focus' in x);
+      return c ? c.focus() : self.clients.openWindow('./');
+    }),
+  );
+});
