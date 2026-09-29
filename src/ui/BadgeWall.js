@@ -1,10 +1,25 @@
 // 首頁的「成就」分頁：徽章牆。拿到的是彩色，沒拿到的是灰色剪影；隱藏成就沒拿到前只顯示「？？？」。
 import { useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PHOTO } from './art/photos';
 import { BADGES, BADGE_CATS } from '../game/badges';
 
 const GLASS = Platform.OS === 'web' ? { backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' } : {};
-const GRAY = Platform.OS === 'web' ? { filter: 'grayscale(1) brightness(0.55)' } : { opacity: 0.25 };
+const GRAY = Platform.OS === 'web' ? { filter: 'grayscale(1) brightness(0.5)', opacity: 0.75 } : { opacity: 0.3 };
+// 隱藏成就還沒拿到：再暗一點、糊一點，看不出裡面是什麼
+const SECRET = Platform.OS === 'web' ? { filter: 'grayscale(1) brightness(0.4) blur(1.5px)', opacity: 0.8 } : { opacity: 0.2 };
+const GLOW = Platform.OS === 'web' ? { filter: 'drop-shadow(0 0 8px rgba(255,215,106,0.45))' } : {};
+
+// 徽章圖（achievement_icons_v2）；萬一圖不在就退回 emoji
+function Medal({ b, on, size }) {
+  const src = PHOTO[`badge_${b.id}`];
+  if (!src) return <Text style={[{ fontSize: size * 0.48 }, !on && GRAY]}>{b.hidden && !on ? '❔' : b.icon}</Text>;
+  return (
+    <View style={[{ width: size, height: size }, on ? GLOW : b.hidden ? SECRET : GRAY]}>
+      <Image source={src} style={{ width: size, height: size }} resizeMode="contain" />
+    </View>
+  );
+}
 const ymd = (t) => { const d = new Date(t); return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`; };
 
 export default function BadgeWall({ badges }) {
@@ -46,9 +61,7 @@ export default function BadgeWall({ badges }) {
           const secret = b.hidden && !on;
           return (
             <Pressable key={b.id} onPress={() => setOpen(b.id)} style={({ pressed }) => [styles.cell, pressed && { transform: [{ scale: 0.94 }] }]}>
-              <View style={[styles.medal, on ? styles.medalOn : styles.medalOff]}>
-                <Text style={[styles.icon, !on && GRAY]}>{secret ? '❔' : b.icon}</Text>
-              </View>
+              <Medal b={b} on={on} size={74} />
               <Text style={[styles.name, !on && { color: 'rgba(255,255,255,0.45)' }]} numberOfLines={2}>{secret ? '？？？' : b.name}</Text>
             </Pressable>
           );
@@ -60,9 +73,7 @@ export default function BadgeWall({ badges }) {
         <Pressable style={styles.veil} onPress={() => setOpen(null)}>
           {o ? (
             <View style={styles.pop}>
-              <View style={[styles.bigMedal, og ? styles.medalOn : styles.medalOff]}>
-                <Text style={[styles.bigIcon, !og && GRAY]}>{o.hidden && !og ? '❔' : o.icon}</Text>
-              </View>
+              <Medal b={o} on={!!og} size={150} />
               <Text style={styles.popName}>{o.hidden && !og ? '隱藏成就' : o.name}</Text>
               <Text style={styles.popDesc}>{o.hidden && !og ? '達成條件是祕密，玩下去就知道了' : o.desc}</Text>
               {og ? (
@@ -94,18 +105,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(20,28,70,0.55)', borderWidth: 1, borderColor: 'rgba(140,170,255,0.35)',
   },
   cell: { width: '25%', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 2 },
-  medal: { width: 62, height: 62, borderRadius: 31, alignItems: 'center', justifyContent: 'center' },
-  medalOn: { backgroundColor: 'rgba(255,215,106,0.2)', borderWidth: 2, borderColor: '#ffd76a' },
-  medalOff: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)', borderStyle: 'dashed' },
-  icon: { fontSize: 30 },
-  name: { color: '#fff', fontSize: 12.5, fontWeight: '800', textAlign: 'center', marginTop: 6, lineHeight: 16 },
+  name: { color: '#fff', fontSize: 12.5, fontWeight: '800', textAlign: 'center', marginTop: 2, lineHeight: 16 },
   veil: { flex: 1, backgroundColor: 'rgba(5,6,20,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   pop: {
     width: '100%', maxWidth: 360, alignItems: 'center', borderRadius: 26, paddingVertical: 26, paddingHorizontal: 20,
     backgroundColor: '#1a1f4e', borderWidth: 1.5, borderColor: 'rgba(255,215,106,0.6)',
   },
-  bigMedal: { width: 110, height: 110, borderRadius: 55, alignItems: 'center', justifyContent: 'center' },
-  bigIcon: { fontSize: 56 },
   popName: { color: '#fff', fontSize: 24, fontWeight: '900', marginTop: 14 },
   popDesc: { color: 'rgba(255,255,255,0.8)', fontSize: 15.5, marginTop: 6, textAlign: 'center', lineHeight: 22 },
   popGot: { color: '#7ee2a8', fontSize: 14, fontWeight: '700', marginTop: 14, textAlign: 'center' },

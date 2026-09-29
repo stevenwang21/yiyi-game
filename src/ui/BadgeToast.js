@@ -1,7 +1,8 @@
 // 解鎖成就的通知：從上面滑下來，一次一個，2.6 秒後自己收起來（點一下也可以收）
 // 放在比最上面低一點的位置，才不會跟結婚、養寵物那些通知疊在一起
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PHOTO } from './art/photos';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { play as playSfx } from './sfx';
 
@@ -36,7 +37,9 @@ export default function BadgeToast({ queue, onDone }) {
   return (
     <Animated.View pointerEvents="box-none" style={[styles.wrap, { top: insets.top + 96, transform: [{ translateY: y }] }]}>
       <Pressable onPress={hide} style={styles.card}>
-        <View style={styles.iconBox}><Text style={styles.icon}>{cur.icon}</Text></View>
+        {PHOTO[`badge_${cur.id}`]
+          ? <Image source={PHOTO[`badge_${cur.id}`]} style={{ width: 60, height: 60 }} resizeMode="contain" />
+          : <View style={styles.iconBox}><Text style={styles.icon}>{cur.icon}</Text></View>}
         <View style={{ flex: 1 }}>
           <Text style={styles.kicker}>🏅 解鎖成就{queue.length > 1 ? `（還有 ${queue.length - 1} 個）` : ''}</Text>
           <Text style={styles.name} numberOfLines={1}>{cur.name}</Text>
