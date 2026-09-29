@@ -35,6 +35,14 @@ function settleRival(s) {
   return `上次你說要超過「${name}」，五年過去，他還是在你前面。${streak > 1 ? `這已經是連續第 ${streak} 次輸給他了，你整晚沒吃幾口。` : '你笑著敬酒，心裡很悶。'}${d}\n\n`;
 }
 
+// 同學報明牌 → 對話泡泡要的資料：誰（頭像）、什麼職業、說了什麼
+export function tipBubble(s) {
+  const t = s.flags.tip;
+  if (!t) return null;
+  const m = (s.mates || []).find((x) => x.name === t.mate) || {};
+  return { name: t.mate, title: t.title || m.title || '', text: tipQuote(t).replace(/^「|」$/g, ''), asset: m.characterAsset || null, gender: m.gender };
+}
+
 export const REUNION_EVENT = {
   id: 'reunion', minAge: 20, maxAge: 99, weight: 0, // 由引擎在固定年紀觸發
   title: '同學會',
@@ -44,11 +52,13 @@ export const REUNION_EVENT = {
     // 席間一定有人講股票。講的是真的市場，明年對答案，對錯記在他身上
     if (!s.flags.tip && rng) { const m = pickTipster(s, rng); if (m) makeTip(s, rng, m); }
   },
-  text: (s) => `${s.flags.rivalResult || ''}${reunionText(s, netWorth(s))}${s.flags.tip ? `酒過三巡，「${s.flags.tip.mate}」（${s.flags.tip.title}）壓低聲音跟你說：${tipQuote(s.flags.tip)}` : ''}`,
+  // 誰來了、做什麼工作，上面的圓桌名牌已經寫了，這裡只留一句；同學報的明牌改成對話泡泡（quote）
+  text: (s) => `${s.flags.rivalResult || ''}${s.age} 歲的同學會，大家都到了。`,
+  quote: (s) => tipBubble(s),
   choices: [
     {
       label: '大方請客',
-      sub: '花一筆錢，人緣大增，可能談到生意',
+      sub: '人緣大增・可能談成生意',
       effect: (s, rng) => {
         const c = Math.round(Math.min(Math.max(3 * WAN * s.priceIndex, netWorth(s) * 0.002), 80 * WAN * s.priceIndex));
         s.money -= c;
@@ -64,7 +74,6 @@ export const REUNION_EVENT = {
     },
     {
       label: '低調吃飯聊天',
-      sub: '不花什麼錢',
       effect: (s) => `你安靜地吃完這一餐，聽大家講這些年的故事。${addStats(s, { happy: 3, charm: 1 })}`,
     },
     {
@@ -75,7 +84,7 @@ export const REUNION_EVENT = {
         const t = s.flags.tip;
         if (!t) return '可能學到東西';
         const m = (s.mates || []).find((x) => x.name === t.mate);
-        return `${tipRecordText(m)}．錢是真的進市場`;
+        return tipRecordText(m);
       },
       effect: (s, rng) => {
         const t = s.flags.tip;
@@ -88,7 +97,7 @@ export const REUNION_EVENT = {
     },
     {
       label: '跟第一名的同學拚一下',
-      sub: (s) => `下次同學會超過他就加分；輸了掉快樂和健康${s.flags.rivalLoss ? '（已經連輸，這次輸會掉更多）' : '，連續輸會加倍掉'}`,
+      sub: (s) => (s.flags.rivalLoss ? '已經連輸，這次輸會扣更多' : '下次贏了加分，輸了扣快樂和健康'),
       cond: (s) => myPlace(s).rank > 1,
       effect: (s) => {
         const top = myPlace(s).top;
@@ -109,22 +118,23 @@ export const MATE_TIP_EVENT = {
   text: (s) => {
     const t = s.flags.tip;
     if (!t) return '幾個老同學約吃飯，聊了一晚上的近況。';
-    return `「${t.mate}」（${t.title}）約你吃飯，喝了兩杯之後壓低聲音：${tipQuote(t)}`;
+    return `「${t.mate}」約你吃飯，喝了兩杯之後壓低聲音：`;
   },
+  quote: (s) => tipBubble(s),
   choices: [
     {
       label: '跟著做',
       sub: (s) => {
         const t = s.flags.tip;
         const m = t && (s.mates || []).find((x) => x.name === t.mate);
-        return t ? `${tipRecordText(m)}．錢是真的進市場，明年見真章` : '';
+        return t ? tipRecordText(m) : '';
       },
       cond: (s) => !!s.flags.tip,
       effect: (s) => ({ text: followTip(s, s.flags.tip), tone: 'neutral' }),
     },
     {
       label: '聽聽就好',
-      sub: '不動錢，但明年會知道他準不準',
+      sub: '明年一樣會對答案',
       effect: (s) => `你笑笑沒接話，但把這句話記下來了。${addStats(s, { happy: 2, charm: 1 })}`,
     },
   ],

@@ -184,7 +184,7 @@ export async function makeShareCard(game, meta) {
 
   // 底部
   ctx.fillStyle = gold; ctx.font = f(36, 800);
-  ctx.fillText('你能在退休前賺到一個億嗎？', W / 2, 1845);
+  ctx.fillText('你這輩子能賺到一個億嗎？', W / 2, 1845);
 
   return canvas.toDataURL('image/png');
 }
@@ -222,5 +222,5 @@ export function downloadCard(dataUrl, game) {
 // App 版（沒有 canvas）：先分享文字
 export function shareText(game) {
   const sum = E.summary(game);
-  return Share.share({ message: `我在「一個億的小目標」活到 ${game.ended ? game.ended.age : game.age} 歲，稱號「${sum.title}」，淨資產 ${E.formatMoney(sum.nw)}！你能在退休前賺到一個億嗎？` });
+  return Share.share({ message: `我在「一個億的小目標」活到 ${game.ended ? game.ended.age : game.age} 歲，稱號「${sum.title}」，淨資產 ${E.formatMoney(sum.nw)}！你這輩子能賺到一個億嗎？` });
 }

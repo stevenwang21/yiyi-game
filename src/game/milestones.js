@@ -223,7 +223,7 @@ export const MILESTONES = {
     choices: [
       { label: '🎸 熱門音樂社', sub: '人緣↑↑、之後可以組團', effect: (s) => { s.flags.club = 'music'; return good(`你借了社辦的吉他，第一次把和弦按對的時候起了雞皮疙瘩。${addStats(s, { charm: 6, happy: 5, int: -1 })}`); } },
       { label: '🏀 籃球隊', sub: '健康↑↑、人緣↑', effect: (s) => { s.flags.club = 'ball'; return good(`每天放學留下來練球，球衣沒有一天是乾的。${addStats(s, { hp: 8, charm: 4, int: -2 })}`); } },
-      { label: '🔬 科學研究社', sub: '智力↑↑', effect: (s) => { s.flags.club = 'science'; return good(`你們做的專題拿去參加科展，評審問了很多問題，你一題一題答完了。${addStats(s, { int: 8, charm: -1 })}`); } },
+      { label: '🔬 科學研究社', sub: (s) => (s.flags.sciSeed ? '智力↑↑・你拿過科展獎，最適合' : '智力↑↑'), effect: (s) => { s.flags.club = 'science'; return good(`你們做的專題拿去參加科展，評審問了很多問題，你一題一題答完了。${addStats(s, { int: 8, charm: -1 })}`); } },
       { label: '💃 熱舞社', sub: '健康↑、人緣↑↑', effect: (s) => { s.flags.club = 'dance'; return good(`你在鏡子前面練同一個八拍練了兩百次，成果發表那天全場都在尖叫。${addStats(s, { hp: 4, charm: 7, happy: 3 })}`); } },
       { label: '🗣️ 演辯社', sub: '人緣↑、智力↑', effect: (s) => { s.flags.club = 'debate'; return good(`你學會了怎麼在三十秒內把話講清楚，這個能力跟了你一輩子。${addStats(s, { charm: 5, int: 4 })}`); } },
       { label: '🎮 電競社', sub: '快樂↑↑、智力↑', effect: (s) => { s.flags.club = 'esports'; return good(`你們在社辦打到警衛來趕人，反應速度練得很快。${addStats(s, { happy: 8, int: 3, hp: -3 })}`); } },

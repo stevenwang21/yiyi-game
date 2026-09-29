@@ -36,7 +36,7 @@ const FOCUS_ICON = {
 const TUT_STEPS = [
   {
     key: null, title: '歡迎來到「一個億的小目標」',
-    text: '從 0 歲活到退休，目標是賺到一個億。三十秒看完怎麼玩。',
+    text: '從 0 歲活到 85 歲，目標是結算時有一個億。三十秒看完怎麼玩。',
   },
   {
     key: 'hero', title: '① 這裡看你離目標多遠',
@@ -347,7 +347,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               <Text style={styles.heroFoot}>
                 {s.achievedAge
                   ? `${E.isTop(s) ? '👑 最強的那一個．' : '🎉 '}${s.achievedAge} 歲破億，目標的 ${(pctNum / 100).toFixed(2)} 倍`
-                  : `還差 ${E.formatMoney(E.YI - nw)}．${s.endAge} 歲退休（剩 ${Math.max(0, s.endAge - s.age)} 年）`}
+                  : `還差 ${E.formatMoney(E.YI - nw)}．${s.retired ? '已退休．' : ''}${s.endAge} 歲結算（剩 ${Math.max(0, s.endAge - s.age)} 年）`}
               </Text>
               <Text style={styles.pctNum}>{pctNum >= 100 ? pctNum.toFixed(0) : pctNum.toFixed(1)}%</Text>
             </View>

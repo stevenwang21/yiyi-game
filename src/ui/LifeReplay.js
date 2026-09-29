@@ -75,7 +75,7 @@ export function buildHighlights(s) {
   if (eduRank >= 4) grow.push([24 - sk, '🎓 研究所畢業']);
   const last = (s.history || []).length - 1;
   for (const [a, text] of grow) if (a > 0 && a <= last) add(a, { age: a, text, tone: 'good', score: 6.5, grad: text.startsWith('🎓') });
-  if (last >= 60 && !(s.ended && s.ended.reason === 'death')) add(last, { age: last, text: '🌅 退休了，開始享受人生', tone: 'good', score: 6.5 });
+  if (last >= 65 && (s.retired || !(s.ended && s.ended.reason === 'death'))) add(65, { age: 65, text: '🌅 退休了，開始享受人生', tone: 'good', score: 6.5 });
   if (s.best && s.best.gain > 0) add(s.best.age, { age: s.best.age, text: `💡 最賺錢的決定：${s.best.label.split('：')[0]}（+${E.formatMoney(s.best.gain)}）`, tone: 'good', score: 9 });
   if (s.worst && s.worst.gain < 0) add(s.worst.age, { age: s.worst.age, text: `💥 最大的失誤：${s.worst.label.split('：')[0]}（${E.formatMoney(s.worst.gain)}）`, tone: 'bad', score: 9 });
   return [...byAge.values()].sort((a, b) => a.age - b.age);

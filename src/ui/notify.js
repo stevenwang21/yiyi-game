@@ -26,7 +26,7 @@ const RULES = [
   { re: /最後分手了/, icon: '💔', title: '分手了', target: 'family' },
   { re: /被分走一半/, icon: '💸', title: '合資公司被分走一半', target: 'invest:2' },
   { re: /大裁員|資遣費/, icon: '📉', title: '被裁員了', target: null },
-  { re: /你從「[^」]+」退休了/, icon: '🌅', title: '退休了', target: null },
+  { re: /正式退休了/, icon: '🌅', title: '退休了', target: null },
   { re: /你的努力被老闆看見/, icon: '💼', title: '加薪 10%', target: null },
   { re: /還清了！/, icon: '✨', title: '債務還清', target: 'invest:4' },
   { re: /通告變少，年薪降到/, icon: '📉', title: '偶像被新人擠了', target: null },

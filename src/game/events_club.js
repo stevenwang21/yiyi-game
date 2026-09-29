@@ -120,16 +120,29 @@ export const CLUB_EVENTS = [
   },
 
   // ═════════ 🔬 科學研究社：科展 → 實驗室 → 研究員 → 技術入股 ═════════
+  // 小時候科展拿到第一、二名（flags.sciSeed）也能走這條路：教授邀你去實驗室 → 國際科展 → 實驗室 → 研究員
   {
-    id: 'sc_intl', minAge: 14, maxAge: 19, weight: 26,
-    cond: (s) => inSchool(s) && club('science')(s) && !s.flags.sci,
+    id: 'sc_mentor', minAge: 9, maxAge: 16, weight: 40, once: true,
+    cond: (s) => inSchool(s) && s.flags.sciSeed === 1,
+    title: '教授的邀請',
+    text: '科展評審的那位教授打電話來，問你週末要不要去大學的實驗室當小助手。',
+    choices: [
+      { label: '去！', sub: '智力↑↑・之後有機會參加國際科展', effect: (s) => { s.flags.sciSeed = 2; return good(`你每個禮拜六都去實驗室洗試管、記數據。研究生哥哥姐姐都叫你「小學弟」。${addStats(s, { int: 6, happy: 2, charm: 1 })}`); } },
+      { label: '還太小，先不要', effect: (s) => { s.flags.sciSeed = 3; return `你把名片夾進鉛筆盒裡。${addStats(s, { happy: 2 })}`; } },
+    ],
+  },
+  {
+    id: 'sc_intl', minAge: 14, maxAge: 19,
+    // 科學研究社的人一定會碰到；科展得過獎、去過實驗室的人也有機會
+    weight: (s) => (club('science')(s) ? 26 : s.flags.sciSeed === 2 ? 22 : 8),
+    cond: (s) => inSchool(s) && (club('science')(s) || !!s.flags.sciSeed) && !s.flags.sci,
     title: '國際科展選拔',
     text: '指導老師說你的題目有機會代表台灣出國比賽，但整個暑假都要泡在實驗室。',
     choices: [
       {
-        odds: (s) => Math.min(0.9, 0.3 + s.stats.int / 200), label: '拚一個暑假', sub: '智力↑↑，快樂↓',
+        odds: (s) => Math.min(0.9, 0.3 + s.stats.int / 200 + (s.flags.sciSeed === 2 ? 0.1 : 0)), label: '拚一個暑假', sub: '智力↑↑，快樂↓',
         effect: (s, rng) => {
-          if (chance(rng, 0.3 + s.stats.int / 200)) {
+          if (chance(rng, 0.3 + s.stats.int / 200 + (s.flags.sciSeed === 2 ? 0.1 : 0))) {
             s.flags.sci = 2;
             addPoints(s, 2, '國際科展得獎');
             return good(`你在國際科展拿到二等獎，教授在頒獎典禮後跟你要了 email。${addStats(s, { int: 12, charm: 3, happy: 4 })}`);

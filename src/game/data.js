@@ -312,7 +312,8 @@ export const SPOUSE_LEVELS = [
 export const SPOUSE_COSTS = [4, 7, 10, 14, 18]; // 升到第 1～5 級要幾點
 
 // 退休年紀
-export const BASE_RETIRE_AGE = 65;
+export const BASE_RETIRE_AGE = 65;   // 工作強制退休的年紀
+export const END_AGE = 85;           // 人生結算的年紀（永久升級「更長壽」每級 +1，最多 +15 → 100）
 export const MAX_RETIRE_AGE = 80;
 export const retireCost = (extra) => 6 + extra * 2; // 已經延長 extra 年時，再延長 1 年要幾點
 

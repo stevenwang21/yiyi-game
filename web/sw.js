@@ -11,6 +11,7 @@ const ART_SIZES = __ART_SIZES__;   // { 'art/x.webp': 位元組數 }，用來偵
 const SIG_URL = '__art-sizes__';   // 把上一次的清單存在快取裡，改版時拿來比對
 
 const isArt = (u) => u.pathname.includes('/art/');
+const isVideo = (u) => /\.(mp4|webm|mov)$/i.test(u.pathname);
 // 程式檔網址帶 ?v=，改版就是新網址，所以可以直接當成不會變的東西
 const isVersioned = (u) => u.searchParams.has('v');
 
@@ -28,6 +29,7 @@ self.addEventListener('activate', (e) => {
       ))
       .then(() => self.clients.claim())
       .then(dropChangedArt)                          // 被換掉的圖要丟掉，不然玩家一直看到舊的
+      .then(dropCachedVideos)                        // 以前快取過的影片清掉（iPhone 會因為它不播）
       .then(() => { setTimeout(fillArt, 8000); }),   // 等畫面跑起來再慢慢補剩下的圖
   );
 });
@@ -46,6 +48,13 @@ async function dropChangedArt() {
   await c.put(SIG_URL, new Response(JSON.stringify(ART_SIZES), { headers: { 'Content-Type': 'application/json' } }));
 }
 
+async function dropCachedVideos() {
+  const c = await caches.open(ART_CACHE);
+  for (const req of await c.keys()) {
+    if (/\.(mp4|webm|mov)$/i.test(new URL(req.url).pathname)) await c.delete(req);
+  }
+}
+
 // 背景補齊插圖：一次只抓兩個，不跟玩家搶頻寬。已經在快取裡的直接跳過。
 async function fillArt() {
   // 省流量模式或很慢的網路就不要在背景偷抓 5MB，玩到哪張再抓哪張就好
@@ -54,6 +63,7 @@ async function fillArt() {
   const c = await caches.open(ART_CACHE);
   const todo = [];
   for (const url of ART) {
+    if (/\.(mp4|webm|mov)$/i.test(url)) continue;   // 影片不預先抓（也不放快取，見上面 fetch）
     if (!(await c.match(url))) todo.push(url);
   }
   let i = 0;
@@ -71,6 +81,9 @@ self.addEventListener('fetch', (e) => {
   let u;
   try { u = new URL(e.request.url); } catch (_) { return; }
   if (u.origin !== self.location.origin) return;
+  // 影片不經過 service worker：iPhone 的 Safari 播影片一定要用「分段下載」（Range / 206），
+  // 從快取整包丟回去它會直接不播，只剩封面。所以影片一律讓瀏覽器自己去網路拿。
+  if (isVideo(u)) return;
 
   // 插圖和帶版本號的程式：檔名不會變，快取裡有就直接給，完全不等網路。
   // 以前這裡是「一律先問網路」，所以每一張圖每次都要等一個來回 —— 快取等於白做。

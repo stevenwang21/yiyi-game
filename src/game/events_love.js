@@ -92,9 +92,47 @@ const dateChoice = ([title, desc, wan, love, stats], i) => ({
   },
 });
 
+// 每年一次：交往中就會問（引擎在這一年的事件選完之後接著跳，見 engine.js maybeDate）。
+// 以前約會是「今年要做什麼」裡的一格，要跟工作、運動搶精力；現在獨立出來，每年都選得到。
+const dateCost = (s) => Math.round((s.priceIndex || 1) * (s.studying ? 1 : 2) * 2 * WAN);
+export const DATE_YEAR_EVENT = {
+  id: 'date_year', minAge: 13, maxAge: 99, weight: 0,
+  title: (s) => `今年怎麼陪「${s.partner ? s.partner.name : '對方'}」？`,
+  text: (s) => `交往第 ${s.age - s.partner.since} 年．感情 ${Math.round(s.partner.love)} / 100`,
+  choices: [
+    {
+      label: '好好約會',
+      sub: (s) => `感情 +24・花 ${formatMoney(dateCost(s))}`,
+      effect: (s, rng) => {
+        const c = Math.min(dateCost(s), Math.max(0, s.money));
+        s.money -= c;
+        s.partner.love = Math.min(100, s.partner.love + 24);
+        s.flags.datedAt = s.age;
+        return good(`你們去了一直說要去的地方，「${s.partner.name}」一整天都在笑。（-${formatMoney(c)}）${addStats(s, { happy: 5 + Math.floor(rng() * 4), charm: 2, int: s.studying ? -1 : 0 })}`);
+      },
+    },
+    {
+      label: '簡單吃個飯',
+      sub: (s) => `感情 +10・花 ${formatMoney(Math.round(dateCost(s) / 4))}`,
+      effect: (s) => {
+        const c = Math.min(Math.round(dateCost(s) / 4), Math.max(0, s.money));
+        s.money -= c;
+        s.partner.love = Math.min(100, s.partner.love + 10);
+        s.flags.datedAt = s.age;
+        return `巷口那家小店，老闆已經記得你們都點什麼。（-${formatMoney(c)}）${addStats(s, { happy: 2 })}`;
+      },
+    },
+    {
+      label: '今年太忙了',
+      sub: '感情會變淡',
+      effect: (s) => { s.partner.love = Math.max(0, s.partner.love - 3); return `「${s.partner.name}」說沒關係，但訊息回得越來越慢。${addStats(s, { happy: -1 })}`; },
+    },
+  ],
+};
+
 export const DATE_EVENT = {
   id: 'date_plan', minAge: 16, maxAge: 70, weight: 8,
-  cond: (s) => !!(s.partner || (s.married && s.spouse)),
+  cond: (s) => !!(s.married && s.spouse),
   title: '安排一次約會',
   text: (s) => {
     const p = loveOf(s);

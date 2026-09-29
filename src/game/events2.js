@@ -36,7 +36,7 @@ export const EXTRA_EVENTS = [
       {
         odds: (s) => Math.min(1, 0.3 + s.stats.int / 200), label: '自己認真做',
         effect: (s, rng) => (chance(rng, 0.3 + s.stats.int / 200)
-          ? good(`你的作品拿到縣市科展特優！${addStats(s, { int: 5, charm: 3 })}`)
+          ? (s.flags.sciSeed = s.flags.sciSeed || 1, good(`你的作品拿到縣市科展特優！評審教授把名片留給了你爸媽。${addStats(s, { int: 5, charm: 3 })}`))
           : `作品雖然沒得獎，但你學到很多。${addStats(s, { int: 3 })}`),
       },
       {

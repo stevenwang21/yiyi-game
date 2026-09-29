@@ -30,8 +30,8 @@ export default function UpgradeSheet({ visible, onClose, game }) {
       <Card style={{ backgroundColor: C.goldSoft }}>
         <Text style={styles.h}>點數怎麼用？</Text>
         <Text style={styles.tip}>
-          退休（或人生結束）的時候，這些成就會換成「傳承點數」存起來。
-          回到首頁可以用點數買<Text style={{ fontWeight: '600' }}>永久升級</Text>：每年多一點精力、延後退休。
+          人生結算的時候，這些成就會換成「傳承點數」存起來。
+          回到首頁可以用點數買<Text style={{ fontWeight: '600' }}>永久升級</Text>：每年多一點精力、更長壽。
           買了之後，以後的每一輩子都有效。
         </Text>
         <Text style={[styles.tip, { marginTop: 8, fontWeight: '600' }]}>還沒拿到、可以挑戰的：</Text>

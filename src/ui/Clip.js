@@ -1,5 +1,5 @@
 // 事件小動畫：網頁版直接播影片，App 版退回封面靜態圖
-import { createElement } from 'react';
+import { createElement, useEffect, useRef } from 'react';
 import { Image, Platform, View } from 'react-native';
 import { PHOTO } from './art/photos';
 
@@ -17,6 +17,20 @@ export const clipDelay = () => 1400;
 
 export default function Clip({ name, loop = true, radius = 18, style }) {
   const c = CLIP[name];
+  const ref = useRef(null);
+  // iPhone：React 不會把 muted 寫成 HTML 屬性，Safari 看不到就不准自動播放，只剩封面。
+  // 這裡手動補上 muted 屬性，再叫它播一次。
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || typeof v.play !== 'function') return;
+    v.muted = true;
+    v.defaultMuted = true;
+    v.setAttribute('muted', '');
+    v.setAttribute('playsinline', '');
+    v.setAttribute('webkit-playsinline', '');
+    const p = v.play();
+    if (p && p.catch) p.catch(() => {});
+  }, [name]);
   if (!c) return null;
   const box = [{ width: '100%', aspectRatio: c.ratio, borderRadius: radius, overflow: 'hidden', backgroundColor: '#161a3d' }, style];
 
@@ -33,6 +47,9 @@ export default function Clip({ name, loop = true, radius = 18, style }) {
       {createElement(
         'video',
         {
+          ref,
+          // 省電模式之類擋掉自動播放時，點一下就播
+          onClick: () => { const v = ref.current; if (v && v.paused) { const p = v.play(); if (p && p.catch) p.catch(() => {}); } },
           poster: PHOTO[c.poster] && PHOTO[c.poster].uri,
           autoPlay: true,
           muted: true,

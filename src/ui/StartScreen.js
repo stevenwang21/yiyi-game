@@ -13,12 +13,12 @@ import { APP_VERSION } from '../version';
 import { STUDIO_NAME } from './StudioIntro';
 
 const HOW = [
-  { icon: '👶', title: '從 0 歲開始', text: '每按一次「過一年」就長一歲，一路活到退休。中間會遇到隨機事件，選項不同、結果就不同。' },
+  { icon: '👶', title: '從 0 歲開始', text: '每按一次「過一年」就長一歲，65 歲退休，85 歲結算。中間會遇到隨機事件，選項不同、結果就不同。' },
   { icon: '✅', title: '每年選要做的事', text: '每年有幾點精力，輕鬆的事花 1 點、累的事花 2 點。身體好精力多，上年紀會變少。' },
   { icon: '📈', title: '光靠薪水不夠', text: '滿 18 歲後，按下面的「投資」把現金換成 ETF、股票、黃金、房子或公司。世界大事每年都會影響漲跌，定期定額最省事。' },
   { icon: '⭐', title: '每個職業都能翻身', text: '不管做什麼工作，都有一條專屬的「逆襲路線」：升遷 → 開公司 → 擴張 → 大躍進。多選「認真工作」比較容易觸發。' },
   { icon: '❤️', title: '別把身體搞壞', text: '健康歸零人生就結束了。過勞、壓力、年紀都會累積隱形風險，記得運動、休息，偶爾做健康檢查。' },
-  { icon: '🎯', title: '目標：一個億', text: '退休前讓淨資產（現金＋投資＋房產＋公司－負債）達到一億。達成後還可以繼續衝，看能到幾倍。' },
+  { icon: '🎯', title: '目標：一個億', text: '85 歲結算時淨資產（現金＋投資＋房產＋公司－負債）還在一億以上。退休後的選擇越老押越大，破億了也可能掉下來。' },
 ];
 
 export const GLASS = Platform.OS === 'web' ? { backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' } : {};
@@ -113,18 +113,15 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
   return (
     <View style={{ flex: 1, backgroundColor: '#0f1636' }}>
       <DarkBackdrop width={W} height={height} />
-      <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: 96 + insets.bottom }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: 110 + insets.bottom }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* 頂列 */}
         <View style={styles.topBar}>
           <View style={[styles.lvPill, GLASS]}><Text style={styles.lvText}>第 {m.lives + 1} 世</Text></View>
-          <View style={{ flex: 1 }} />
+          <Text style={styles.brand}>一個億的小目標</Text>
           <Pressable onPress={() => { setMetaMsg(null); setShowMeta(true); }} style={[styles.ptsPill, GLASS]}>
             <Text style={styles.ptsText}>⭐ {m.points}</Text>
           </Pressable>
         </View>
-
-        {/* 標題字（logo_title：1億｜一個億的小目標） */}
-        <Image source={PHOTO.logo_title} style={{ width: Math.min(W - 48, 360), height: Math.min(W - 48, 360) * 219 / 720, alignSelf: 'center', marginTop: 6, marginBottom: 10 }} resizeMode="contain" accessibilityLabel="一個億的小目標" />
 
         {/* 主視覺 */}
         <Image source={PHOTO.hero} style={{ width: W, height: Math.round(W * 444 / 780) }} resizeMode="cover" />
@@ -463,9 +460,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(12,18,50,0.85)', borderTopWidth: 1, borderTopColor: 'rgba(140,170,255,0.3)',
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
   },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  tabIcon: { fontSize: 22, color: 'rgba(255,255,255,0.7)' },
-  tabLabel: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 2, fontWeight: '600' },
+  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 6 },
+  tabIcon: { fontSize: 27, color: 'rgba(255,255,255,0.7)' },
+  tabLabel: { fontSize: 13.5, color: 'rgba(255,255,255,0.7)', marginTop: 3, fontWeight: '700' },
   tabDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#7db4ff', marginTop: 3 },
 
   // sheet 內的清單（淺色）

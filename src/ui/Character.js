@@ -1,7 +1,7 @@
 // 主角母版：男女主角六個階段（嬰兒／國小／高中／青年／壯年／老年），全部來自同一張正式人物設定圖。
 // 男主以深藍色為識別、女主以紫色為識別；遊戲裡所有主角的插圖都從這裡出，確保每個事件都是同一張臉。
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, Platform, Text, View } from 'react-native';
+import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, Line, Path, Polyline, RadialGradient, Stop } from 'react-native-svg';
 import { PHOTO } from './art/photos';
 import { EMOJI3D } from './art/emoji3d';
@@ -301,6 +301,24 @@ export function PetActor({ pet, type, size, left, bottom, delay = 0, z = 2, flip
     >
       {pet ? <PetPic pet={pet} height={size} /> : <Emo e={type === 'cat' ? '🐈' : '🐕'} size={size} />}
     </Animated.View>
+  );
+}
+
+// 場景背景：右半邊一個放大、模糊、很淡的主道具（學校、錢袋、醫院…），再撒幾顆光點，讓框框是滿的
+const BOKEH = [[0.52, 0.18, 0.05], [0.9, 0.12, 0.035], [0.7, 0.62, 0.03], [0.96, 0.7, 0.05], [0.44, 0.82, 0.025], [0.12, 0.2, 0.03], [0.62, 0.36, 0.02]];
+function SceneFill({ e, w, h }) {
+  const big = h * 1.35;
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {e ? (
+        <View style={{ position: 'absolute', left: w * 0.72 - big / 2, top: h * 0.5 - big / 2, opacity: 0.2, ...(WEB ? { filter: 'blur(2px)' } : null) }}>
+          <Emo e={e} size={big} />
+        </View>
+      ) : null}
+      {BOKEH.map(([x, y, r], i) => (
+        <View key={i} style={{ position: 'absolute', left: w * x, top: h * y, width: w * r * 2, height: w * r * 2, borderRadius: w * r, backgroundColor: '#fff', opacity: 0.08 + (i % 3) * 0.03 }} />
+      ))}
+    </View>
   );
 }
 
@@ -1070,7 +1088,10 @@ export function CharScene({
   const other = gender === 'female' ? 'male' : 'female';
   const bigHero = !!(mates && mates.length > 1);
   const small = (compactIn != null ? compactIn : height < 110) && !full;
-  const z = full ? (stage === 'baby' ? 0.8 : 0.92) : small ? (stage === 'baby' ? 1.0 : ZOOM[stage] * 1.45) : bigHero ? (stage === 'baby' ? 0.9 : ZOOM[stage] * 1.25) : ZOOM[stage];
+  // 事件／結果卡：畫面要「滿」—— 人物放大、道具放大，背後再鋪一個大大的、模糊的主道具和光點，不要一片空
+  const fillMode = !small && !full && !bigHero && kind !== 'crash' && kind !== 'social' && !noProps;
+  const z0 = full ? (stage === 'baby' ? 0.8 : 0.92) : small ? (stage === 'baby' ? 1.0 : ZOOM[stage] * 1.45) : bigHero ? (stage === 'baby' ? 0.9 : ZOOM[stage] * 1.25) : ZOOM[stage];
+  const z = fillMode ? (stage === 'baby' ? z0 * 1.1 : z0 * 1.18) : z0;
   const heroH = height * z;
   const hid = cid(stage, gk(gender));
   const heroW = (heroH * SIZE[hid][0]) / SIZE[hid][1];
@@ -1099,6 +1120,7 @@ export function CharScene({
     >
       {/* 地板光 */}
       <View pointerEvents="none" style={{ position: 'absolute', left: '-10%', right: '-10%', bottom: -height * 0.35, height: height * 0.6, borderRadius: height, backgroundColor: 'rgba(255,255,255,0.07)' }} />
+      {w > 0 && fillMode ? <SceneFill e={cfg.props[0] && cfg.props[0][0]} w={w} h={height} /> : null}
       {w > 0 ? (
         <>
           {social && !hidePhone && !compact ? (
@@ -1114,7 +1136,7 @@ export function CharScene({
               <Prop key={`${kind}-${i}`} k={i} e={e} x={heroAt != null ? (i ? 90 : 79) : (i ? 84 : 68)} y={i ? 72 : 34} size={Math.round(height * (heroAt != null ? (i ? 0.42 : 0.5) : (i ? 0.5 : 0.6)))} float={float} delay={260 + i * 130} />
             ))
             : propList.map(([e, x, y, size, float], i) => (
-              <Prop key={`${kind}-${i}`} k={i} e={e} x={x} y={y} size={Math.round(size * 1.6 * Math.max(0.72, s))} float={float} delay={260 + i * 130} />
+              <Prop key={`${kind}-${i}`} k={i} e={e} x={fillMode ? Math.max(58, x) : x} y={fillMode ? Math.min(78, Math.max(22, y)) : y} size={Math.round(size * (fillMode ? 2.25 : 1.6) * Math.max(0.72, s))} float={float} delay={260 + i * 130} />
             ))) : null}
           {withP ? (
             <Actor age={age} stage={stage} gender={other} h={pH} left={pX} from={1} delay={160} bob={bob} top={topPad + (heroH - pH) * 0.02} z={1} />

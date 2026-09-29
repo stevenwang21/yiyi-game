@@ -19,9 +19,10 @@ import { TOP_EVENTS } from './events_top.js';
 import { EVENTS3 } from './events3.js';
 import { BABY_EVENTS } from './events_baby.js';
 import { TALENT_EVENT } from './talents.js';
-import { MEET_EVENT, DATE_EVENT, LOVE_EVENTS } from './events_love.js';
+import { MEET_EVENT, DATE_EVENT, DATE_YEAR_EVENT, LOVE_EVENTS } from './events_love.js';
 import { REUNION_EVENT, MATE_TIP_EVENT, MNA_EVENTS } from './events_rival.js';
 import { PET_EVENTS } from './events_pet.js';
+import { RETIRE_EVENTS } from './events_retire.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const pctText = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100)}%`;
@@ -299,7 +300,10 @@ export const EVENTS = [
     id: 'baby', minAge: 26, maxAge: 46,
     // 媽媽 40 歲以後，「要不要生」這件事本身也比較少被提起
     weight: (s) => (motherAge(s) >= 43 ? 1 : motherAge(s) >= 40 ? 2 : 4),
-    cond: (s) => s.married && s.kids.length < MAX_KIDS && !(s.flags.babyTry && s.age - s.flags.babyTry < 2),
+    // 媽媽的受孕率只剩 5% 以下時，問過兩次就不再問了（一直跳很煩，也幾乎不可能成功）
+    cond: (s) => s.married && s.kids.length < MAX_KIDS && !(s.flags.babyTry && s.age - s.flags.babyTry < 2)
+      && !(conceiveChance(motherAge(s)) <= 0.05 && (s.flags.lowBabyAsks || 0) >= 2),
+    before: (s) => { if (conceiveChance(motherAge(s)) <= 0.05) s.flags.lowBabyAsks = (s.flags.lowBabyAsks || 0) + 1; },
     title: '要不要生小孩？',
     text: (s) => {
       const ma = motherAge(s);
@@ -696,6 +700,6 @@ export const EVENTS = [
   },
 ];
 
-EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS, ...PET_EVENTS);
+EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, DATE_YEAR_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS, ...PET_EVENTS, ...RETIRE_EVENTS);
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);

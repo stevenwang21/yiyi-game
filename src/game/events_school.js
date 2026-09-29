@@ -35,7 +35,7 @@ export const SCHOOL_EVENTS = [
   {
     id: 's_sciencefair', minAge: 8, maxAge: 12, weight: 3, title: '科展',
     choices: [
-      { odds: (s) => Math.min(1, 0.35 + s.stats.int / 220), label: '做一個很屌的題目', sub: '智力↑↑', effect: (s, rng) => (chance(rng, 0.35 + s.stats.int / 220) ? good(`你的「陽台植物澆水機」拿了全縣第二名，獎狀掛在教室後面一整年。${addStats(s, { int: 8, charm: 3, happy: 4 })}${addPoints(s, 1, '科展得獎') || ''}`) : `你做到一半才發現實驗設計有問題，勉強交出去了。過程還是學到不少。${addStats(s, { int: 4, happy: -2 })}`) },
+      { odds: (s) => Math.min(1, 0.35 + s.stats.int / 220), label: '做一個很屌的題目', sub: '智力↑↑', effect: (s, rng) => (chance(rng, 0.35 + s.stats.int / 220) ? (s.flags.sciSeed = s.flags.sciSeed || 1, good(`你的「陽台植物澆水機」拿了全縣第二名，獎狀掛在教室後面一整年。評審教授把名片留給了你爸媽。${addStats(s, { int: 8, charm: 3, happy: 4 })}${addPoints(s, 1, '科展得獎') || ''}`)) : `你做到一半才發現實驗設計有問題，勉強交出去了。過程還是學到不少。${addStats(s, { int: 4, happy: -2 })}`) },
       { label: '交個安全的題目', sub: '智力↑', effect: (s) => `你做了「哪一種衛生紙最吸水」，穩穩完成。${addStats(s, { int: 3 })}` },
     ],
   },

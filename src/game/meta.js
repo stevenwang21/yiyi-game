@@ -6,6 +6,7 @@ const WAN = 10000;
 
 export const BASE_SLOTS = 3;
 export const BASE_RETIRE = 65;
+export const END_AGE = 85;   // 跟 data.js 的 END_AGE 一樣（meta 不 import data，避免循環）
 
 export const META_UPGRADES = {
   slots: {
@@ -16,13 +17,15 @@ export const META_UPGRADES = {
     now: (lv) => `每年精力 ${4 + lv} 點（輕鬆的事 1 點、累的事 2 點）`,
     next: (lv) => `精力 ${4 + lv} → ${5 + lv} 點`,
   },
+  // 以前是「延後退休」（工作到 66～80 歲）。現在 65 歲一定退休，這個改成「更長壽」：
+  // 人生結算從 85 歲往後延，每級多活一年、多一年退休生活的事件。存檔欄位還是叫 retire，買過的等級直接沿用。
   retire: {
-    name: '延後退休',
-    icon: '⏳',
-    max: 15, // 65 → 最多 80 歲
+    name: '更長壽',
+    icon: '🌿',
+    max: 15, // 85 → 最多 100 歲
     cost: (lv) => 8 + lv * 2,
-    now: (lv) => `${BASE_RETIRE + lv} 歲退休結算`,
-    next: (lv) => `${BASE_RETIRE + lv} → ${BASE_RETIRE + lv + 1} 歲`,
+    now: (lv) => `${END_AGE + lv} 歲結算`,
+    next: (lv) => `${END_AGE + lv} → ${END_AGE + lv + 1} 歲`,
   },
 };
 
@@ -43,7 +46,7 @@ export function buyMeta(m0, key) {
 
 // 所有可以拿到的成就（給畫面列出「還沒拿到的」用）
 export const ACH_HINTS = [
-  ['retire', '平安活到退休 +3'], ['yi', '達成一個億 +10'], ['yiEarly', '提早破億 +3～6'],
+  ['retire', '平安活到結算 +3'], ['yi', '達成一個億 +10'], ['yiEarly', '提早破億 +3～6'],
   ['double', '資產每翻一倍 +3'], ['route', '完成逆襲路線 +6'], ['legend', '當上傳說職業 +8'],
   ['rank1', '同屆第一名 +4'], ['skip', '跳級 +2'], ['topSchool', '考上明星高中 +1'],
   ['edu', '頂尖大學或研究所 +2～3'], ['idol', '偶像出道 +3'], ['band', '熱音大賽得名 +2'],
@@ -69,10 +72,11 @@ export function lifeAchievements(s, rankInfo = null, nwIn = null) {
   const nw = nwIn != null ? nwIn : nwOf(s);
   const done = !!s.ended;
 
-  if (done && s.ended.reason !== 'death') add('retire', '平安活到退休', 3);
-  if (s.achievedAge) {
+  if (done && s.ended.reason !== 'death') add('retire', `平安活到 ${s.ended.age} 歲`, 3);
+  // 一個億看的是「現在（結算時）」的資產：中途破億、老了又賠掉就不算
+  if (s.achievedAge && nw >= YI) {
     add('yi', '達成一個億', 10);
-    const early = (s.endAge || BASE_RETIRE) - s.achievedAge;
+    const early = BASE_RETIRE - s.achievedAge;
     if (early >= 25) add('yiEarly', `${s.achievedAge} 歲就破億（超早）`, 6);
     else if (early >= 15) add('yiEarly', `${s.achievedAge} 歲就破億`, 3);
     // 每翻一倍 +3（2 億、4 億、8 億……最多算 6 次）

@@ -42,13 +42,14 @@ export default function YearSummary({ s }) {
   const petCost = pets.filter((p) => !p.byParents).reduce((t, p) => t + p.cost, 0);
 
   const income = (y?.salary || 0) + (y?.side || 0) + (y?.bizIncome || 0) + (y?.rent || 0)
-    + (y?.spouse || 0) + (y?.allowance || 0) + (y?.filial || 0) + focusGain;
-  const spend = (y?.living || 0) + (y?.kids || 0) + (y?.debtPay || 0) + (y?.dating || 0) + (y?.tax || 0) + petCost + focusCost;
+    + (y?.spouse || 0) + (y?.allowance || 0) + (y?.filial || 0) + (y?.pension || 0) + focusGain;
+  const spend = (y?.living || 0) + (y?.retireSpend || 0) + (y?.kids || 0) + (y?.debtPay || 0) + (y?.dating || 0) + (y?.tax || 0) + petCost + focusCost;
   const saved = y?.dca || 0;
 
   // 明細：只列有金額的，最多 6 項，看起來才清爽
   const items = [
     { t: '薪水', v: y?.salary },
+    { t: '退休金', v: y?.pension },
     { t: y?.scholarship ? '零用錢＋獎學金' : '零用錢', v: y?.allowance },
     { t: '副業', v: y?.side },
     { t: '公司分紅', v: y?.bizIncome },
@@ -56,6 +57,7 @@ export default function YearSummary({ s }) {
     { t: `${s.married ? '另一半' : '對方'}收入`, v: y?.spouse },
     { t: '孝親費', v: y?.filial },
     { t: '生活費', v: y?.living, out: true },
+    { t: '退休生活（旅遊、醫療、給子孫）', v: y?.retireSpend, out: true },
     { t: '稅＋勞健保', v: y?.tax, out: true },
     { t: '養小孩', v: y?.kids, out: true },
     { t: '還債', v: y?.debtPay, out: true },

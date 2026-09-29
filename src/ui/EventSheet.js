@@ -7,7 +7,8 @@ import { Button } from './components';
 import { formatMoney } from '../game/engine';
 import { artForEvent } from './art';
 import * as E from '../game/engine';
-import { CharScene, castFor, Head, SocialPhone, ReunionStage } from './Character';
+import { CharScene, castFor, Head, SocialPhone, ReunionStage, MateFace } from './Character';
+import { Avatar } from './art';
 import Clip, { hasClip, clipDelay } from './Clip';
 
 // 選完之後的結果：讓玩家看到自己的選擇換來了什麼，再繼續
@@ -43,9 +44,8 @@ function ResultBody({ result, onContinue, game }) {
       {reunion ? <ReunionStage key={r.choice} choice={r.choice} game={game} style={{ marginBottom: 6 }} /> : null}
       {/* 這個選擇有專屬的小動畫（例如裝回輔助輪），就直接播它 */}
       {clip ? <Clip key={`${r.title}-${r.choice}`} name={clip} style={{ marginBottom: 6 }} /> : null}
-      {game && !clip ? <ResultPhone r={r} game={game} /> : null}
-      {/* 事件名稱直接疊在背景插圖上（有手機的話留高一點，文字不會壓到手機） */}
-      <View style={[styles.resTitleWrap, game && !clip && isSocial(r, game) && { height: 206 }, (reunion || clip) && { height: 'auto', marginTop: 4 }]} pointerEvents="none">
+      {/* 事件名稱放在插圖下面（插圖是實心的一張卡，跟選擇前的事件卡一樣） */}
+      <View style={styles.resTitleWrap} pointerEvents="none">
         <Text style={styles.resTitle} numberOfLines={2}>{r.title}</Text>
       </View>
 
@@ -79,27 +79,19 @@ function ResultBody({ result, onContinue, game }) {
   );
 }
 
-// 結果卡後面：剛剛那個事件的主角＋道具，半透明墊在底下
+// 結果卡最上面：剛剛那個事件的主角＋道具，實心的一張卡（跟事件卡同一個樣子，心情換成結果的表情）
 function ResultBackdrop({ r, game, good, bad }) {
   const text = `${r.title || ''}${r.choice || ''}${(r.items || []).map((l) => l.text).join('')}`;
   const kind = artForEvent({ title: r.title, text }, game);
   const cast = castFor(kind, game, text);
   return (
-    <View
-      pointerEvents="none"
-      style={[
-        { position: 'absolute', top: 0, left: 0, right: 0, height: 250, opacity: 0.34 },
-        Platform.OS === 'web' ? { maskImage: 'linear-gradient(to bottom, #000 45%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, #000 45%, transparent 100%)' } : null,
-      ]}
-    >
-      <CharScene
-        key={`${r.title}-${r.choice}`}
-        kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
-        mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
-        pets={E.alivePets(game)}
-        height={250} radius={18} name={game.name} hidePhone
-      />
-    </View>
+    <CharScene
+      key={`${r.title}-${r.choice}`}
+      kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
+      mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
+      pets={E.alivePets(game)} name={game.name}
+      height={170} radius={18}
+    />
   );
 }
 
@@ -111,6 +103,21 @@ function ResultPhone({ r, game }) {
   return (
     <View pointerEvents="none" style={{ position: 'absolute', right: 14, top: 6, zIndex: 3 }}>
       <SocialPhone age={game.age} gender={game.gender} name={game.name} height={196} />
+    </View>
+  );
+}
+
+// 同學講的話：頭像＋名字職業＋一個對話泡泡（不再塞在一大段文字裡）
+function QuoteBubble({ q, game }) {
+  return (
+    <View style={styles.qRow}>
+      {q.asset ? <MateFace asset={q.asset} size={44} /> : <Avatar name={q.name} gender={q.gender} age={game ? game.age : 30} size={44} />}
+      <View style={{ flex: 1 }}>
+        <Text style={styles.qWho}>{q.name}<Text style={styles.qTitle}>　{q.title}</Text></Text>
+        <View style={styles.qBubble}>
+          <Text style={styles.qText}>{q.text}</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -165,6 +172,7 @@ function EventBody({ pending, onChoose, game }) {
           ))}
         </View>
       ) : <Text style={styles.text}>{p.text}</Text>) : null}
+      {p.quote ? <QuoteBubble q={p.quote} game={game} /> : null}
 
       {p.progress ? (
         <View style={{ marginTop: 14 }}>
@@ -208,13 +216,18 @@ function EventBody({ pending, onChoose, game }) {
 }
 
 const styles = StyleSheet.create({
+  qRow: { flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'flex-start' },
+  qWho: { fontSize: 13.5, fontWeight: '800', color: C.ink },
+  qTitle: { fontSize: 12.5, fontWeight: '500', color: C.muted },
+  qBubble: { marginTop: 5, alignSelf: 'flex-start', backgroundColor: C.primarySoft, borderRadius: 16, borderTopLeftRadius: 4, paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: C.accentLine },
+  qText: { fontSize: 15.5, lineHeight: 22, color: C.ink, fontWeight: '600' },
   resHead: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.frost, borderRadius: 18, padding: 14, marginTop: 120 },
   resIcon: { fontSize: 30 },
-  resTitleWrap: { height: 150, justifyContent: 'flex-end', paddingHorizontal: 4 },
-  resTitle: { fontSize: 28, fontWeight: '800', color: C.ink, letterSpacing: 0.5, textShadowColor: isLight ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  resTitleWrap: { marginTop: 14, paddingHorizontal: 2 },
+  resTitle: { fontSize: 26, fontWeight: '800', color: C.ink, letterSpacing: 0.5 },
   resKicker: { fontSize: 12.5, fontWeight: '500', color: C.muted },
   resChoice: { fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 2 },
-  resText: { fontSize: 15.5, lineHeight: 25, marginTop: 14 },
+  resText: { fontSize: 15.5, lineHeight: 25, marginTop: 8 },
   resTextMore: { fontSize: 14, lineHeight: 21, marginTop: 8, fontWeight: '700' },
   deltaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
   delta: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },

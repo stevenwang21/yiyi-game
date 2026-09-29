@@ -7,7 +7,7 @@ import {
   INVEST_MIN_AGE, JOBS, KID_COST, KID_CRAM_COST, KID_INDEPENDENT, KID_STYLES, kidStyleById, KID_OUTCOMES, KID_SPECIAL_COST, KID_SPECIAL_ADULT, KID_SPECIAL_OUTCOMES, MAX_BIZ, MAX_KIDS, MORTGAGE_RATE,
   OPEN_BIZ, RENT_YIELD, familyById, jobById, PETS, PET_VACCINE, DIFFICULTIES, GENDERS, genderById, partnerWord, SURNAMES, randomPersonName,
   rollDifficulty, RANDOM_WEIGHTS,
-  BASE_RETIRE_AGE, MAX_RETIRE_AGE, retireCost, SPOUSE_LEVELS, SPOUSE_COSTS,
+  BASE_RETIRE_AGE, MAX_RETIRE_AGE, END_AGE, retireCost, SPOUSE_LEVELS, SPOUSE_COSTS,
   DATE_COST_STUDENT, DATE_COST_ADULT, DATE_FOCUS_COST,
 } from './data.js';
 import { EVENTS, eventById } from './events.js';
@@ -211,7 +211,8 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
     points: 0,
     pointsTotal: 0,
     pointsLog: [],
-    endAge: BASE_RETIRE_AGE + Math.min(15, mt.retire || 0),
+    endAge: END_AGE + Math.min(15, mt.retire || 0),
+    retireV2: true,
     uid: 1,
     log: [],
     // 同屆同學、待售公司
@@ -256,6 +257,7 @@ export const FOCUS = {
   finance: { label: '學理財', sub: '投資眼光↑' },
   work: { label: '認真工作', sub: '加薪、升遷↑ 健康↓' },
   gig: { label: '打零工', sub: '賺一點生活費' },
+  stroll: { label: '散步下棋', sub: '快樂↑ 不花錢' },
   jobhunt: { label: '找新工作', sub: '年底有職缺' },
   learn: { label: '進修', sub: '智力↑ 要花錢' },
   rest: { label: '休息旅遊', sub: '快樂↑ 健康↑' },
@@ -294,6 +296,7 @@ function focusSub(s, id) {
     case 'finance': return [[skill], [UP('智力+1')]];
     case 'work': return [[UP(`升遷成功率 ${Math.round(promoteChance(s) * 100)}%`)], [DN('健康−2'), DN('快樂−1')]];
     case 'gig': return [[UP(earn(12, 18))], [DN('健康−1')]];
+    case 'stroll': return [[UP('快樂 +3~5')], [UP('健康+1')]];
     case 'learn': return [[UP('智力 +3~6')], [CO(`花 ${c(3)}`)]];
     case 'rest': return [[UP('快樂 +6~10')], [UP('健康+3'), CO(`花 ${c(5)}`)]];
     case 'gym': return [[UP('健康 +4~7')], [UP('快樂+1'), CO(`花 ${c(2)}`)]];
@@ -315,13 +318,17 @@ export function focusOptions(s) {
     ids.push('sport', 'play', 'friends');
     if (s.age >= 16) ids.push('parttime');
     if (s.age >= 12) ids.push('finance');
-    if (s.partner) ids.push('date');
+  } else if (s.retired) {
+    // 退休了：不用上班，也不再找工作、創業；公司還在的話可以繼續管
+    ids.push('stroll');
+    if (s.bizs.length) ids.push('runbiz');
+    ids.push('rest', 'gym', 'network', 'invest', 'learn');
+    if (s.married) ids.push('family');
   } else {
     ids.push(s.job ? 'work' : 'gig');
     if (s.bizs.length) ids.push('runbiz');
     ids.push('learn', 'rest', 'gym', 'network', 'invest');
     if (s.married) ids.push('family');
-    if (s.partner && !s.married) ids.push('date');
     ids.push('jobhunt');
     if (s.bizs.filter((b) => !b.group).length < MAX_BIZ && s.age >= 18) ids.push('startbiz');
   }
@@ -451,6 +458,7 @@ const defaultFocus = (s) => {
 };
 
 const cost = (s, base) => Math.round(base * s.priceIndex);
+export const RETIRE_SPEND = Number((typeof process !== 'undefined' && process.env && process.env.RETIRE_SPEND) || 0.06);
 
 const STAT_KEYS = ['int', 'hp', 'happy', 'charm'];
 
@@ -499,6 +507,7 @@ function applyOne(s, f, rng) {
       return `${L}，投資眼光提升${addStats(s, { int: 1 })}`;
     case 'work': return `${L}${addStats(s, { hp: -2, happy: -1, charm: rint(rng, 0, 1) })}`;
     case 'gig': return `${L}${addMoney(s, cost(s, rint(rng, 12, 18) * WAN))}${addStats(s, { hp: -1 })}`;
+    case 'stroll': return `${L}${addStats(s, { happy: rint(rng, 3, 5), hp: 1 })}`;
     case 'jobhunt':
       s.flags.wantJob = true;
       return '這一年都在投履歷、面試。';
@@ -674,7 +683,9 @@ export function toggleKidCram(s0, uid) {
 }
 
 function economy(s, rng) {
-  const y = { salary: 0, bizIncome: 0, rent: 0, living: 0, kids: 0, debtPay: 0, dca: 0, allowance: 0, spouse: 0, dating: 0, side: 0, filial: 0, tax: 0 };
+  const y = { salary: 0, bizIncome: 0, rent: 0, living: 0, kids: 0, debtPay: 0, dca: 0, allowance: 0, spouse: 0, dating: 0, side: 0, filial: 0, tax: 0, pension: 0, retireSpend: 0 };
+  // 退休金：退休那年定好金額，之後跟著物價調
+  if (s.retired && s.pension) y.pension = Math.round(s.pension * (s.priceIndex / (s.pensionPI || s.priceIndex)));
   const adult = isAdult(s);
   const ret = s.world.returns;
 
@@ -755,10 +766,14 @@ function economy(s, rng) {
     if (s.houses.length === 0) c += (s.age < 25 && !s.married) ? 3 * WAN : 11 * WAN;
     if (s.married) c += 10 * WAN; // 多一個人的開銷（另一半的收入另外算進來）
     if (s.flags.cohabit && s.partner && !s.married) c *= 0.88; // 同居分攤
+    if (s.age > BASE_RETIRE_AGE) c += (s.age - BASE_RETIRE_AGE) * 0.6 * WAN; // 老了看病、看護的錢越來越多
     y.living = Math.round(cost(s, c) * diffOf(s).cost * (1 + (s.perk ? s.perk.living : 0)) * (s.flags.broke ? 0.6 : 1));
   } else if (s.flags.inMaster) {
     y.living = cost(s, GRAD_TUITION);
   }
+  // 退休後的花費：旅遊、醫療、看護、給子孫……資產越多花得越多（一年大約資產的 RETIRE_SPEND）。
+  // 不這樣的話，65 歲到 85 歲 20 年的複利會讓一個億變得太容易。
+  if (s.retired) y.retireSpend = Math.round(Math.max(0, netWorth(s)) * RETIRE_SPEND);
   y.kids = kidYear(s, rng);
   y.filial = s.lastFilial || 0;
 
@@ -787,7 +802,7 @@ function economy(s, rng) {
     y.tax = Math.round(tax);
   }
   y.cashStart = s.money;
-  s.money += y.salary + y.side + y.bizIncome + y.rent + y.allowance + y.spouse + y.filial - y.living - y.kids - y.debtPay - y.dating - (y.tax || 0);
+  s.money += y.salary + y.side + y.bizIncome + y.rent + y.allowance + y.spouse + y.filial + (y.pension || 0) - y.living - (y.retireSpend || 0) - y.kids - y.debtPay - y.dating - (y.tax || 0);
 
   // 定期定額（薪水或零用錢的一部分）
   const dcaBase = y.salary + y.allowance;
@@ -953,6 +968,7 @@ function careerYear(s, rng) {
   const j = s.job;
   if (!j) return;
   j.years += 1;
+  if (!j.volatile && j.salary) s.flags.lastSalary = j.salary;
   if (j.retireAge && s.age >= j.retireAge) {
     const kept = j.legend && s.flags.keptJob;
     if (kept) {
@@ -1068,6 +1084,28 @@ function petYear(s, rng) {
   }
 }
 
+// ───────────────────────── 65 歲強制退休 ─────────────────────────
+// 工作一定停在 65 歲；人生繼續到 85 歲（更長壽升級可以再多幾年）才結算。
+// 退休後每年領退休金（最後年薪的三成，至少 20 萬／年，跟著物價調），事件變成退休生活的事。
+function retireYear(s) {
+  // 舊存檔：以前是 65～80 歲就結算，現在改成 85 起跳
+  if (!s.retireV2) { s.endAge = Math.max(END_AGE, (s.endAge || BASE_RETIRE_AGE) + (END_AGE - BASE_RETIRE_AGE)); s.retireV2 = true; }
+  if (s.age < BASE_RETIRE_AGE) return;
+  if (s.retired) {
+    // 退休後又被找去做事（傳說職業之類）：做完這一年就結束
+    if (s.job) s.job = null;
+    return;
+  }
+  s.retired = true;
+  const last = s.job && !s.job.volatile ? s.job.salary : (s.flags.lastSalary || 0);
+  s.pension = Math.max(cost(s, 20 * WAN), Math.round(last * 0.3));
+  s.pensionPI = s.priceIndex;
+  const jobName = s.job ? s.job.name : null;
+  s.job = null;
+  s.flags.keptJob = null;
+  log(s, `${s.age} 歲，你${jobName ? `從「${jobName}」` : ''}正式退休了。每年可以領 ${formatMoney(s.pension)} 的退休金，接下來的日子，想怎麼過都可以。${addStats(s, { happy: 6 })}`, 'milestone');
+}
+
 // ───────────────────────── 另一半自己升遷 ─────────────────────────
 // 另一半會在自己的行業裡慢慢往上爬：同一個職位至少待 3 年，家裡氣氛好、你有陪家人，機會比較大
 function spouseCareer(s, rng) {
@@ -1090,7 +1128,8 @@ function spouseCareer(s, rng) {
 function romanceYear(s, rng) {
   if (s.partner && !s.married) {
     const p = s.partner;
-    if (!hasFocus(s, 'date')) p.love = Math.max(0, p.love - rint(rng, 1, 3));
+    // 約會改成每年一次的事件（date_year）：去年那次有選約會就不會變淡
+    if (s.flags.datedAt !== s.age - 1 && !hasFocus(s, 'date')) p.love = Math.max(0, p.love - rint(rng, 1, 3));
     if (s.lastYear && s.lastYear.dating === 0) p.love = Math.max(0, p.love - 6);
     if (p.love < 12 && chance(rng, 0.35)) {
       const split = endRelationship(s);
@@ -1353,6 +1392,7 @@ function openDef(s, rng, source, id, def, extra = {}) {
     choices,
     ...(def.art ? { art: def.art } : {}),
     ...(def.clip ? { clip: def.clip } : {}),
+    ...(def.quote ? { quote: def.quote(s) } : {}),
     ...extra,
   };
 }
@@ -1389,6 +1429,7 @@ function idolJob(s) {
 }
 
 function jobOffers(s, rng) {
+  if (s.retired) return;
   const rank = EDU[s.edu].rank;
   const eligible = JOBS.filter((j) =>
     !j.hidden
@@ -1631,7 +1672,29 @@ function bizJointPick(s, type, cap, ji) {
   };
 }
 
-function followUps(s, rng) {
+// 每年一次：交往中（還沒結婚）就問今年要怎麼陪對方。一年只問一次。
+function dateDue(s) {
+  return !!(s.partner && !s.married && s.age >= 13 && s.flags.dateAsked !== s.age && s.age > s.partner.since);
+}
+function maybeDate(s, rng) {
+  if (s.pending || s.ended || !dateDue(s)) return;
+  s.flags.dateAsked = s.age;
+  openDef(s, rng, 'event', 'date_year', eventById('date_year'));
+}
+
+function followUps(s, rng, withDate = false) {
+  if (s.pending || s.ended) return;
+  if (withDate) {
+    // 選完這一年的事件，其他該跳的都跳完了，最後才問約會
+    const before = s.pending;
+    followUpsCore(s, rng);
+    if (!s.pending && !before) maybeDate(s, rng);
+    return;
+  }
+  followUpsCore(s, rng);
+}
+
+function followUpsCore(s, rng) {
   if (s.pending || s.ended) return;
   // 樂團簽約：變成全職樂手
   if (s.flags.bandSign) {
@@ -1686,8 +1749,9 @@ function followUps(s, rng) {
   }
   if (s.flags.wantBaby) {
     s.flags.wantBaby = false;
-    if (s.married && s.kids.length < MAX_KIDS && !(s.flags.babyTry && s.age - s.flags.babyTry < 2)) {
-      openDef(s, rng, 'event', 'baby', eventById('baby'));
+    const babyDef = eventById('baby');
+    if (babyDef.cond(s)) {
+      openDef(s, rng, 'event', 'baby', babyDef);
       return;
     }
   }
@@ -1801,10 +1865,10 @@ function selectPending(s, rng) {
     }
   }
 
-  // 6. 需要做選擇的隨機事件
-  if (!chance(rng, s.age < 6 ? 0.5 : 0.7)) return;
+  // 6. 需要做選擇的隨機事件（沒抽到就直接問今年的約會）
+  if (!chance(rng, s.age < 6 ? 0.5 : s.retired ? 0.9 : 0.7)) { maybeDate(s, rng); return; }
   const e = pickEvent(s, rng, true);
-  if (!e) return;
+  if (!e) { maybeDate(s, rng); return; }
   s.seen[e.id] = true;
   s.lastEvent = e.id;
   openDef(s, rng, 'event', e.id, e);
@@ -1873,6 +1937,7 @@ export function nextYear(s0, rng = Math.random) {
   economy(s, rng);
   settleTip(s, log);   // 去年同學報的明牌，拿今年真的漲跌對答案
   careerYear(s, rng);
+  retireYear(s);
   careerHit(s, rng);
   petYear(s, rng);
   spouseCareer(s, rng);
@@ -1899,7 +1964,7 @@ export function nextYear(s0, rng = Math.random) {
   if (s.age >= s.endAge) {
     s.ended = { reason: 'age', age: s.age };
     if (!s.achievedAge && netWorth(s) >= YI) s.achievedAge = s.age;
-    log(s, `${s.name} ${s.age} 歲退休了，人生結算的時刻到了！`, 'milestone');
+    log(s, `${s.name} ${s.age} 歲，這一生走到了結算的時刻。`, 'milestone');
     return s;
   }
 
@@ -1980,7 +2045,7 @@ export function resolveChoice(s0, idx, rng = Math.random) {
   trackMove(s, `${p.title}：${ch.label}`, netWorth(s) - before);
   s.history[s.history.length - 1] = netWorth(s);
   s.invHistory[s.invHistory.length - 1] = investTotal(s);
-  followUps(s, rng);
+  followUps(s, rng, true);
   s.perk = perksOf(s);
   s.focus = defaultFocus(s);
   return s;
@@ -2221,7 +2286,8 @@ export function sellBiz(s0, uid) {
 export function summary(s) {
   const nw = netWorth(s);
   const mates = s.mates ? ranking(s, nw) : null;
-  const achieved = nw >= YI || !!s.achievedAge;
+  // 一個億算到最後一年：中途破億、老了又賠掉，就不算達成（標題會寫「曾經達成過一億」）
+  const achieved = nw >= YI;
   const dead = s.ended && s.ended.reason === 'death';
   let title;
   let headline;
