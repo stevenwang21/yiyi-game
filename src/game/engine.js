@@ -139,6 +139,8 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
   // 地獄難度：出身偏清寒
   const famWeight = (f) => (d0.poor ? { poor: 60, normal: 30, rich: 9, tycoon: 1 }[f.id] || f.weight : f.weight);
   const fam = weightedPick(rng, FAMILIES, famWeight);
+  // 姓氏的骰子一定先擲（不管名字長短），這樣每日挑戰同一顆種子，大家的能力值才會一樣
+  const surRoll = rng();
   const sp = d0.statPenalty || 0;
   const idx = { etf: 100, stock: 100, gold: 100, crypto: 100, house: 100 };
   const s = {
@@ -147,7 +149,7 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
     family: fam.id,
     difficulty,
     gender,
-    surname: (name && name.length >= 3 ? name[0] : SURNAMES[Math.floor(rng() * SURNAMES.length)]),
+    surname: (name && name.length >= 3 ? name[0] : SURNAMES[Math.floor(surRoll * SURNAMES.length)]),
     age: 0,
     stats: { int: rint(rng, 30 - sp, 60 - sp), hp: rint(rng, 60 - sp, 85 - sp), happy: rint(rng, 55 - sp, 80 - sp), charm: rint(rng, 30 - sp, 60 - sp) },
     money: 0,
@@ -221,7 +223,7 @@ export function newGame(name, rng = Math.random, difficulty = 'normal', gender =
     targetYear: -1,
   };
   s.hpHistory.push(s.stats.hp);
-  log(s, `${s.name}（${genderById(gender).name}）出生在一個${fam.name}（難度：${diffOf(s).name}）。人生的目標：65 歲前賺到一個億！`, 'milestone');
+  log(s, `${s.name}（${genderById(gender).name}）出生在一個${fam.name}（難度：${diffOf(s).name}）。人生的目標：85 歲結算時有一個億！`, 'milestone');
   return s;
 }
 
@@ -1393,6 +1395,7 @@ function openDef(s, rng, source, id, def, extra = {}) {
     ...(def.art ? { art: def.art } : {}),
     ...(def.clip ? { clip: def.clip } : {}),
     ...(def.quote ? { quote: def.quote(s) } : {}),
+    ...(def.tag ? { tag: typeof def.tag === 'function' ? def.tag(s) : def.tag } : {}),
     ...extra,
   };
 }
@@ -1866,17 +1869,20 @@ function selectPending(s, rng) {
   }
 
   // 6. 需要做選擇的隨機事件（沒抽到就直接問今年的約會）
-  if (!chance(rng, s.age < 6 ? 0.5 : s.retired ? 0.9 : 0.7)) { maybeDate(s, rng); return; }
-  const e = pickEvent(s, rng, true);
+  // 沒抽到一般事件的年份，有機會改跳一件梗事件（不佔一般事件的名額，平衡不受影響）
+  const e = !chance(rng, s.age < 6 ? 0.5 : s.retired ? 0.9 : 0.7)
+    ? (s.age >= 6 && chance(rng, MEME_SHARE) ? pickMeme(s, rng) : null)
+    : pickEvent(s, rng, true);
   if (!e) { maybeDate(s, rng); return; }
   s.seen[e.id] = true;
   s.lastEvent = e.id;
   openDef(s, rng, 'event', e.id, e);
 }
 
-function eventPool(s, withChoices) {
+function eventPool(s, withChoices, meme = false) {
   return EVENTS.filter((e) => (typeof e.weight === 'function' || e.weight > 0)
     && !!e.choices === withChoices
+    && !!e.meme === meme
     && s.age >= e.minAge && s.age <= e.maxAge
     && (!e.once || !s.seen[e.id])
     && e.id !== s.lastEvent
@@ -1884,8 +1890,17 @@ function eventPool(s, withChoices) {
     && (!e.cond || e.cond(s)));
 }
 
+// 梗事件（events_meme.js）：原本「今年沒有事件」的年份，有這個機率改跳一件梗事件。
+// 算下來一輩子的彈出事件裡大約 1/5 是梗事件，而且一件都不會重複。
+export const MEME_SHARE = 0.85;
+const evWeight = (s) => (x) => (typeof x.weight === 'function' ? x.weight(s) : x.weight);
+function pickMeme(s, rng) {
+  const e = weightedPick(rng, eventPool(s, true, true), evWeight(s));
+  if (e) s.yearEvents = [...(s.yearEvents || []), e.id];
+  return e;
+}
 function pickEvent(s, rng, withChoices) {
-  const e = weightedPick(rng, eventPool(s, withChoices), (x) => (typeof x.weight === 'function' ? x.weight(s) : x.weight));
+  const e = weightedPick(rng, eventPool(s, withChoices), evWeight(s));
   if (e) s.yearEvents = [...(s.yearEvents || []), e.id];
   return e;
 }

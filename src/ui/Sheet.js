@@ -7,7 +7,7 @@ import { BLUR } from './ios';
 // 從下方滑出的面板；onClose 為 null 時不能關閉（必須做選擇）
 import { dimPage } from './pageBg';
 
-export default function Sheet({ visible, onClose, title, children, tall, clear }) {
+export default function Sheet({ visible, onClose, title, children, tall, clear, backdrop }) {
   const insets = useSafeAreaInsets();
   useEffect(() => {
     if (!visible || clear) return undefined;
@@ -20,13 +20,15 @@ export default function Sheet({ visible, onClose, title, children, tall, clear }
       <View style={[styles.dim, !clear && BLUR, clear && { backgroundColor: 'transparent' }]}>
         {onClose ? <Pressable style={{ flex: 1 }} onPress={onClose} /> : <View style={{ flex: 1 }} />}
         <View style={[styles.sheet, tall && { height: '88%' }, clear && styles.clearSheet, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.grab} />
+          {/* 整張卡的背景（事件插圖一路延伸下來） */}
+          {backdrop ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop]}>{backdrop}</View> : null}
+          <View style={[styles.grab, backdrop && { backgroundColor: 'rgba(255,255,255,0.35)' }]} />
           {title || onClose ? (
             <View style={styles.head}>
               <Text style={styles.title}>{title}</Text>
               {onClose ? (
                 <Pressable onPress={onClose} hitSlop={12} style={styles.close}>
-                  <Text style={styles.closeText}>關閉</Text>
+                  <Text style={[styles.closeText, backdrop && { color: '#fff' }]}>關閉</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -48,6 +50,7 @@ const styles = StyleSheet.create({
     shadowColor: '#0f1426', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -6 }, elevation: 20,
   },
   clearSheet: { maxHeight: '74%', shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 30, shadowOffset: { width: 0, height: -10 }, borderColor: 'rgba(157,140,255,0.6)' },
+  backdrop: { borderTopLeftRadius: 23, borderTopRightRadius: 23, overflow: 'hidden' },
   grab: { width: 36, height: 5, borderRadius: 3, backgroundColor: C.grab, alignSelf: 'center', marginBottom: 12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   title: { fontSize: 20, fontWeight: '700', color: C.ink, flex: 1 },

@@ -7,7 +7,7 @@ import { Button } from './components';
 import { formatMoney } from '../game/engine';
 import { artForEvent } from './art';
 import * as E from '../game/engine';
-import { CharScene, castFor, Head, SocialPhone, ReunionStage, MateFace } from './Character';
+import { CharScene, castFor, Head, SocialPhone, ReunionStage, MateFace, SceneBackdrop } from './Character';
 import { Avatar } from './art';
 import Clip, { hasClip, clipDelay } from './Clip';
 
@@ -38,20 +38,21 @@ function ResultBody({ result, onContinue, game }) {
     return () => clearTimeout(t);
   }, [r.title, r.choice, reunion, clip]);
   const go = () => { if (done) return; setDone(true); onContinue(); };
+  const bgKind = game ? artForEvent({ title: r.title, text: `${r.title || ''}${r.choice || ''}${(r.items || []).map((l) => l.text).join('')}` }, game) : 'desk';
   return (
-    <Sheet visible onClose={onContinue} clear>
+    <Sheet visible onClose={onContinue} clear backdrop={<SceneBackdrop kind={bgKind} sceneH={170} />}>
       {game && !reunion && !clip ? <ResultBackdrop r={r} game={game} good={good} bad={bad} /> : null}
       {reunion ? <ReunionStage key={r.choice} choice={r.choice} game={game} style={{ marginBottom: 6 }} /> : null}
       {/* 這個選擇有專屬的小動畫（例如裝回輔助輪），就直接播它 */}
       {clip ? <Clip key={`${r.title}-${r.choice}`} name={clip} style={{ marginBottom: 6 }} /> : null}
       {/* 事件名稱放在插圖下面（插圖是實心的一張卡，跟選擇前的事件卡一樣） */}
       <View style={styles.resTitleWrap} pointerEvents="none">
-        <Text style={styles.resTitle} numberOfLines={2}>{r.title}</Text>
+        <Text style={[styles.resTitle, ON.ink]} numberOfLines={2}>{r.title}</Text>
       </View>
 
       {r.items.length ? r.items.map((l, i) => (
-        <Text key={i} style={[styles.resText, i > 0 && styles.resTextMore, { color: i === 0 ? C.ink : toneColor(l.tone) }]}>{l.text}</Text>
-      )) : <Text style={styles.resText}>日子照常過下去。</Text>}
+        <Text key={i} style={[styles.resText, i > 0 && styles.resTextMore, { color: i === 0 ? '#fff' : onTone(l.tone) }]}>{l.text}</Text>
+      )) : <Text style={[styles.resText, ON.ink]}>日子照常過下去。</Text>}
 
       {r.nw || stats.length ? (
         <View style={styles.deltaRow}>
@@ -90,7 +91,7 @@ function ResultBackdrop({ r, game, good, bad }) {
       kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby}
       mood={good ? '😄' : bad ? '😣' : undefined} bad={bad || undefined}
       pets={E.alivePets(game)} name={game.name}
-      height={170} radius={18}
+      height={170} radius={18} bare
     />
   );
 }
@@ -113,7 +114,7 @@ function QuoteBubble({ q, game }) {
     <View style={styles.qRow}>
       {q.asset ? <MateFace asset={q.asset} size={44} /> : <Avatar name={q.name} gender={q.gender} age={game ? game.age : 30} size={44} />}
       <View style={{ flex: 1 }}>
-        <Text style={styles.qWho}>{q.name}<Text style={styles.qTitle}>　{q.title}</Text></Text>
+        <Text style={[styles.qWho, ON.ink]}>{q.name}<Text style={[styles.qTitle, ON.soft]}>　{q.title}</Text></Text>
         <View style={styles.qBubble}>
           <Text style={styles.qText}>{q.text}</Text>
         </View>
@@ -139,7 +140,7 @@ function EventScene({ p, game }) {
       kind={kind} age={game.age} gender={game.gender} partner={cast.partner} baby={cast.baby} name={game.name}
       crashPct={(() => { const m = /ETF\s*-(\d+)%/.exec(p.text || ''); return m ? Number(m[1]) : undefined; })()}
       pets={E.alivePets(game)}
-      height={h} radius={18} style={{ marginBottom: 10 }}
+      height={h} radius={18} style={{ marginBottom: 10 }} bare
     />
   );
 }
@@ -160,30 +161,31 @@ function EventBody({ pending, onChoose, game }) {
     setPicked(i);
     setTimeout(() => onChoose(i), 420);
   };
+  const sceneH = p.choices.length >= 5 ? 104 : p.choices.length >= 4 ? 124 : 156;
   return (
-    <Sheet visible onClose={null} clear>
+    <Sheet visible onClose={null} clear backdrop={<SceneBackdrop kind={game ? artForEvent(p, game) : 'desk'} sceneH={sceneH} />}>
       <EventScene p={p} game={game} />
       {p.tag ? <Tag text={p.tag} color={C.goldInk} bg={C.goldSoft} /> : null}
-      <Text style={styles.title}>{p.title}</Text>
+      <Text style={[styles.title, ON.ink]}>{p.title}</Text>
       {p.text ? (p.text.includes('（你）') ? (
         <View style={{ marginTop: 8 }}>
           {p.text.split('\n').map((line, i) => (
-            <Text key={i} style={[styles.text, { marginTop: 0 }, line.includes('（你）') && styles.me]}>{line}</Text>
+            <Text key={i} style={[styles.text, ON.body, { marginTop: 0 }, line.includes('（你）') && styles.me]}>{line}</Text>
           ))}
         </View>
-      ) : <Text style={styles.text}>{p.text}</Text>) : null}
+      ) : <Text style={[styles.text, ON.body]}>{p.text}</Text>) : null}
       {p.quote ? <QuoteBubble q={p.quote} game={game} /> : null}
 
       {p.progress ? (
         <View style={{ marginTop: 14 }}>
           <View style={styles.route}>
             {p.progress.names.map((n, i) => (
-              <View key={n} style={[styles.seg, i <= p.progress.step && { backgroundColor: C.gold }]} />
+              <View key={n} style={[styles.seg, { backgroundColor: 'rgba(255,255,255,0.2)' }, i <= p.progress.step && { backgroundColor: C.gold }]} />
             ))}
           </View>
           <View style={styles.routeNames}>
             {p.progress.names.map((n) => (
-              <Text key={n} style={styles.routeName} numberOfLines={1}>{n}</Text>
+              <Text key={n} style={[styles.routeName, ON.soft]} numberOfLines={1}>{n}</Text>
             ))}
           </View>
         </View>
@@ -214,6 +216,10 @@ function EventBody({ pending, onChoose, game }) {
     </Sheet>
   );
 }
+
+// 卡片背景是深色場景（淺色模式也一樣），疊在上面的字一律用亮色
+const ON = { ink: { color: '#fff' }, body: { color: 'rgba(255,255,255,0.9)' }, soft: { color: 'rgba(255,255,255,0.68)' } };
+const onTone = (t) => ({ good: '#7ee2a8', bad: '#ff9a9a', 'world-bad': '#ff9a9a', milestone: '#ffd76a', world: '#9cc4ff', points: '#c9b8ff' }[t] || 'rgba(255,255,255,0.9)');
 
 const styles = StyleSheet.create({
   qRow: { flexDirection: 'row', gap: 10, marginTop: 14, alignItems: 'flex-start' },

@@ -42,3 +42,12 @@ export const writeMeta = (m) => setJSON(META_KEY, m);
 const BOARD_KEY = 'yiyi-board-v1';
 export const loadBoard = () => getJSON(BOARD_KEY);
 export const writeBoard = (b) => setJSON(BOARD_KEY, b);
+// 每日挑戰的那一局：跟主線人生分開存，兩邊可以同時玩到一半
+const DAILY_SAVE_KEY = 'yiyi-daily-save-v1';
+export const loadDailySave = () => getJSON(DAILY_SAVE_KEY);
+export const writeDailySave = (s) => setJSON(DAILY_SAVE_KEY, s);
+export const clearDailySave = () => setJSON(DAILY_SAVE_KEY, null);
+// 成就徽章：{ got: { id: { at, name, age, life } }, memes: [看過的神展開 id] }，跨存檔永久保留
+const BADGE_KEY = 'yiyi-badges-v1';
+export const loadBadges = () => getJSON(BADGE_KEY);
+export const writeBadges = (b) => setJSON(BADGE_KEY, b);

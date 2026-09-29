@@ -12,11 +12,15 @@ import LineChart from './LineChart';
 import * as E from '../game/engine';
 import { artForEnd } from './art';
 import { CharScene, Head, MateFace } from './Character';
+import DailyBoard from './DailyBoard';
+import { boardReady } from '../leaderboard';
 
-export default function EndScreen({ game, meta, onAgain, onHome }) {
+export default function EndScreen({ game, meta, daily, onAgain, onHome }) {
   const sum = E.summary(game);
   const score = game.metaScore || E.lifeScore(game);
   const [showLog, setShowLog] = useState(false);
+  const [showDaily, setShowDaily] = useState(false);
+  const dRun = game.daily && daily && daily.runs ? daily.runs[game.daily.day] : null;
   const canBuy = !!meta && Object.entries(E.META_UPGRADES).some(([k, u]) => (meta[k] || 0) < u.max && meta.points >= u.cost(meta[k] || 0));
 
   // 結算的順序：① 先自動播「人生回顧」→ ② 關掉後結算畫面一段一段跑出來 → ③ 破億的話放煙火
@@ -50,7 +54,7 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
     setShowCard(true);
     setCardMsg(null);
     if (!card) {
-      try { setCard(await makeShareCard(game, meta)); } catch { setCardMsg('成績單產生失敗，再試一次'); }
+      try { setCard(await makeShareCard(game, meta, dRun && dRun.result)); } catch { setCardMsg('成績單產生失敗，再試一次'); }
     }
   };
 
@@ -88,6 +92,23 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
           </View>
           <Text style={[styles.pctBig, sum.pct >= 100 && { color: C.green }]}>一億目標的 {sum.pct.toFixed(1)}%</Text>
         </FadeIn>
+
+        {game.daily ? (
+          <FadeIn delay={T.btns - 200}>
+            <Pressable onPress={() => setShowDaily(true)} style={({ pressed }) => [styles.dailyBox, pressed && { transform: [{ scale: 0.98 }] }]}>
+              <Text style={styles.dailyNo}>📅 每日挑戰 #{game.daily.no}{game.daily.ranked ? '' : '（練習）'}</Text>
+              {game.daily.ranked ? (
+                <Text style={styles.dailyRank}>
+                  {dRun && dRun.result ? `全球第 ${dRun.result.rank} 名` : boardReady() ? '上榜中…' : '成績已記下'}
+                  {dRun && dRun.result ? <Text style={styles.dailyOf}>　/ {dRun.result.total} 人</Text> : null}
+                </Text>
+              ) : (
+                <Text style={styles.dailyOf}>今天的排名賽已經打過了，這局不上榜</Text>
+              )}
+              <Text style={styles.dailyMore}>看排行榜 ›</Text>
+            </Pressable>
+          </FadeIn>
+        ) : null}
 
         <FadeIn delay={T.btns}>
         <View style={styles.endBtns}>
@@ -158,7 +179,7 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
       {/* 固定在底部：下一步要做什麼 */}
       <View style={styles.footer}>
         <Button kind="soft" title={canBuy ? '⭐ 去升級' : '回首頁'} sub={canBuy ? `有 ${meta.points} 點可用` : null} style={{ flex: 1 }} onPress={onHome} />
-        <Button title="再活一次 ▶" sub={`${E.diffOf(game).name}難度`} style={{ flex: 1.3 }} onPress={onAgain} />
+        <Button title="再活一次 ▶" sub={game.daily ? '今天的出身．練習局' : `${E.diffOf(game).name}難度`} style={{ flex: 1.3 }} onPress={onAgain} />
       </View>
 
       <Sheet visible={showCard} onClose={() => setShowCard(false)} title="人生成績單" tall>
@@ -191,6 +212,9 @@ export default function EndScreen({ game, meta, onAgain, onHome }) {
             <Text style={[styles.logText, { color: toneColor(l.tone) }]}>{l.text}</Text>
           </View>
         ))}
+      </Sheet>
+      <Sheet visible={showDaily} onClose={() => setShowDaily(false)} title="每日挑戰排行榜" tall>
+        {game.daily ? <DailyBoard daily={daily} startDay={game.daily.day} /> : null}
       </Sheet>
     </View>
   );
@@ -298,6 +322,11 @@ function ScoreTotal({ list, total, start }) {
 
 
 const styles = StyleSheet.create({
+  dailyBox: { marginTop: 16, borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: C.goldSoft, borderWidth: 1, borderColor: C.gold, alignItems: 'center' },
+  dailyNo: { fontSize: 14, fontWeight: '800', color: C.goldInk },
+  dailyRank: { fontSize: 26, fontWeight: '900', color: C.goldInk, marginTop: 4 },
+  dailyOf: { fontSize: 14, fontWeight: '700', color: C.muted },
+  dailyMore: { fontSize: 13, fontWeight: '700', color: C.primaryInk, marginTop: 6 },
   scoreCard: { backgroundColor: C.goldSoft, marginTop: 14 },
   scoreHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   scoreTotal: { fontSize: 20, fontWeight: '700', color: C.goldInk },

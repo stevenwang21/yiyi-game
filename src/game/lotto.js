@@ -57,6 +57,7 @@ function buyChoice(game, n) {
       if (top >= game.tiers[2][1]) {
         // 三獎以上：特別講出來
         const tn = tierName(game, top);
+        if (tn === '頭獎') s.flags.jackpot = true;   // 成就用
         const happy = top >= game.tiers[0][1] ? 30 : top >= game.tiers[1][1] ? 20 : 8;
         return good(`${head}，${tn === '頭獎' ? '中頭獎了！！！人生翻轉！' : `中了${tn}！`}${hits > 1 ? `一共中 ${hits} 張，` : ''}拿回 ${formatMoney(prize)}。${addStats(s, { happy })}`);
       }

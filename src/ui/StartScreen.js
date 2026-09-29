@@ -11,6 +11,10 @@ import { C } from './theme';
 import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf, rollDifficulty, RANDOM_WEIGHTS } from '../game/engine';
 import { APP_VERSION } from '../version';
 import { STUDIO_NAME } from './StudioIntro';
+import DailyBoard from './DailyBoard';
+import ChallengeTab from './ChallengeTab';
+import BadgeWall from './BadgeWall';
+import { todayKey } from '../game/daily';
 
 const HOW = [
   { icon: '👶', title: '從 0 歲開始', text: '每按一次「過一年」就長一歲，65 歲退休，85 歲結算。中間會遇到隨機事件，選項不同、結果就不同。' },
@@ -63,9 +67,11 @@ function Tile({ img, title, value, badge, onPress }) {
   );
 }
 
-function TabBtn({ icon, label, active, onPress }) {
+function TabBtn({ icon, label, active, onPress, badge }) {
   return (
     <Pressable onPress={onPress} style={styles.tabBtn}>
+      {/* 小紅點：今天的挑戰還沒打 */}
+      {badge ? <View style={styles.tabBadge} /> : null}
       <Text style={[styles.tabIcon, active && { color: '#7db4ff' }]}>{icon}</Text>
       <Text style={[styles.tabLabel, active && { color: '#fff' }]}>{label}</Text>
       {active ? <View style={styles.tabDot} /> : null}
@@ -73,7 +79,7 @@ function TabBtn({ icon, label, active, onPress }) {
   );
 }
 
-export default function StartScreen({ save, best, board, book, meta, onBuyMeta, onNew, onContinue }) {
+export default function StartScreen({ save, best, board, book, meta, onBuyMeta, onNew, onContinue, daily, dsave, onDaily, onDailyContinue, badges, tab = 'home', onTab }) {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const W = Math.min(width, 480);
@@ -88,6 +94,7 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
   const [metaMsg, setMetaMsg] = useState(null);
   const [confirmNew, setConfirmNew] = useState(false);
   const [rolling, setRolling] = useState(null); // 隨機難度抽到什麼，先給玩家看一下再進遊戲
+  const [boardTab, setBoardTab] = useState('daily');
   const m = meta || { points: 0, earned: 0, lives: 0, slots: 0, retire: 0 };
   const got = book || {};
   const gotCount = LEGENDS.filter((l) => got[l.id]).length;
@@ -123,6 +130,12 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           </Pressable>
         </View>
 
+        {tab === 'ach' ? (
+          <BadgeWall badges={badges} />
+        ) : tab === 'challenge' ? (
+          <ChallengeTab daily={daily} dsave={dsave} onDaily={onDaily} onDailyContinue={onDailyContinue} defaultName={name.trim() || (save && save.name) || ''} />
+        ) : (
+        <>
         {/* 主視覺 */}
         <Image source={PHOTO.hero} style={{ width: W, height: Math.round(W * 444 / 780) }} resizeMode="cover" />
 
@@ -229,6 +242,9 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           <Tile img="tile_crown" title="最佳紀錄" value={best ? formatMoney(best.nw) : '—'} onPress={() => setShowBest(true)} />
         </View>
 
+        </>
+        )}
+
         {/* 版本號：手機上一眼就知道有沒有更新到 */}
         <Text style={styles.credit}>{STUDIO_NAME}　{APP_VERSION}</Text>
       </ScrollView>
@@ -247,8 +263,9 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
 
       {/* 底部 Tab Bar */}
       <View style={[styles.tabBar, GLASS, { paddingBottom: insets.bottom + 6, width: W }]}>
-        <TabBtn icon="🏠" label="人生" active />
-        <TabBtn icon="🏆" label="成就" onPress={() => { setMetaMsg(null); setShowMeta(true); }} />
+        <TabBtn icon="🏠" label="人生" active={tab === 'home'} onPress={() => onTab && onTab('home')} />
+        <TabBtn icon="📅" label="挑戰" active={tab === 'challenge'} onPress={() => onTab && onTab('challenge')} badge={!(daily && daily.runs && daily.runs[todayKey()])} />
+        <TabBtn icon="🏆" label="成就" active={tab === 'ach'} onPress={() => onTab && onTab('ach')} />
         <TabBtn icon="📊" label="排行榜" onPress={() => setShowBoard(true)} />
         <TabBtn icon="⚙" label="設定" onPress={() => setShowHow(true)} />
       </View>
@@ -327,7 +344,14 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
 
       {/* 排行榜：歷代人生 */}
       <Sheet visible={showBoard} onClose={() => setShowBoard(false)} title="排行榜" tall>
-        {(board || []).length === 0 ? (
+        <View style={styles.bTabs}>
+          {[['daily', '🌏 每日挑戰'], ['mine', '📜 我的歷代']].map(([k, l]) => (
+            <Pressable key={k} onPress={() => setBoardTab(k)} style={[styles.bTab, boardTab === k && styles.bTabOn]}>
+              <Text style={[styles.bTabText, boardTab === k && { color: C.primaryInk }]}>{l}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {boardTab === 'daily' ? <DailyBoard daily={daily} /> : (board || []).length === 0 ? (
           <View style={styles.ptsBox}><Text style={styles.ptsLabel}>還沒有人上榜，玩完一輩子就會出現。</Text></View>
         ) : (
           <View style={styles.card}>
@@ -382,6 +406,11 @@ const styles = StyleSheet.create({
   ptsPill: { backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_LINE, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   ptsText: { color: '#fff', fontSize: 12.5, fontWeight: '700', fontVariant: ['tabular-nums'] },
 
+  tabBadge: { position: 'absolute', top: 4, right: '28%', width: 9, height: 9, borderRadius: 5, backgroundColor: '#ff4d4f', zIndex: 2 },
+  bTabs: { flexDirection: 'row', gap: 8, marginBottom: 6 },
+  bTab: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  bTabOn: { backgroundColor: C.primarySoft, borderColor: C.primary },
+  bTabText: { fontSize: 14.5, fontWeight: '800', color: C.muted },
   player: {
     marginHorizontal: 14, marginTop: -26, borderRadius: 22, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: 'rgba(40,50,140,0.75)', borderWidth: 1, borderColor: 'rgba(160,180,255,0.55)', overflow: 'hidden',

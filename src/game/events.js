@@ -23,6 +23,7 @@ import { MEET_EVENT, DATE_EVENT, DATE_YEAR_EVENT, LOVE_EVENTS } from './events_l
 import { REUNION_EVENT, MATE_TIP_EVENT, MNA_EVENTS } from './events_rival.js';
 import { PET_EVENTS } from './events_pet.js';
 import { RETIRE_EVENTS } from './events_retire.js';
+import { MEME_EVENTS } from './events_meme.js';
 
 const good = (text) => ({ text, tone: 'good' });
 const pctText = (r) => `${r >= 0 ? '+' : ''}${Math.round(r * 100)}%`;
@@ -700,6 +701,6 @@ export const EVENTS = [
   },
 ];
 
-EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, DATE_YEAR_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS, ...PET_EVENTS, ...RETIRE_EVENTS);
+EVENTS.push(...EXTRA_EVENTS, ...EVENTS3, ...BABY_EVENTS, TALENT_EVENT, MEET_EVENT, DATE_EVENT, DATE_YEAR_EVENT, ...LOVE_EVENTS, REUNION_EVENT, MATE_TIP_EVENT, ...MNA_EVENTS, ...SCHOOL_EVENTS, ...SELF_EVENTS, ...CLUB_EVENTS, ...BAND_EVENTS, ...IDOL_EVENTS, ...TOP_EVENTS, ...PET_EVENTS, ...RETIRE_EVENTS, ...MEME_EVENTS);
 
 export const eventById = (id) => EVENTS.find((e) => e.id === id);

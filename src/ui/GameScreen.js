@@ -275,7 +275,15 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           <View style={styles.nameRow}>
             <Head age={s.age} gender={s.gender} size={44} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.name} numberOfLines={1}>{s.name}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.name, { flexShrink: 1 }]} numberOfLines={1}>{s.name}</Text>
+                {/* 每日挑戰那一局：一眼看出是排名賽還是練習 */}
+                {s.daily ? (
+                  <View style={[styles.dailyPill, !s.daily.ranked && styles.dailyPillPractice]}>
+                    <Text style={[styles.dailyPillText, !s.daily.ranked && { color: C.muted }]}>📅 #{s.daily.no} {s.daily.ranked ? '排名賽' : '練習'}</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={styles.subText} numberOfLines={2}>{sub}</Text>
             </View>
           </View>
@@ -725,6 +733,9 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   nameRow: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   name: { fontSize: 22, fontWeight: '700', color: C.ink, letterSpacing: -0.3 },
+  dailyPill: { backgroundColor: C.goldSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: C.gold },
+  dailyPillPractice: { backgroundColor: 'transparent', borderColor: C.line },
+  dailyPillText: { fontSize: 12, fontWeight: '800', color: C.goldInk },
   menu: { fontSize: 16, color: C.muted },
   subText: { fontSize: 12, color: C.muted, marginTop: 1 },
 

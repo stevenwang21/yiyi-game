@@ -322,6 +322,45 @@ function SceneFill({ e, w, h }) {
   );
 }
 
+// 整張事件卡的背景：插圖的底色、模糊的大道具、光點一路往下鋪到卡片最底，
+// 讓上面的插圖不是「一個框」，而是整張卡都在那個場景裡。文字直接疊在上面。
+const BOKEH_TALL = [[0.08, 0.05, 0.05], [0.9, 0.04, 0.035], [0.52, 0.2, 0.025], [0.18, 0.38, 0.04], [0.84, 0.46, 0.05], [0.4, 0.62, 0.03], [0.94, 0.78, 0.035], [0.1, 0.86, 0.045], [0.62, 0.94, 0.03]];
+export function SceneBackdrop({ kind, sceneH = 150 }) {
+  const cfg = KIND[kind] || KIND.desk;
+  const pal = PAL[cfg.pal] || PAL.night;
+  const [sz, setSz] = useState({ w: 0, h: 0 });
+  const e = cfg.props[0] && cfg.props[0][0];
+  const e2 = cfg.props[1] && cfg.props[1][0];
+  const u = Math.min(sz.w, 520);
+  const big = sceneH * 1.5;
+  const bg = WEB
+    ? { backgroundImage: `radial-gradient(130% ${Math.round(sceneH * 2.2)}px at 25% 0px, ${pal[0]} 0%, ${pal[1]} 100%), linear-gradient(180deg, ${pal[1]} 0%, ${pal[1]} 100%)` }
+    : { backgroundColor: pal[1] };
+  return (
+    <View pointerEvents="none" onLayout={(ev) => setSz({ w: ev.nativeEvent.layout.width, h: ev.nativeEvent.layout.height })} style={[StyleSheet.absoluteFill, { backgroundColor: pal[1] }, bg]}>
+      {sz.w > 0 ? (
+        <>
+          {e ? (
+            <View style={{ position: 'absolute', left: sz.w * 0.74 - big / 2, top: sceneH * 0.55 - big / 2, opacity: 0.18, ...(WEB ? { filter: 'blur(2px)' } : null) }}>
+              <Emo e={e} size={big} />
+            </View>
+          ) : null}
+          {e2 && sz.h > sceneH * 2.6 ? (
+            <View style={{ position: 'absolute', left: -big * 0.25, top: sz.h * 0.62, opacity: 0.08, ...(WEB ? { filter: 'blur(3px)' } : null) }}>
+              <Emo e={e2} size={big * 1.1} />
+            </View>
+          ) : null}
+          {BOKEH_TALL.map(([x, y, r], i) => (
+            <View key={i} style={{ position: 'absolute', left: sz.w * x, top: sz.h * y, width: u * r * 2, height: u * r * 2, borderRadius: u * r, backgroundColor: '#fff', opacity: 0.06 + (i % 3) * 0.025 }} />
+          ))}
+          {/* 越往下越暗一點，字比較好讀 */}
+          {WEB ? <View style={{ position: 'absolute', left: 0, right: 0, top: sceneH, bottom: 0, backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 100%)' }} /> : null}
+        </>
+      ) : null}
+    </View>
+  );
+}
+
 // 頭頂的心情泡泡：先淡淡的 🙂，再換成當下的表情
 function Bubble({ mood, left, top, size }) {
   const pop = useRef(new Animated.Value(0)).current;
@@ -1076,7 +1115,7 @@ export function ReunionStage({ game, choice, style }) {
 }
 
 export function CharScene({
-  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates, pets, heroAt,
+  kind = 'desk', age = 22, gender = 'male', partner, baby, mood, bad: badIn, height = 150, radius = 18, style, full, noProps, crashPct, compact: compactIn, name, hidePhone, mates, pets, heroAt, bare,
 }) {
   const cfg = KIND[kind] || KIND.desk;
   const pal = PAL[cfg.pal] || PAL.night;
@@ -1116,11 +1155,12 @@ export function CharScene({
   return (
     <View
       onLayout={(e) => setW(e.nativeEvent.layout.width)}
-      style={[{ height, borderRadius: radius, overflow: 'hidden', backgroundColor: pal[1] }, bg, style]}
+      // bare：背景交給整張卡的 SceneBackdrop，這裡只放人和道具，看起來插圖一路延伸到卡片底
+      style={[{ height, borderRadius: bare ? 0 : radius, overflow: 'hidden', backgroundColor: bare ? 'transparent' : pal[1] }, bare ? null : bg, style]}
     >
       {/* 地板光 */}
-      <View pointerEvents="none" style={{ position: 'absolute', left: '-10%', right: '-10%', bottom: -height * 0.35, height: height * 0.6, borderRadius: height, backgroundColor: 'rgba(255,255,255,0.07)' }} />
-      {w > 0 && fillMode ? <SceneFill e={cfg.props[0] && cfg.props[0][0]} w={w} h={height} /> : null}
+      {bare ? null : <View pointerEvents="none" style={{ position: 'absolute', left: '-10%', right: '-10%', bottom: -height * 0.35, height: height * 0.6, borderRadius: height, backgroundColor: 'rgba(255,255,255,0.07)' }} />}
+      {w > 0 && fillMode && !bare ? <SceneFill e={cfg.props[0] && cfg.props[0][0]} w={w} h={height} /> : null}
       {w > 0 ? (
         <>
           {social && !hidePhone && !compact ? (

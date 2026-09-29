@@ -56,7 +56,7 @@ function wrap(ctx, text, maxW, maxLines) {
 
 export const canShareCard = () => Platform.OS === 'web' && typeof document !== 'undefined';
 
-export async function makeShareCard(game, meta) {
+export async function makeShareCard(game, meta, rank) {
   const sum = E.summary(game);
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
@@ -94,7 +94,10 @@ export async function makeShareCard(game, meta) {
   ctx.fillStyle = '#fff'; ctx.font = f(46, 800); ctx.textAlign = 'left';
   ctx.fillText('一個億的小目標', logo ? 184 : 70, 104);
   ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = f(30, 600);
-  ctx.fillText(`人生成績單．第 ${(meta && meta.lives) || 1} 世`, logo ? 184 : 70, 146);
+  if (game.daily) ctx.fillStyle = gold;
+  ctx.fillText(game.daily
+    ? `每日挑戰 #${game.daily.no}${game.daily.ranked && rank ? `．全球第 ${rank.rank} 名 / ${rank.total} 人` : game.daily.ranked ? '' : '（練習）'}`
+    : `人生成績單．第 ${(meta && meta.lives) || 1} 世`, logo ? 184 : 70, 146);
 
   // 結局插圖
   const ix = 70; const iy = 220; const iw = W - 140; const ih = 600;
@@ -184,7 +187,7 @@ export async function makeShareCard(game, meta) {
 
   // 底部
   ctx.fillStyle = gold; ctx.font = f(36, 800);
-  ctx.fillText('你這輩子能賺到一個億嗎？', W / 2, 1845);
+  ctx.fillText(game.daily ? `今天的挑戰 #${game.daily.no}，你能贏我嗎？` : '你這輩子能賺到一個億嗎？', W / 2, 1845);
 
   return canvas.toDataURL('image/png');
 }
