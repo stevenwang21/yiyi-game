@@ -11,30 +11,30 @@ const ND = Platform.OS !== 'web';
 // 走路動畫：每個階段、男女各一張 8 格的長條圖（public/art/walk_*.webp，320px 高）。
 // w/h 是一格的原始尺寸；headX 是頭在一格裡的水平位置（比例），學士帽要用。
 export const WALK = {
-  walk_baby_m: { w: 323, h: 320, frames: 8, fps: 10, headX: 0.699, headH: 0.2 },
+  walk_baby_m: { w: 286, h: 320, frames: 8, fps: 10, headX: 0.518, headH: 0.45 },
   walk_baby_f: { w: 284, h: 320, frames: 8, fps: 10, headX: 0.653, headH: 0.2 },
-  walk_kid_m: { w: 166, h: 320, frames: 8, fps: 10, headX: 0.594, headH: 0.2 },
+  walk_kid_m: { w: 132, h: 320, frames: 8, fps: 10, headX: 0.526, headH: 0.219 },
   walk_kid_f: { w: 168, h: 320, frames: 8, fps: 10, headX: 0.516, headH: 0.2 },
-  walk_teen_m: { w: 189, h: 320, frames: 8, fps: 10, headX: 0.584, headH: 0.17 },
+  walk_junior_m: { w: 120, h: 320, frames: 8, fps: 10, headX: 0.489, headH: 0.182 },
+  walk_teen_m: { w: 126, h: 320, frames: 8, fps: 10, headX: 0.478, headH: 0.168 },
   walk_teen_f: { w: 188, h: 320, frames: 8, fps: 10, headX: 0.493, headH: 0.17 },
-  walk_young_m: { w: 177, h: 320, frames: 8, fps: 10, headX: 0.616, headH: 0.17 },
+  walk_young_m: { w: 136, h: 320, frames: 8, fps: 10, headX: 0.601, headH: 0.154 },
   walk_young_f: { w: 176, h: 320, frames: 8, fps: 10, headX: 0.478, headH: 0.17 },
-  walk_mid_m: { w: 187, h: 320, frames: 8, fps: 10, headX: 0.709, headH: 0.17 },
+  walk_mid_m: { w: 128, h: 320, frames: 8, fps: 10, headX: 0.576, headH: 0.164 },
   walk_mid_f: { w: 160, h: 320, frames: 8, fps: 10, headX: 0.554, headH: 0.17 },
-  walk_old_m: { w: 165, h: 320, frames: 8, fps: 10, headX: 0.652, headH: 0.17 },
+  walk_old_m: { w: 132, h: 320, frames: 8, fps: 10, headX: 0.5, headH: 0.171 },
   walk_old_f: { w: 184, h: 320, frames: 8, fps: 10, headX: 0.563, headH: 0.17 },
   // 60 格版：你給的 frames_png 逐格接起來（001→060），一秒 30 格，2 秒一個循環
-  walk60_elem_m: { w: 170, h: 320, frames: 60, fps: 30, headX: 0.609, headH: 0.19 },
   walk60_elem_f: { w: 175, h: 320, frames: 60, fps: 30, headX: 0.579, headH: 0.19 },
-  walk60_junior_m: { w: 211, h: 320, frames: 60, fps: 30, headX: 0.709, headH: 0.16 },
   walk60_junior_f: { w: 216, h: 320, frames: 60, fps: 30, headX: 0.554, headH: 0.16 },
-  walk60_univ_m: { w: 207, h: 320, frames: 60, fps: 30, headX: 0.671, headH: 0.16 },
   walk60_univ_f: { w: 215, h: 320, frames: 60, fps: 30, headX: 0.58, headH: 0.16 },
 };
 
 // 回顧畫面的走路圖：國小、國高中、大學有 60 格的細版；嬰兒、出社會之後還是 8 格版
 export const walkId = (age, gender) => {
   const g = gender === 'female' ? 'f' : 'm';
+  // 男主：新版立繪做的 8 格走路（腿會前後擺），每個階段一張，跟事件卡上的是同一個人
+  if (g === 'm') return `walk_${stageOf(age)}_m`;
   if (age >= 6 && age < 13) return `walk60_elem_${g}`;
   if (age >= 13 && age < 19) return `walk60_junior_${g}`;
   if (age >= 19 && age < 23) return `walk60_univ_${g}`;
@@ -219,7 +219,7 @@ function Hero({ age, gender, height, grad, playing, g, width }) {
   const id = walkId(age, gender);
   const m = WALK[id];
   // 各階段在畫面上的高度：嬰兒趴著所以矮，越大越高
-  const hh = height * (st === 'baby' ? 0.38 : st === 'kid' ? 0.56 : st === 'teen' ? 0.66 : 0.7);
+  const hh = height * (st === 'baby' ? 0.38 : st === 'kid' ? 0.56 : st === 'teen' || st === 'junior' ? 0.66 : 0.7);
   const ww = (hh * m.w) / m.h;
   const hs = hh * m.headH;
   // 循環時間：60 格版就是 60/30 = 2 秒（一格一格照 001→060 播）；8 格版照階段給

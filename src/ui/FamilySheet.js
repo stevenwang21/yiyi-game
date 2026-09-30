@@ -182,11 +182,14 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
               <Text style={styles.styleDesc}>{info.style.desc}</Text>
             </>
           ) : (
-            <Text style={[styles.muted, { marginTop: 8 }]}>
-              {info.downs
-                ? `已經成年，有自己的工作，你們還是固定給生活費，每年約 ${E.formatMoney(info.yearly)}。`
-                : `已經長大獨立，不用再花錢了。${info.outcome ? `現在是「${info.outcome.title}」` : ''}${info.filial > 0 ? `，每年給你 ${E.formatMoney(info.filial)} 孝親費。` : info.outcome ? '，暫時還幫不上家裡。' : ''}`}
-            </Text>
+            <>
+              <Text style={[styles.muted, { marginTop: 8 }]}>
+                {info.downs
+                  ? `已經成年，有自己的工作，你們還是固定給生活費，每年約 ${E.formatMoney(info.yearly)}。`
+                  : `已經長大獨立，不用再花錢了。${info.outcome ? `現在是「${info.outcome.title}」` : ''}${info.filial > 0 ? `，每年給你 ${E.formatMoney(info.filial)} 孝親費。` : info.outcome ? '，暫時還幫不上家裡。' : ''}`}
+              </Text>
+              <KidInvest s={s} k={k} setGame={setGame} />
+            </>
           )}
         </Card>
       ))}
@@ -296,6 +299,53 @@ function Stat({ label, value }) {
   );
 }
 
+
+// 出資投資孩子：獨立後一個孩子只能投一次，3 年後揭曉
+function KidInvest({ s, k, setGame }) {
+  const [msg, setMsg] = useState(null);
+  const inv = k.invest;
+  if (inv) {
+    const left = E.KID_INVEST_YEARS - (s.age - inv.since);
+    return (
+      <View style={styles.investBox}>
+        <Text style={styles.investTitle}>
+          💼 你出了 {E.formatMoney(inv.amount)} 讓{k.gender === 'female' ? '她' : '他'}開{inv.biz}
+        </Text>
+        <Text style={styles.muted}>
+          {!inv.done ? `還要 ${Math.max(1, left)} 年才知道成不成。` : inv.ok ? `做起來了！每年分你 ${E.formatMoney(Math.round(inv.amount * E.KID_INVEST_RATE))}。` : '沒做起來，錢就當學費了。'}
+        </Text>
+      </View>
+    );
+  }
+  const info = E.kidInvestInfo(s, k);
+  if (!info.ok) return null;
+  return (
+    <View style={styles.investBox}>
+      <Text style={styles.investTitle}>💼 出資讓{k.gender === 'female' ? '她' : '他'}創業？</Text>
+      <Text style={styles.muted}>一個孩子只能投一次，{E.KID_INVEST_YEARS} 年後見真章。成了每年分 {Math.round(E.KID_INVEST_RATE * 100)}%，垮了錢就沒了。</Text>
+      <View style={styles.styleRow}>
+        {info.tiers.map((t) => (
+          <Pressable
+            key={t.id}
+            onPress={() => {
+              const r = E.investKid(s, k.uid, t.id);
+              if (r.error) { setMsg(r.error); return; }
+              setMsg(null);
+              setGame(r.state);
+            }}
+            style={[styles.styleChip, s.money < t.amount && { opacity: 0.45 }]}
+          >
+            <Text style={styles.styleName}>{t.name}</Text>
+            <Text style={styles.styleSub}>{E.formatMoney(t.amount)}</Text>
+            <Text style={[styles.styleSub, { color: C.goldInk, fontWeight: '800' }]}>成功率 {Math.round(t.chance * 100)}%</Text>
+          </Pressable>
+        ))}
+      </View>
+      {msg ? <Text style={[styles.muted, { marginTop: 6, color: C.red, fontWeight: '700' }]}>{msg}</Text> : null}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   fertBox: { backgroundColor: C.page, borderRadius: 12, padding: 10, marginTop: 10 },
   fertTitle: { fontSize: 13, fontWeight: '600', color: C.ink },
@@ -340,6 +390,8 @@ const styles = StyleSheet.create({
   totalBox: { alignItems: 'center', marginVertical: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: C.page },
   total: { fontSize: 28, fontWeight: '700', color: C.ink },
   kidTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  investBox: { marginTop: 10, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,215,106,0.12)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.45)' },
+  investTitle: { color: C.ink, fontSize: 15, fontWeight: '800', marginBottom: 2 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 18, fontWeight: '600', color: C.goldInk },
   money: { fontSize: 16, fontWeight: '600', color: C.ink },

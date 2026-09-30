@@ -599,6 +599,7 @@ function rollKidOutcome(s, k, rng) {
 function kidYear(s, rng) {
   let total = 0;
   let filial = 0;
+  let kidDiv = 0;
   for (const k of s.kids) {
     const a = s.age - k.born;
     if (a < 0) continue;
@@ -610,6 +611,18 @@ function kidYear(s, rng) {
         total += care;
         continue;
       }
+      // 你出資讓孩子創業：3 年後見真章，成了之後每年分紅
+      if (k.invest && !k.invest.done && s.age - k.invest.since >= KID_INVEST_YEARS) {
+        const r = rng || Math.random;
+        k.invest.done = true;
+        k.invest.ok = r() < k.invest.chance;
+        if (k.invest.ok) {
+          log(s, `「${k.name}」的${k.invest.biz}做起來了！你當年出的 ${formatMoney(k.invest.amount)} 沒白花，以後每年分你 ${formatMoney(Math.round(k.invest.amount * KID_INVEST_RATE))}。` + addStats(s, { happy: 8 }), 'milestone');
+        } else {
+          log(s, `「${k.name}」的${k.invest.biz}撐了 ${KID_INVEST_YEARS} 年還是收掉了，你出的 ${formatMoney(k.invest.amount)} 就當學費。孩子很不好意思，你拍拍他說沒關係。` + addStats(s, { happy: -4 }), 'milestone');
+        }
+      }
+      if (k.invest && k.invest.done && k.invest.ok) kidDiv += Math.round(k.invest.amount * KID_INVEST_RATE);
       // 出社會站穩腳步之後（25 歲起）才開始給孝親費
       if (a < KID_INDEPENDENT + 3) continue;
       const out = KID_OUTCOMES.find((o) => o.id === k.outcome);
@@ -646,6 +659,7 @@ function kidYear(s, rng) {
   }
   s.kidSpent += total;
   s.lastFilial = filial;
+  s.lastKidDiv = kidDiv;
   return total;
 }
 
@@ -677,6 +691,41 @@ export function setKidStyle(s0, uid, styleId) {
   return { state: s };
 }
 
+// 出資投資孩子：孩子獨立後（22 歲起）可以出一筆錢讓他創業，一個孩子只能投一次。
+// 成功率看孩子長大後的成就（越有成就越穩）和出的錢多寡；3 年後揭曉，成了每年分 25%，垮了錢就沒了。
+export const KID_INVEST_YEARS = 3;
+export const KID_INVEST_RATE = 0.25;
+export const KID_INVEST_TIERS = [
+  { id: 'small', name: '小試身手', base: 100 * WAN, bonus: 0, biz: '小店' },
+  { id: 'mid', name: '認真投資', base: 300 * WAN, bonus: 0.08, biz: '公司' },
+  { id: 'big', name: '全力支持', base: 1000 * WAN, bonus: 0.15, biz: '新創' },
+];
+const KID_INVEST_BASE = { struggle: 0.3, normal: 0.45, pro: 0.6, star: 0.72 };
+export function kidInvestInfo(s, k) {
+  const a = s.age - k.born;
+  const ok = a >= KID_INDEPENDENT && a <= 45 && !k.downs && !k.invest;
+  const base = KID_INVEST_BASE[k.outcome] || 0.3;
+  return {
+    ok,
+    reason: k.invest ? '已經投過了' : k.downs ? '' : a < KID_INDEPENDENT ? '還沒獨立' : a > 45 ? '孩子過了創業的年紀' : '',
+    tiers: KID_INVEST_TIERS.map((t) => ({ ...t, amount: cost(s, t.base), chance: Math.min(0.9, base + t.bonus) })),
+  };
+}
+export function investKid(s0, uid, tierId) {
+  const s = clone(s0);
+  const k = s.kids.find((x) => x.uid === uid);
+  if (!k) return fail(s0, '找不到這個小孩');
+  const info = kidInvestInfo(s, k);
+  if (!info.ok) return fail(s0, info.reason || '現在不能投');
+  const t = info.tiers.find((x) => x.id === tierId);
+  if (!t) return fail(s0, '沒有這個方案');
+  if (s.money < t.amount) return fail(s0, `現金不夠，要 ${formatMoney(t.amount)}`);
+  s.money -= t.amount;
+  k.invest = { amount: t.amount, since: s.age, chance: t.chance, biz: t.biz, done: false, ok: false };
+  log(s, `你出了 ${formatMoney(t.amount)} 讓「${k.name}」去開${t.biz}。${KID_INVEST_YEARS} 年後見真章。` + addStats(s, { happy: 3 }), 'milestone');
+  return { state: s };
+}
+
 export function toggleKidCram(s0, uid) {
   const s = clone(s0);
   const k = s.kids.find((x) => x.uid === uid);
@@ -685,7 +734,7 @@ export function toggleKidCram(s0, uid) {
 }
 
 function economy(s, rng) {
-  const y = { salary: 0, bizIncome: 0, rent: 0, living: 0, kids: 0, debtPay: 0, dca: 0, allowance: 0, spouse: 0, dating: 0, side: 0, filial: 0, tax: 0, pension: 0, retireSpend: 0 };
+  const y = { salary: 0, bizIncome: 0, rent: 0, living: 0, kids: 0, debtPay: 0, dca: 0, allowance: 0, spouse: 0, dating: 0, side: 0, filial: 0, kidDiv: 0, tax: 0, pension: 0, retireSpend: 0 };
   // 退休金：退休那年定好金額，之後跟著物價調
   if (s.retired && s.pension) y.pension = Math.round(s.pension * (s.priceIndex / (s.pensionPI || s.priceIndex)));
   const adult = isAdult(s);
@@ -778,6 +827,7 @@ function economy(s, rng) {
   if (s.retired) y.retireSpend = Math.round(Math.max(0, netWorth(s)) * RETIRE_SPEND);
   y.kids = kidYear(s, rng);
   y.filial = s.lastFilial || 0;
+  y.kidDiv = s.lastKidDiv || 0;
 
   // 債務
   for (const d of s.debts) {
@@ -804,7 +854,7 @@ function economy(s, rng) {
     y.tax = Math.round(tax);
   }
   y.cashStart = s.money;
-  s.money += y.salary + y.side + y.bizIncome + y.rent + y.allowance + y.spouse + y.filial + (y.pension || 0) - y.living - (y.retireSpend || 0) - y.kids - y.debtPay - y.dating - (y.tax || 0);
+  s.money += y.salary + y.side + y.bizIncome + y.rent + y.allowance + y.spouse + y.filial + (y.kidDiv || 0) + (y.pension || 0) - y.living - (y.retireSpend || 0) - y.kids - y.debtPay - y.dating - (y.tax || 0);
 
   // 定期定額（薪水或零用錢的一部分）
   const dcaBase = y.salary + y.allowance;
@@ -912,7 +962,7 @@ function economy(s, rng) {
   y.cashEnd = s.money;
   s.lastYear = y;
   if (adult && (y.salary || y.bizIncome || y.living)) {
-    const inc = y.salary + y.bizIncome + y.rent + y.spouse + y.filial;
+    const inc = y.salary + y.bizIncome + y.rent + y.spouse + y.filial + (y.kidDiv || 0);
     const out = y.living + y.kids + y.debtPay + y.dating + (y.tax || 0);
     log(s, [
       `收入 ${formatMoney(inc)}`,

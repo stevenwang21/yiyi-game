@@ -15,25 +15,27 @@ const WEB = Platform.OS === 'web';
 export function stageOf(age = 0) {
   if (age < 6) return 'baby';
   if (age < 13) return 'kid';
+  if (age < 16) return 'junior';   // 國中（男主有自己的立領制服；女主沿用高中那張）
   if (age < 19) return 'teen';
   if (age < 35) return 'young';
   if (age < 55) return 'mid';
   return 'old';
 }
-export const STAGE_NAME = { baby: '嬰兒', kid: '國小', teen: '高中', young: '青年', mid: '壯年', old: '老年' };
+export const STAGE_NAME = { baby: '嬰兒', kid: '國小', junior: '國中', teen: '高中', young: '青年', mid: '壯年', old: '老年' };
 const gk = (gender) => (gender === 'female' ? 'f' : 'm');
 
 // 圖片原始尺寸（寬、高），用來算比例
 const SIZE = {
-  baby_m: [90, 169], baby_f: [95, 167], kid_m: [107, 366], kid_f: [108, 332],
-  teen_m: [117, 427], teen_f: [111, 382], young_m: [111, 432], young_f: [112, 402],
-  mid_m: [118, 434], mid_f: [98, 396], old_m: [129, 427], old_f: [107, 389],
+  // 男主（2026/9 新版立繪，七個階段）
+  baby_m: [203, 266], kid_m: [202, 568], junior_m: [218, 676], teen_m: [244, 728],
+  young_m: [269, 741], mid_m: [252, 739], old_m: [263, 739],
+  baby_f: [95, 167], kid_f: [108, 332], teen_f: [111, 382], young_f: [112, 402], mid_f: [98, 396], old_f: [107, 389],
 };
 // 頭的位置（中心 x 佔寬度比例）與大小（佔身高比例）
 export const HEAD = {
-  baby_m: [0.58, 0.62], baby_f: [0.54, 0.62], kid_m: [0.68, 0.25], kid_f: [0.43, 0.25],
-  teen_m: [0.67, 0.2], teen_f: [0.44, 0.2], young_m: [0.613, 0.19], young_f: [0.41, 0.19],
-  mid_m: [0.66, 0.19], mid_f: [0.43, 0.19], old_m: [0.67, 0.19], old_f: [0.4, 0.19],
+  baby_m: [0.522, 0.5], kid_m: [0.532, 0.219], junior_m: [0.486, 0.182], teen_m: [0.473, 0.168],
+  young_m: [0.625, 0.154], mid_m: [0.593, 0.164], old_m: [0.5, 0.171],
+  baby_f: [0.54, 0.62], kid_f: [0.43, 0.25], teen_f: [0.44, 0.2], young_f: [0.41, 0.19], mid_f: [0.43, 0.19], old_f: [0.4, 0.19],
 };
 export const spriteId = (age, gender) => cid(stageOf(age), gk(gender));
 export const SPRITE_SIZE = SIZE;
@@ -43,7 +45,8 @@ export const IDENT = {
   f: { main: '#4b3a8f', ring: '#b18cff', soft: 'rgba(120,90,210,0.5)' },
 };
 
-const cid = (stage, g) => `${stage}_${g}`;
+// 國中只有男主有專屬立繪，女主沿用高中那張
+const cid = (stage, g) => (stage === 'junior' && g === 'f' ? 'teen_f' : `${stage}_${g}`);
 
 // ───────── 頭像（圓形）─────────
 export function Head({ age = 22, gender = 'male', size = 44, mood, style }) {
@@ -181,7 +184,7 @@ const KIND = {
 };
 
 // 構圖：畫面大約看到哪裡（1 = 剛好全身）
-const ZOOM = { baby: 0.82, kid: 1.25, teen: 1.42, young: 1.5, mid: 1.5, old: 1.5 };
+const ZOOM = { baby: 0.82, kid: 1.25, junior: 1.36, teen: 1.42, young: 1.5, mid: 1.5, old: 1.5 };
 
 // 依事件內容決定要不要出現另一半、寶寶
 export function castFor(kind, s, text = '') {
@@ -647,9 +650,9 @@ const cmHead = (a) => { const [, , cx, hw] = CM[cmKey(a)]; return { cx: isAlt(a)
 // ───────── 半骨架人物：把立繪切成「頭」和「身體」兩層，頭可以點頭、歪頭，身體會呼吸 ─────────
 // cut：脖子在身高的幾成｜ncx：脖子中心在寬度的幾成（旋轉的軸心）
 const RIG = {
-  baby_m: [0.5385, 0.478], baby_f: [0.6527, 0.663], kid_m: [0.2158, 0.528], kid_f: [0.2169, 0.495],
-  teen_m: [0.1733, 0.55], teen_f: [0.1728, 0.491], young_m: [0.1644, 0.61], young_f: [0.1642, 0.473],
-  mid_m: [0.1659, 0.517], mid_f: [0.1641, 0.413], old_m: [0.1639, 0.535], old_f: [0.1671, 0.35],
+  baby_m: [0.4211, 0.5], kid_m: [0.2095, 0.5446], junior_m: [0.1746, 0.5046], teen_m: [0.1607, 0.5164],
+  young_m: [0.1484, 0.5929], mid_m: [0.157, 0.5337], old_m: [0.1637, 0.4582],
+  baby_f: [0.6527, 0.663], kid_f: [0.2169, 0.495], teen_f: [0.1728, 0.491], young_f: [0.1642, 0.473], mid_f: [0.1641, 0.413], old_f: [0.1671, 0.35],
   cm_civil_f: [0.1703, 0.457], cm_designer_f: [0.1641, 0.492], cm_engineer_m: [0.1625, 0.545],
   cm_founder_m: [0.1516, 0.426], cm_nurse_f: [0.1828, 0.494], cm_owner_m: [0.1422, 0.439],
   cm_photo_m: [0.1516, 0.484], cm_sales_m: [0.1516, 0.456], cm_teacher_f: [0.1516, 0.43],
@@ -696,15 +699,11 @@ export function RigFigure({ base, width, height, mood = 'idle', delay = 0, flip,
 // 只有「兩腿之間真的有空隙」的立繪才切腿走路：穿裙子、寬褲或兩腿貼在一起的會切壞，
 // 那些改用原本的整張立繪（一樣會呼吸、點頭，只是腿不動）。
 const LEGS = {
-  kid_m: [0.555, 0.55, 0.355, 0.779, 0.682, 0.779],
-  teen_m: [0.565, 0.52, 0.329, 0.766, 0.641, 0.763],
   teen_f: [0.354, 0.52, 0.365, 0.767, 0.676, 0.754],
-  young_m: [0.564, 0.52, 0.298, 0.766, 0.645, 0.755],
-  mid_m: [0.525, 0.52, 0.275, 0.765, 0.61, 0.753],
 };
 // 腰的位置（骨盆和肩膀分開轉用）：[腰中心 x, 腰 y]
 const WAIST = {
-  kid_m: [0.5, 0.42], teen_m: [0.457, 0.4], teen_f: [0.543, 0.4], young_m: [0.447, 0.4], mid_m: [0.407, 0.4],
+  teen_f: [0.543, 0.4],
 };
 export const canWalk = (id) => !!LEGS[id] || !!RIG[id];
 

@@ -228,7 +228,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   // 新手提示：只在真的需要的時候出現一行；同一種提示出現過一次，之後幾年都不會再跳（不要一直通知）
   const hintInfo = (() => {
     const ly = s.lastYear;
-    const net = ly ? (ly.salary + ly.bizIncome + ly.rent + ly.spouse + (ly.filial || 0) + (ly.side || 0))
+    const net = ly ? (ly.salary + ly.bizIncome + ly.rent + ly.spouse + (ly.filial || 0) + (ly.kidDiv || 0) + (ly.side || 0))
       - (ly.living + ly.kids + ly.debtPay + (ly.dating || 0) + (ly.tax || 0)) : 0;
     if (s.age >= 18 && s.money < 0) {
       return { key: 'overdraft', amt: -s.money, text: `現金透支 ${E.formatMoney(-s.money)}` };
@@ -268,8 +268,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       {isLight
         ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(120% 60% at 90% 40%, rgba(106,92,255,0.10) 0%, rgba(106,92,255,0) 60%), radial-gradient(90% 50% at 0% 90%, rgba(46,144,250,0.08) 0%, rgba(46,144,250,0) 60%)' } : null]} />
         : <DarkBackdrop width={Math.min(win.width, 480)} height={win.height} />}
-      {/* 固定在上面：名字列 */}
-      <View style={[styles.fixedTop, BLUR]}>
+      {/* 固定在上面：名字列。不用毛玻璃，底下捲過去的內容才不會透上來霧霧的 */}
+      <View style={styles.fixedTop}>
         {/* 上方：名字、身分、點數 */}
         <View style={styles.top}>
           <View style={styles.nameRow}>
@@ -717,7 +717,7 @@ const HERO_MASK = 'linear-gradient(to right, transparent 0%, rgba(0,0,0,0.18) 25
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 16, paddingBottom: 120, paddingTop: 0 },
-  fixedTop: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: C.glass, zIndex: 2 },
+  fixedTop: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, backgroundColor: C.bg, zIndex: 2 },
   tabs: { flexDirection: 'row', gap: 6, backgroundColor: C.page, borderRadius: 999, padding: 4, marginTop: 10 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 999 },
   tabOn: { backgroundColor: C.card, ...SHADOW, shadowOpacity: 0.06 },
