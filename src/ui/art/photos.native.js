@@ -90,11 +90,8 @@ export const PHOTO = {
   walk_old_m: require('../../../assets/art/walk_old_m.webp'),
   walk_old_f: require('../../../assets/art/walk_old_f.webp'),
   // 60 格的走路動畫（國小、國高中、大學），一秒 30 格
-  walk60_elem_m: require('../../../assets/art/walk60_elem_m.webp'),
   walk60_elem_f: require('../../../assets/art/walk60_elem_f.webp'),
-  walk60_junior_m: require('../../../assets/art/walk60_junior_m.webp'),
   walk60_junior_f: require('../../../assets/art/walk60_junior_f.webp'),
-  walk60_univ_m: require('../../../assets/art/walk60_univ_m.webp'),
   walk60_univ_f: require('../../../assets/art/walk60_univ_f.webp'),
   // 成就徽章（achievement_icons_v2，001～061 對應 badges.js 的順序）
   badge_nw_1m: require('../../../assets/art/badge_nw_1m.webp'),

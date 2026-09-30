@@ -1,8 +1,8 @@
-// 音效：全部用 Web Audio 當場合成，沒有任何音檔。
-// 這樣做的好處：不用多下載幾 MB、離線照樣有聲音、曲子是自己寫的所以能隨時調。
-// 網頁版才有聲音；App 版（Expo）沒裝 expo-av，直接當作沒這回事。
+// 音效：網頁版用 Web Audio 當場合成，沒有任何音檔（不用多下載、離線照樣有聲音、曲子隨時能調）。
+// App 版沒有 Web Audio，所以同一套曲子先用 scripts 裡的 Python 算成 assets/sfx/*.m4a（總共 220KB），用 expo-audio 播。
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NATIVE_SFX } from './sfxNative';
 
 const WEB = Platform.OS === 'web' && typeof window !== 'undefined';
 const KEY = 'yiyi-sfx-v1';
@@ -136,6 +136,13 @@ const SONGS = {
     pad: [['C3', 1.5, 2.4, 0.24], ['G3', 1.5, 2.4, 0.2], ['E4', 1.5, 2.4, 0.18]],
     type: 'sawtooth', cut: 3000,
   },
+  // 破百萬這種小里程碑：短短的「登登登～登！」號角，最後停在亮亮的和弦
+  fanfare: {
+    bpm: 140,
+    lead: [['G4', 0, 0.25, 0.45], ['C5', 0.25, 0.25, 0.45], ['E5', 0.5, 0.25, 0.5], ['G5', 0.75, 1.6, 0.6]],
+    pad: [['C4', 0.75, 1.8, 0.2], ['E4', 0.75, 1.8, 0.16], ['G4', 0.75, 1.8, 0.14]],
+    type: 'triangle', cut: 5000,
+  },
   // 星探、出道：聚光燈打下來，亮亮的上行三音＋長音
   spotlight: { bpm: 120, lead: [['E5', 0.5, 0.25, 0.3], ['G#5', 0.75, 0.25, 0.32], ['B5', 1, 1.8, 0.4]], pad: [['E4', 1, 2, 0.12], ['B4', 1, 2, 0.1]], type: 'triangle', cut: 6500 },
   // 升職、找到工作：俐落的三個上行音
@@ -167,7 +174,8 @@ function song(a, name) {
 }
 
 export function play(name) {
-  if (!on || !WEB) return;
+  if (!on) return;
+  if (!WEB) { NATIVE_SFX.play(name); return; }
   const a = ctx();
   if (!a) return;
   try {
@@ -189,9 +197,10 @@ export function play(name) {
       return;
     }
     song(a, name);
-    if (name === 'achieve' || name === 'wedding') { noise(a, t + 0.02, 0.6, { gain: 0.08 }); }
+    if (name === 'achieve' || name === 'wedding' || name === 'fanfare') { noise(a, t + 0.02, 0.6, { gain: 0.08 }); }
   } catch (_) { /* 有聲音只是加分，壞了不能影響遊戲 */ }
 }
 
 // 慶祝畫面的層級 → 要放哪首
-export const CELEBRATE_SOUND = { mega: 'achieve', big: 'promote', small: 'coin' };
+// 小事（破百萬）也要有像樣的慶祝聲，不能只是叮一下；大事直接放破億那首
+export const CELEBRATE_SOUND = { mega: 'achieve', big: 'achieve', small: 'fanfare' };

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { C } from './theme';
+import { tap } from './tap';
 
 // 數字從舊值滾到新值（像 iOS 的計數動畫）
 export function RollingNumber({ value, format = (v) => String(v), style, duration = 650, ...rest }) {
@@ -73,7 +74,7 @@ export function Segmented({ options, value, onChange, style }) {
 // Tab Bar 的一格
 export function TabItem({ icon, label, onPress, alert, active }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}>
+    <Pressable onPress={(e) => { tap(); if (onPress) onPress(e); }} style={({ pressed }) => [styles.tab, pressed && { opacity: 0.6 }]}>
       <Text style={[styles.tabIcon, alert && { color: C.red }]}>{icon}</Text>
       <Text style={[styles.tabLabel, active && { color: C.primaryInk }, alert && { color: C.red }]} numberOfLines={1}>{label}</Text>
     </Pressable>

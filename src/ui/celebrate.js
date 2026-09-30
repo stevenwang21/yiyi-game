@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { play as playSfx, CELEBRATE_SOUND } from './sfx';
 import { Animated, Easing, Modal, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getHaptics, registerWebTap } from './tap';
 import { formatMoney, netWorth, YI } from '../game/engine';
 import { LEGENDS } from '../game/legends';
 import { Sprite, Emo, SPRITE_SIZE, spriteId, PetPic } from './Character';
@@ -17,11 +17,8 @@ const WAN = 10000;
 // ── 震動 ──────────────────────────────────────────────
 // Android／網頁：navigator.vibrate。iPhone Safari 不支援 vibrate，
 // 但 iOS 18 以後點一下「開關樣式的 checkbox」會有觸覺回饋，用它來模擬。
-let hapticsOn = true;
-const SETTING_KEY = 'yiyi-haptics-v1';
-AsyncStorage.getItem(SETTING_KEY).then((v) => { if (v === 'off') hapticsOn = false; }).catch(() => {});
-export const getHaptics = () => hapticsOn;
-export const setHaptics = (on) => { hapticsOn = on; AsyncStorage.setItem(SETTING_KEY, on ? 'on' : 'off').catch(() => {}); };
+// 震動的開關搬到 tap.js（底層按鈕也要用），這裡照舊 export 出去
+export { getHaptics, setHaptics } from './tap';
 
 let iosLabel = null;
 function iosTick() {
@@ -42,6 +39,7 @@ function iosTick() {
   } catch { /* 沒關係 */ }
 }
 const canVibrate = () => typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
+registerWebTap(() => { if (canVibrate()) { try { navigator.vibrate(12); } catch { /* */ } } else iosTick(); });
 
 const PATTERNS = {
   tap: [12],
@@ -51,7 +49,7 @@ const PATTERNS = {
 };
 
 export function haptic(kind = 'tap') {
-  if (!hapticsOn) return;
+  if (!getHaptics()) return;
   if (Platform.OS !== 'web') {
     try {
       if (kind === 'tap') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

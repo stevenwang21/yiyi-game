@@ -5,11 +5,24 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "yiyi",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#121840",
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.stevenwang.yiyi",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleDisplayName": "一個億",
+        "UIBackgroundModes": []
+      }
     },
     "android": {
+      "package": "com.stevenwang.yiyi",
       "adaptiveIcon": {
         "backgroundColor": "#4e34a8",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,6 +34,25 @@
       "favicon": "./assets/favicon.png",
       "name": "一個億的小目標"
     },
-    "backgroundColor": "#f2f2f7"
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#121840"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cf4caf2d-ed6b-46e9-95e7-78ec68e2157e"
+      }
+    },
+    "owner": "wangsteven",
+    "updates": {
+      "url": "https://u.expo.dev/cf4caf2d-ed6b-46e9-95e7-78ec68e2157e"
+    }
   }
 }

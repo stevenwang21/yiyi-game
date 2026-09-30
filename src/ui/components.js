@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { C, SHADOW, SHADOW_BTN } from './theme';
+import { tap } from './tap';
 
 export function Button({
   title, sub, icon, onPress, onLongPress, onPressIn, onPressOut, delayLongPress,
@@ -10,7 +11,7 @@ export function Button({
   const textColor = kind === 'ghost' ? C.ink : kind === 'soft' ? C.primaryInk : '#fff';
   return (
     <Pressable
-      onPress={disabled ? undefined : onPress}
+      onPress={disabled ? undefined : (e) => { tap(); if (onPress) onPress(e); }}
       onLongPress={disabled ? undefined : onLongPress}
       onPressIn={disabled ? undefined : onPressIn}
       onPressOut={onPressOut}
@@ -40,7 +41,7 @@ export function Button({
 export function IconButton({ icon, label, onPress, alert, style }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={(e) => { tap(); if (onPress) onPress(e); }}
       style={({ pressed }) => [styles.iconBtn, alert && styles.iconBtnAlert, pressed && { opacity: 0.7 }, style]}
     >
       <Text style={styles.iconBtnIcon}>{icon}</Text>

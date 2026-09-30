@@ -7,6 +7,7 @@ import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Circle } from 'r
 import { PHOTO } from './art/photos';
 import Sheet from './Sheet';
 import { Button } from './components';
+import { tap } from './tap';
 import { C } from './theme';
 import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf, rollDifficulty, RANDOM_WEIGHTS } from '../game/engine';
 import { APP_VERSION } from '../version';
@@ -55,7 +56,7 @@ export function DarkBackdrop({ width, height }) {
 // 圖片式入口
 function Tile({ img, title, value, badge, onPress }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 }]}>
+    <Pressable onPress={(e) => { tap(); if (onPress) onPress(e); }} style={({ pressed }) => [styles.tile, pressed && { transform: [{ scale: 0.97 }], opacity: 0.9 }]}>
       <ImageBackground source={PHOTO[img]} style={styles.tileImg} resizeMode="cover">
         <View style={styles.tileText}>
           <Text style={styles.tileTitle} numberOfLines={1}>{title}</Text>
@@ -69,7 +70,7 @@ function Tile({ img, title, value, badge, onPress }) {
 
 function TabBtn({ icon, label, active, onPress, badge }) {
   return (
-    <Pressable onPress={onPress} style={styles.tabBtn}>
+    <Pressable onPress={(e) => { tap(); if (onPress) onPress(e); }} style={styles.tabBtn}>
       {/* 小紅點：今天的挑戰還沒打 */}
       {badge ? <View style={styles.tabBadge} /> : null}
       <Text style={[styles.tabIcon, active && { color: '#7db4ff' }]}>{icon}</Text>

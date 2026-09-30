@@ -287,10 +287,10 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               <Text style={styles.subText} numberOfLines={2}>{sub}</Text>
             </View>
           </View>
-          <Pressable onPress={() => setShowUpgrade(true)} hitSlop={6} style={styles.pointsPill}>
+          <Pressable onPress={() => { haptic('tap'); setShowUpgrade(true); }} hitSlop={6} style={styles.pointsPill}>
             <Text style={styles.pointsNum}>🏅 {E.lifeScore(s).total}</Text>
           </Pressable>
-          <Pressable onPress={() => setShowMenu(true)} hitSlop={8} style={styles.moreBtn}>
+          <Pressable onPress={() => { haptic('tap'); setShowMenu(true); }} hitSlop={8} style={styles.moreBtn}>
             <Text style={styles.moreText}>⋯</Text>
           </Pressable>
         </View>
@@ -340,6 +340,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                 mood={s.stats.happy < 30 ? '😞' : undefined}
                 pets={E.alivePets(s)}
                 height={146} radius={0} compact heroAt={0.64}
+                // App 版沒有 mask 可以把左邊淡掉，插圖如果帶底色會整片蓋住左邊的年齡和淨資產，
+                // 所以只放人和道具（透明底、不畫地板光），直接坐在卡片上
+                bare={Platform.OS !== 'web'}
               />
               {Platform.OS === 'web' ? <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 26, backgroundImage: `linear-gradient(to bottom, ${C.card}00, ${C.card})` }} /> : null}
             </View>
@@ -478,6 +481,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                         // 精力不夠的直接變灰按不動，不用再跳紅字罵人
                         disabled={o.disabled || (!chosen.includes(o.id) && usedEnergy + o.cost > slots)}
                         onPress={() => {
+                          haptic('tap');
                           const r = E.toggleFocus(s, o.id);
                           setFocusMsg(r.error || null);
                           if (!r.error) setGame(r.state);
