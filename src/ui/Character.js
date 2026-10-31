@@ -1,6 +1,7 @@
 // 主角母版：男女主角六個階段（嬰兒／國小／高中／青年／壯年／老年），全部來自同一張正式人物設定圖。
 // 男主以深藍色為識別、女主以紫色為識別；遊戲裡所有主角的插圖都從這裡出，確保每個事件都是同一張臉。
 import { useEffect, useRef, useState } from 'react';
+import Fade from './Fade';
 import { Animated, Easing, Image, Platform, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, Ellipse, LinearGradient, Line, Path, Polyline, RadialGradient, Stop } from 'react-native-svg';
 import { PHOTO } from './art/photos';
@@ -357,7 +358,7 @@ export function SceneBackdrop({ kind, sceneH = 150 }) {
             <View key={i} style={{ position: 'absolute', left: sz.w * x, top: sz.h * y, width: u * r * 2, height: u * r * 2, borderRadius: u * r, backgroundColor: '#fff', opacity: 0.06 + (i % 3) * 0.025 }} />
           ))}
           {/* 越往下越暗一點，字比較好讀 */}
-          {WEB ? <View style={{ position: 'absolute', left: 0, right: 0, top: sceneH, bottom: 0, backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.28) 100%)' }} /> : null}
+          <Fade dir="to bottom" color="0,0,0" stops={[[0, 0], [0.28, 1]]} style={{ top: sceneH }} />
         </>
       ) : null}
     </View>

@@ -58,7 +58,10 @@ export function Bar({ value, max = 100, color, height = 8, track }) {
   const pct = Math.max(0, Math.min(1, value / max));
   return (
     <View style={[styles.barBg, { height, borderRadius: height, backgroundColor: track || C.page }]}>
-      <View style={{ width: `${pct * 100}%`, height, borderRadius: height, backgroundColor: color }} />
+      {/* 條本身帶一點同色的光，看起來有厚度 */}
+      <View style={{ width: `${pct * 100}%`, height, borderRadius: height, backgroundColor: color, shadowColor: color, shadowOpacity: 0.55, shadowRadius: 6, shadowOffset: { width: 0, height: 0 } }}>
+        <View style={{ position: 'absolute', left: 2, right: 2, top: 1, height: Math.max(1, height * 0.3), borderRadius: height, backgroundColor: 'rgba(255,255,255,0.28)' }} />
+      </View>
     </View>
   );
 }
@@ -109,9 +112,9 @@ export function Tag({ text, color = C.primaryInk, bg = C.primarySoft, style }) {
 }
 
 const styles = StyleSheet.create({
-  btn: { borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  btn: { borderRadius: 16, paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   btnSmall: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10 },
-  primary: { backgroundColor: C.primary },
+  primary: { backgroundColor: C.primary, borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)' },
   gold: { backgroundColor: C.gold },
   green: { backgroundColor: C.green },
   red: { backgroundColor: C.red },
@@ -119,7 +122,7 @@ const styles = StyleSheet.create({
   soft: { backgroundColor: C.primarySoft },
   ghost: { backgroundColor: C.card, borderWidth: 1, borderColor: C.cardLine },
   disabled: { opacity: 0.4 },
-  btnText: { fontSize: 16.5, fontWeight: '700', letterSpacing: 0 },
+  btnText: { fontSize: 16.5, fontWeight: '800', letterSpacing: 0.3 },
   btnTextSmall: { fontSize: 13.5 },
   btnSub: { fontSize: 12, marginTop: 3, fontWeight: '500' },
 
@@ -131,7 +134,7 @@ const styles = StyleSheet.create({
   iconBtnIcon: { fontSize: 21, lineHeight: 25 },
   iconBtnLabel: { fontSize: 10.5, fontWeight: '500', color: C.muted, marginTop: 1 },
 
-  card: { backgroundColor: C.card, borderRadius: 18, padding: 14, marginTop: 12, borderWidth: 1, borderColor: C.cardLine },
+  card: { backgroundColor: C.card, borderRadius: 20, padding: 14, marginTop: 12, borderWidth: 1, borderColor: C.cardLine },
   barBg: { overflow: 'hidden' },
 
   chip: {

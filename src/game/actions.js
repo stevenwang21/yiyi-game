@@ -2,7 +2,7 @@
 import {
   BUSINESSES, BIZ_MIN_CAPITAL, LOAN_RATE, PAY_RATIO, MAX_BIZ, HOUSES, KID_GIVEN_M, KID_GIVEN_F, PARTNER_NAMES, SPOUSE_LEVELS, PETS, diffById, partnerPool,
 } from './data.js';
-import { rollPartnerType, partnerType } from './partners.js';
+import { rollPartnerType, partnerType, currentType } from './partners.js';
 
 // 難度設定（舊存檔沒有這個欄位，就當作輕鬆）
 export const diffOf = (s) => diffById(s.difficulty || 'easy');
@@ -13,7 +13,7 @@ export const scaleBiz = (s, b, mult) => {
   b.value = Math.round(b.value * f);
   return b.value;
 };
-import { formatMoney } from './utils.js';
+import { formatMoney, WAN } from './utils.js';
 
 export const debtTotal = (s) => s.debts.reduce((t, d) => t + d.balance, 0);
 export const houseTotal = (s) => s.houses.reduce((t, h) => t + h.value, 0);
@@ -180,6 +180,33 @@ export const addKid = (s, rng) => {
 // 女生玩的時候，開口求婚的是對方。條件完全一樣，只是台詞和主導權的寫法不一樣：
 // 你按下去是「讓他知道你想定下來了」，真正單膝跪下的是他。
 export const heProposes = (s) => (s.gender || 'male') === 'female';
+
+// 結婚不是感情滿了就好，對方（和對方家裡）會看條件。全部打勾才能開口／對方才會開口。
+// 收入門檻跟對方的職業掛鉤：對方賺越多，看得越嚴。
+export const PROPOSE_MIN_LOVE = 100;
+export const PROPOSE_MIN_YEARS = 3;
+export const proposeChecks = (s) => {
+  const p = s.partner;
+  if (!p) return [];
+  const t = currentType(s);
+  const years = s.age - p.since;
+  const ly = s.lastYear;
+  const income = ly ? (ly.salary || 0) + (ly.bizIncome || 0) + (ly.side || 0) + (ly.rent || 0) : 0;
+  const pIncome = (t ? t.income : 40) * WAN * s.priceIndex;
+  const needIncome = Math.round(Math.max(48 * WAN * s.priceIndex, pIncome * 0.6) / 10000) * 10000;
+  const needNw = Math.round(300 * WAN * s.priceIndex / 10000) * 10000;
+  const nw = netWorth(s);
+  const he = heProposes(s);
+  return [
+    { id: 'love', icon: '💗', label: '感情 100', ok: p.love >= PROPOSE_MIN_LOVE, now: `${p.love}`, tip: '選「約會」可以加很多' },
+    { id: 'years', icon: '🕒', label: `交往滿 ${PROPOSE_MIN_YEARS} 年`, ok: years >= PROPOSE_MIN_YEARS, now: `${years} 年` },
+    { id: 'job', icon: '💼', label: '有穩定的工作或事業', ok: !!s.job || s.bizs.length > 0, now: s.job ? s.job.title : s.bizs.length ? '有事業' : '沒工作' },
+    { id: 'income', icon: '💵', label: `年收入 ${formatMoney(needIncome)} 以上`, ok: income >= needIncome, now: formatMoney(income), tip: he ? '他家裡會問你有沒有自己的收入' : `${t ? t.title : '對方'}自己就賺不少，你至少要有對方的六成` },
+    { id: 'nw', icon: '🏦', label: `身家 ${formatMoney(needNw)} 以上`, ok: nw >= needNw, now: formatMoney(nw), tip: '現金＋投資＋房子－負債' },
+    { id: 'charm', icon: '🤝', label: '人緣 40 以上', ok: s.stats.charm >= 40, now: `${s.stats.charm}`, tip: '對方的爸媽和朋友都要看得順眼' },
+  ];
+};
+export const canMarry = (s) => !!s.partner && !s.married && !s.studying && proposeChecks(s).every((c) => c.ok);
 
 export const startDating = (s, rng, typeId = null, forcedName = null) => {
   const all = partnerPool(s);

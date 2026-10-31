@@ -8,7 +8,7 @@
 import { PERFORM, performTalent } from './talents.js';
 import { addMoney, addStats, chance, formatMoney, rint, WAN } from './utils.js';
 import { familyById } from './data.js';
-import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRisky, startDating, diffOf, scaleBiz, motherAge, heProposes as he, conceiveChance, downsChance } from './actions.js';
+import { addKid, addPet, addSkill, mainBiz, marry, petExpense, removeBiz, sellRisky, startDating, diffOf, scaleBiz, motherAge, heProposes as he, conceiveChance, downsChance, canMarry, proposeChecks } from './actions.js';
 import { MAX_KIDS, TREAT_COST } from './data.js';
 import { lottoChoices } from './lotto.js';
 import { EXTRA_EVENTS } from './events2.js';
@@ -220,9 +220,26 @@ export const EVENTS = [
       },
     ],
   },
+  // 感情滿了、但條件還沒到：對方（或對方家裡）會把話講出來。三年問一次，不會一直煩
+  {
+    id: 'marry_hint', minAge: 20, maxAge: 55, weight: 12,
+    cond: (s) => !!s.partner && !s.married && !s.studying && s.partner.love >= 100 && !canMarry(s) && !(s.flags.marryHintAt > s.age - 3),
+    title: (s) => (he(s) ? '他媽媽問起你' : '她問你有沒有打算'),
+    text: (s) => {
+      const miss = proposeChecks(s).filter((c) => !c.ok).map((c) => c.label);
+      return he(s)
+        ? `「${s.partner.name}」說他媽媽問起你們的事，問到${miss.join('、')}這些。他說他不在意，但你看得出來他也在等。`
+        : `「${s.partner.name}」說她爸媽問起你們什麼時候要定下來。她沒有逼你，但提到家裡在意的是：${miss.join('、')}。`;
+    },
+    choices: [
+      { label: '我會努力的', effect: (s) => { s.flags.marryHintAt = s.age; return `${s.partner.name}笑了笑，說不急。${addStats(s, { happy: 1 })}`; } },
+      { label: '先不談這個', effect: (s) => { s.flags.marryHintAt = s.age; s.partner.love = Math.max(0, s.partner.love - 12); return `${s.partner.name}沒再說什麼，但那天晚上很安靜。${addStats(s, { happy: -2 })}`; } },
+    ],
+  },
   {
     id: 'propose', minAge: 20, maxAge: 55, weight: 9,
-    cond: (s) => !!s.partner && !s.married && !s.studying && s.partner.love >= 40 && s.age - s.partner.since >= 1,
+    // 感情滿 100、對方看的條件全部達標，才會走到這一步（條件在 actions.js 的 proposeChecks）
+    cond: (s) => canMarry(s),
     // 女生玩的時候，開口的是對方：事件變成「他求婚了」，你選要不要答應
     title: (s) => (he(s) ? '他求婚了' : '要不要求婚？'),
     text: (s) => (he(s)

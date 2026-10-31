@@ -2,7 +2,7 @@
 import { addStats, chance, formatMoney, WAN } from './utils.js';
 import { partnerPool } from './data.js';
 import { PARTNER_TYPES, currentType } from './partners.js';
-import { startDating } from './actions.js';
+import { startDating, canMarry, marry, heProposes } from './actions.js';
 
 const good = (text) => ({ text, tone: 'good' });
 
@@ -100,6 +100,29 @@ export const DATE_YEAR_EVENT = {
   title: (s) => `今年怎麼陪「${s.partner ? s.partner.name : '對方'}」？`,
   text: (s) => `交往第 ${s.age - s.partner.since} 年．感情 ${Math.round(s.partner.love)} / 100`,
   choices: [
+    // 感情 100、對方看的條件都到了：這一年多一個「求婚」的選項（女生玩：讓他知道你想定下來）
+    {
+      label: (s) => (heProposes(s) ? '💍 讓他知道你想定下來' : '💍 求婚'),
+      sub: (s) => (heProposes(s) ? '他會開口．辦婚禮約 60 萬（隨物價）' : '辦婚禮約 60 萬（隨物價）'),
+      cond: (s) => canMarry(s),
+      effect: (s, rng) => {
+        const c = Math.round(60 * WAN * s.priceIndex);
+        const name = s.partner.name;
+        const he = heProposes(s);
+        const wedding = s.money >= c;
+        if (wedding) s.money -= c;
+        const gift = marry(s, rng);
+        s.flags.datedAt = s.age;
+        return good(
+          (he
+            ? `你讓「${name}」知道你想定下來了。他訂了你們第一次約會的那家餐廳，吃到一半從口袋裡拿出一個小盒子。你說好。`
+            : `你向「${name}」求婚，她說好！`)
+          + (wedding ? `婚禮花了 ${formatMoney(c)}。` : '現金不夠辦婚禮，你們先去登記，婚禮以後補。')
+          + (gift ? `對方家裡包了 ${formatMoney(gift)} 的大紅包！` : '')
+          + addStats(s, { happy: wedding ? 15 : 10, charm: 3 }),
+        );
+      },
+    },
     {
       label: '好好約會',
       sub: (s) => `感情 +24・花 ${formatMoney(dateCost(s))}`,

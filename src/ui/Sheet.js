@@ -3,23 +3,40 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C } from './theme';
 import { BLUR } from './ios';
+import { useSide, useWide } from './wide';
 
 // 從下方滑出的面板；onClose 為 null 時不能關閉（必須做選擇）
 import { dimPage } from './pageBg';
 
 export default function Sheet({ visible, onClose, title, children, tall, clear, backdrop }) {
   const insets = useSafeAreaInsets();
+  const side = useSide();
+  const wide = useWide();
   useEffect(() => {
-    if (!visible || clear) return undefined;
+    if (!visible || clear || side) return undefined;
     dimPage(true);
     return () => dimPage(false);
-  }, [visible]);
+  }, [visible, side]);
+  // 寬螢幕的右欄：不是 Modal，直接嵌在欄位裡（標題照放，「關閉」不需要，上面有分頁可以切）
+  if (side) {
+    if (!visible) return null;
+    return (
+      <View style={styles.side}>
+        {backdrop ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: 22, overflow: 'hidden' }]}>{backdrop}</View> : null}
+        {title ? <View style={styles.head}><Text style={styles.title}>{title}</Text></View> : null}
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: insets.bottom + 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          {children}
+        </ScrollView>
+      </View>
+    );
+  }
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose || (() => {})}>
       {/* clear：上方透明、不模糊，讓玩家還看得到能力值 */}
       <View style={[styles.dim, !clear && BLUR, clear && { backgroundColor: 'transparent' }]}>
         {onClose ? <Pressable style={{ flex: 1 }} onPress={onClose} /> : <View style={{ flex: 1 }} />}
-        <View style={[styles.sheet, tall && { height: '88%' }, clear && styles.clearSheet, { paddingBottom: insets.bottom + 16 }]}>
+        {/* 寬螢幕：從下面滑出來的卡不要整個橫跨，限在中間 600 寬 */}
+        <View style={[styles.sheet, tall && { height: '88%' }, clear && styles.clearSheet, { paddingBottom: insets.bottom + 16 }, wide && { width: '100%', maxWidth: 600, alignSelf: 'center', borderWidth: 1 }]}>
           {/* 整張卡的背景（事件插圖一路延伸下來） */}
           {backdrop ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.backdrop]}>{backdrop}</View> : null}
           <View style={[styles.grab, backdrop && { backgroundColor: 'rgba(255,255,255,0.35)' }]} />
@@ -44,6 +61,7 @@ export default function Sheet({ visible, onClose, title, children, tall, clear, 
 
 const styles = StyleSheet.create({
   dim: { flex: 1, backgroundColor: C.veil },
+  side: { flex: 1, paddingHorizontal: 18, paddingTop: 12 },
   sheet: {
     backgroundColor: C.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, borderBottomWidth: 0, borderColor: C.cardLine,
     paddingHorizontal: 18, paddingTop: 10, maxHeight: '90%',

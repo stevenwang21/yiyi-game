@@ -57,18 +57,22 @@ function ResultBody({ result, onContinue, game }) {
       {r.nw || stats.length ? (
         <View style={styles.deltaRow}>
           {r.nw ? (
-            <View style={[styles.delta, { backgroundColor: r.nw > 0 ? C.greenSoft : C.redSoft }]}>
-              <Text style={[styles.deltaText, { color: r.nw > 0 ? C.green : C.red }]}>
-                💰 {r.nw > 0 ? '+' : '−'}{formatMoney(Math.abs(r.nw))}
-              </Text>
-            </View>
+            <Pop delay={380}>
+              <View style={[styles.delta, styles.deltaMoney, { backgroundColor: r.nw > 0 ? 'rgba(61,220,151,0.18)' : 'rgba(255,93,82,0.18)', borderColor: r.nw > 0 ? 'rgba(61,220,151,0.55)' : 'rgba(255,93,82,0.55)' }]}>
+                <Text style={[styles.deltaText, styles.deltaMoneyText, { color: r.nw > 0 ? '#7ee2a8' : '#ff9a9a' }]}>
+                  💰 {r.nw > 0 ? '+' : '−'}{formatMoney(Math.abs(r.nw))}
+                </Text>
+              </View>
+            </Pop>
           ) : null}
-          {stats.map((m) => (
-            <View key={m.key} style={[styles.delta, { backgroundColor: r.stats[m.key] > 0 ? C.greenSoft : C.redSoft }]}>
-              <Text style={[styles.deltaText, { color: r.stats[m.key] > 0 ? C.green : C.red }]}>
-                {m.icon} {m.label} {r.stats[m.key] > 0 ? '+' : ''}{r.stats[m.key]}
-              </Text>
-            </View>
+          {stats.map((m, i) => (
+            <Pop key={m.key} delay={480 + i * 110}>
+              <View style={[styles.delta, { backgroundColor: r.stats[m.key] > 0 ? 'rgba(61,220,151,0.18)' : 'rgba(255,93,82,0.18)', borderColor: r.stats[m.key] > 0 ? 'rgba(61,220,151,0.55)' : 'rgba(255,93,82,0.55)' }]}>
+                <Text style={[styles.deltaText, { color: r.stats[m.key] > 0 ? '#7ee2a8' : '#ff9a9a' }]}>
+                  {m.icon} {m.label} {r.stats[m.key] > 0 ? '+' : ''}{r.stats[m.key]}
+                </Text>
+              </View>
+            </Pop>
           ))}
         </View>
       ) : null}
@@ -77,6 +81,20 @@ function ResultBody({ result, onContinue, game }) {
         <Button title={r.hasNext ? '下一件事 ›' : '繼續'} style={{ marginTop: 18 }} disabled={!ready || done} onPress={go} />
       </Animated.View>
     </Sheet>
+  );
+}
+
+// 小東西「啵」一下彈出來（結果卡的屬性變化、金額）
+function Pop({ delay = 0, children }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    v.setValue(0);
+    Animated.spring(v, { toValue: 1, delay, friction: 5, tension: 120, useNativeDriver: Platform.OS !== 'web' }).start();
+  }, []);
+  return (
+    <Animated.View style={{ opacity: v.interpolate({ inputRange: [0, 0.3, 1], outputRange: [0, 1, 1] }), transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] }}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -162,6 +180,12 @@ function EventBody({ pending, onChoose, game }) {
     setTimeout(() => onChoose(i), 420);
   };
   const sceneH = p.choices.length >= 5 ? 104 : p.choices.length >= 4 ? 124 : 156;
+  // 選項一個接一個浮上來（卡片滑進來之後才開始），讓人先看完事件再看選項
+  const enter = useRef(p.choices.map(() => new Animated.Value(0))).current;
+  useEffect(() => {
+    enter.forEach((v) => v.setValue(0));
+    Animated.stagger(70, enter.map((v) => Animated.timing(v, { toValue: 1, duration: 260, delay: 220, easing: Easing.out(Easing.cubic), useNativeDriver: Platform.OS !== 'web' }))).start();
+  }, [p.id, p.title]);
   return (
     <Sheet visible onClose={null} clear backdrop={<SceneBackdrop kind={game ? artForEvent(p, game) : 'desk'} sceneH={sceneH} />}>
       <EventScene p={p} game={game} />
@@ -193,24 +217,29 @@ function EventBody({ pending, onChoose, game }) {
 
       <View style={styles.group}>
         {p.choices.map((c, i) => (
-          <Pressable
-            key={`${i}-${c.label}`}
-            onPress={c.disabled || locked ? undefined : () => choose(i)}
-            disabled={!!c.disabled || locked}
-            style={({ pressed }) => [
-              styles.choice,
-              c.disabled && styles.choiceLocked,
-              locked && picked !== i && styles.choiceDimmed,
-              picked === i && styles.choicePicked,
-              pressed && !c.disabled && !locked && styles.choicePressed,
-            ]}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.choiceLabel, c.disabled && { color: C.muted }, locked && picked !== i && { color: C.muted }]}>{c.disabled ? '🔒 ' : ''}{c.label}</Text>
-              {c.sub ? <Text style={[styles.choiceSub, c.disabled && { color: C.red }]}>{c.sub}</Text> : null}
-            </View>
-            {picked === i ? <Text style={styles.arrow}>✓</Text> : c.disabled || locked ? null : <Text style={styles.arrow}>›</Text>}
-          </Pressable>
+          <Animated.View key={`${i}-${c.label}`} style={{ opacity: enter[i], transform: [{ translateY: enter[i].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+            <Pressable
+              onPress={c.disabled || locked ? undefined : () => choose(i)}
+              disabled={!!c.disabled || locked}
+              style={({ pressed }) => [
+                styles.choice,
+                c.disabled && styles.choiceLocked,
+                locked && picked !== i && styles.choiceDimmed,
+                picked === i && styles.choicePicked,
+                pressed && !c.disabled && !locked && styles.choicePressed,
+              ]}
+            >
+              {/* 左邊的小圓圈：編號；選到的變成打勾 */}
+              <View style={[styles.num, picked === i && styles.numOn, c.disabled && styles.numOff]}>
+                <Text style={[styles.numText, picked === i && { color: '#fff' }]}>{picked === i ? '✓' : c.disabled ? '🔒' : i + 1}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.choiceLabel, (c.disabled || (locked && picked !== i)) && ON.soft]}>{c.label}</Text>
+                {c.sub ? <Text style={[styles.choiceSub, c.disabled && { color: '#ff9a9a' }]}>{c.sub}</Text> : null}
+              </View>
+              {!c.disabled && !locked ? <Text style={styles.arrow}>›</Text> : null}
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
     </Sheet>
@@ -236,11 +265,13 @@ const styles = StyleSheet.create({
   resText: { fontSize: 15.5, lineHeight: 25, marginTop: 8 },
   resTextMore: { fontSize: 14, lineHeight: 21, marginTop: 8, fontWeight: '700' },
   deltaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 16 },
-  delta: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
-  deltaText: { fontSize: 13.5, fontWeight: '600' },
+  delta: { borderRadius: 999, paddingHorizontal: 13, paddingVertical: 7, borderWidth: 1 },
+  deltaMoney: { paddingHorizontal: 16, paddingVertical: 9 },
+  deltaText: { fontSize: 13.5, fontWeight: '800', fontVariant: ['tabular-nums'] },
+  deltaMoneyText: { fontSize: 16 },
   choiceDimmed: { opacity: 0.45 },
-  choicePicked: { borderColor: C.primary, borderWidth: 2, backgroundColor: C.primarySoft },
-  title: { fontSize: 22, fontWeight: '700', color: C.ink, marginTop: 8, letterSpacing: -0.2 },
+  choicePicked: { borderColor: '#9d8cff', borderWidth: 1.5, backgroundColor: 'rgba(106,92,255,0.45)' },
+  title: { fontSize: 24, fontWeight: '800', color: C.ink, marginTop: 8, letterSpacing: 0.2 },
   text: { fontSize: 15.5, lineHeight: 25, color: C.ink, marginTop: 8 },
   me: { backgroundColor: 'rgba(255,215,106,0.25)', color: '#ffd76a', fontWeight: '700', borderRadius: 6, paddingHorizontal: 4, alignSelf: 'flex-start' },
   route: { flexDirection: 'row', gap: 4 },
@@ -250,19 +281,21 @@ const styles = StyleSheet.create({
   pick: { fontSize: 12.5, color: C.muted, fontWeight: '500', marginTop: 18, marginBottom: 2 },
   group: { marginTop: 14, gap: 8 },
   choice: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 10, paddingLeft: 18, paddingRight: 14,
-    borderRadius: 18, backgroundColor: C.card, borderWidth: 1, borderColor: C.accentLine,
+    flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10, paddingLeft: 12, paddingRight: 14,
+    borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.07)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)',
   },
   choiceFirst: { backgroundColor: C.primarySoft, borderColor: C.primary },
   choiceLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.line },
   choiceLocked: { opacity: 0.55, borderStyle: 'dashed' },
-  choicePressed: { backgroundColor: C.primary, transform: [{ scale: 0.98 }] },
+  choicePressed: { backgroundColor: 'rgba(106,92,255,0.6)', transform: [{ scale: 0.98 }] },
   num: {
-    width: 26, height: 26, borderRadius: 13, backgroundColor: C.primarySoft,
+    width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center',
   },
-  numText: { fontSize: 13, fontWeight: '700', color: C.primaryInk },
-  choiceLabel: { fontSize: 17, fontWeight: '700', color: C.ink },
-  choiceSub: { fontSize: 12.5, color: C.muted, marginTop: 2, lineHeight: 17 },
-  arrow: { fontSize: 22, color: C.muted, marginTop: -2 },
+  numOn: { backgroundColor: '#6a5cff', borderColor: '#b4a8ff' },
+  numOff: { backgroundColor: 'transparent', borderStyle: 'dashed' },
+  numText: { fontSize: 13, fontWeight: '800', color: 'rgba(255,255,255,0.85)', fontVariant: ['tabular-nums'] },
+  choiceLabel: { fontSize: 17, fontWeight: '700', color: '#fff' },
+  choiceSub: { fontSize: 12.5, color: 'rgba(255,255,255,0.62)', marginTop: 2, lineHeight: 17 },
+  arrow: { fontSize: 22, color: 'rgba(255,255,255,0.45)', marginTop: -2 },
 });

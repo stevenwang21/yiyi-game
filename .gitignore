@@ -48,3 +48,16 @@ _site/
 
 # 桌面搬進來的素材原檔（很大，不推上 GitHub）
 素材原檔/
+
+# 桌面搬進來的素材資料夾（很大，不推上 GitHub；電腦上的檔案不動）
+cats/
+cheap/
+dogs/
+luxury/
+middle/
+student_walk_60frames_v2/
+male_all_ages_1000frames_final/
+male_life_walks_v3_new/
+achievement_icons_v2/
+achievement_icons_v2.zip
+kling_*.mp4

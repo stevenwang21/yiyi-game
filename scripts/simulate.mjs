@@ -13,7 +13,7 @@ const META = (() => {
   return { slots: slots || 0, retire: retire || 0 };
 })();
 
-function play(seed, mode, target, difficulty = 'normal') {
+function play(seed, mode, target, difficulty = 'normal', hook = null) {
   const rng = mulberry(seed);
   let s = E.newGame('測試', rng, difficulty, 'male', META);
   let guard = 0;
@@ -32,6 +32,13 @@ function play(seed, mode, target, difficulty = 'normal') {
       else if (p.source === 'event') {
         const bad = ['照對方說的做', '豪賭 10 萬元', '玩到半夜', '買跑車（500 萬）', '硬撐，繼續拚'];
         if (p.id === 'big_sick') { idx = 0; s = E.resolveChoice(s, idx, rng); continue; }
+        // 認真玩的人：交往中感情沒滿就好好約會（結婚要感情 100）
+        if (p.id === 'date_year') {
+          const pi = p.choices.findIndex((c) => /求婚|定下來/.test(c.label));
+          if (pi >= 0) idx = pi;
+          else idx = s.partner && s.partner.love < 100 ? p.choices.findIndex((c) => c.label === '好好約會') : p.choices.findIndex((c) => c.label === '簡單吃個飯');
+          s = E.resolveChoice(s, idx, rng); continue;
+        }
         const ok = p.choices.map((c, i) => i).filter((i) => !bad.includes(p.choices[i].label));
         idx = ok[Math.floor(rng() * ok.length)];
       } else if (p.id === 'exam18') {
@@ -46,6 +53,7 @@ function play(seed, mode, target, difficulty = 'normal') {
       let f;
       if (mode === 'random') f = opts[Math.floor(rng() * opts.length)].id;
       else if (s.studying) f = s.stats.hp < 40 ? 'sport' : s.stats.happy < 30 ? 'play' : (rng() < 0.5 ? 'cram' : 'study');
+      else if (s.partner && !s.married && s.partner.love < 100) f = 'date';
       else if (s.partner && s.partner.love < 55) f = 'date';
       else if (s.stats.hp < 45) f = 'gym';
       else if (s.stats.happy < 30) f = 'rest';
@@ -79,6 +87,7 @@ function play(seed, mode, target, difficulty = 'normal') {
       if (s.money > 0) s = E.buyAsset(s, ['etf', 'stock', 'crypto', 'gold'][Math.floor(rng() * 4)], s.money * rng()).state;
     }
     s = E.nextYear(s, rng);
+    if (hook) hook(s);
   }
   return s;
 }

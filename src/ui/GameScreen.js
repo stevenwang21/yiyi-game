@@ -25,6 +25,7 @@ import Celebration, { detect, haptic, getHaptics, setHaptics } from './celebrate
 import Notify, { detectNotices, osNotify, getNotif, setNotif, notifSupported } from './notify';
 import { DarkBackdrop } from './StartScreen';
 import { useWindowDimensions } from 'react-native';
+import { useWide, SideCtx, PANELS } from './wide';
 
 // 每年可以做的事，配一個圖示比較好認
 const FOCUS_ICON = {
@@ -68,6 +69,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const s = game;
   const insets = useSafeAreaInsets();
   const win = useWindowDimensions();
+  // 折疊 iPhone 展開、iPad 橫向：左邊遊戲、右邊面板（投資／健康／家庭／排名／成就常駐在右欄）
+  const wide = useWide();
   const [showInvest, setShowInvest] = useState(false);
   const [investTab, setInvestTab] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -75,6 +78,14 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   const [showFamily, setShowFamily] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const [showMates, setShowMates] = useState(false);
+  const [sidePanel, setSidePanel] = useState('invest');   // 寬螢幕右欄目前顯示哪一個面板
+  // 寬螢幕時，底部分頁和通知點進去都只是切右欄，不會跳 Modal
+  const openPanel = (id) => { if (wide) setSidePanel(id); };
+  const setShowInvestW = (v) => (wide ? (v && openPanel('invest')) : setShowInvest(v));
+  const setShowHealthW = (v) => (wide ? (v && openPanel('health')) : setShowHealth(v));
+  const setShowFamilyW = (v) => (wide ? (v && openPanel('family')) : setShowFamily(v));
+  const setShowMatesW = (v) => (wide ? (v && openPanel('mates')) : setShowMates(v));
+  const setShowUpgradeW = (v) => (wide ? (v && openPanel('upgrade')) : setShowUpgrade(v));
   const [openWorld, setOpenWorld] = useState(false);
   const [showAllLog, setShowAllLog] = useState(false);
   const logY = useRef(0);
@@ -105,9 +116,9 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
     }
   }, [s]);
   const openTarget = (t) => {
-    if (t === 'mates') setShowMates(true);
-    else if (t === 'family') setShowFamily(true);
-    else if (t.startsWith('invest')) { const tab = t.split(':')[1]; if (tab != null) setInvestTab(Number(tab)); setShowInvest(true); }
+    if (t === 'mates') setShowMatesW(true);
+    else if (t === 'family') setShowFamilyW(true);
+    else if (t.startsWith('invest')) { const tab = t.split(':')[1]; if (tab != null) setInvestTab(Number(tab)); setShowInvestW(true); }
   };
 
   // 做完選擇：先算出這個選擇造成的變化，給玩家看結果
@@ -263,8 +274,38 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   };
 
 
+  // 右欄（寬螢幕才有）：上面一排分頁，下面是嵌進來的面板
+  const sideColumn = wide ? (
+    <View style={styles.sideCol}>
+      {!isLight ? <DarkBackdrop width={Math.max(320, win.width - 480)} height={win.height} /> : null}
+      {/* 右欄：一張大面板卡，上面是分段式的分頁 */}
+      <View style={styles.sidePane}>
+        <View style={styles.sideTabs}>
+          {PANELS.map((pn) => {
+            const on = sidePanel === pn.id;
+            const off = pn.id === 'mates' && !rank;
+            return (
+              <Pressable key={pn.id} disabled={off} onPress={() => { haptic('tap'); setSidePanel(pn.id); }} style={({ pressed }) => [styles.sideTab, on && styles.sideTabOn, off && { opacity: 0.35 }, pressed && !on && { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+                <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
+                <Text style={[styles.sideTabText, on && { color: '#fff' }]}>{pn.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      <SideCtx.Provider value>
+        <InvestSheet visible={sidePanel === 'invest'} onClose={() => setInvestTab(null)} game={s} setGame={setGame} initialTab={investTab} />
+        <HealthSheet visible={sidePanel === 'health'} onClose={() => {}} game={s} setGame={setGame} />
+        <FamilySheet visible={sidePanel === 'family'} onClose={() => {}} game={s} setGame={setGame} />
+        <MatesSheet visible={sidePanel === 'mates' && !!rank} onClose={() => {}} game={s} />
+        <UpgradeSheet visible={sidePanel === 'upgrade'} onClose={() => {}} game={s} setGame={setGame} />
+      </SideCtx.Provider>
+      </View>
+    </View>
+  ) : null;
+
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <View style={{ flex: 1, backgroundColor: C.bg, flexDirection: wide ? 'row' : 'column' }}>
+    <View style={wide ? styles.mainCol : { flex: 1 }}>
       {isLight
         ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, Platform.OS === 'web' ? { backgroundImage: 'radial-gradient(120% 60% at 90% 40%, rgba(106,92,255,0.10) 0%, rgba(106,92,255,0) 60%), radial-gradient(90% 50% at 0% 90%, rgba(46,144,250,0.08) 0%, rgba(46,144,250,0) 60%)' } : null]} />
         : <DarkBackdrop width={Math.min(win.width, 480)} height={win.height} />}
@@ -287,7 +328,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               <Text style={styles.subText} numberOfLines={2}>{sub}</Text>
             </View>
           </View>
-          <Pressable onPress={() => { haptic('tap'); setShowUpgrade(true); }} hitSlop={6} style={styles.pointsPill}>
+          <Pressable onPress={() => { haptic('tap'); setShowUpgradeW(true); }} hitSlop={6} style={styles.pointsPill}>
             <Text style={styles.pointsNum}>🏅 {E.lifeScore(s).total}</Text>
           </Pressable>
           <Pressable onPress={() => { haptic('tap'); setShowMenu(true); }} hitSlop={8} style={styles.moreBtn}>
@@ -385,7 +426,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
             <Card style={styles.statCard}>
               <View style={styles.stats}>
                 {STAT_META.map((m) => (
-                  <Pressable key={m.key} style={styles.stat} onPress={m.key === 'hp' ? () => setShowHealth(true) : undefined}>
+                  <Pressable key={m.key} style={styles.stat} onPress={m.key === 'hp' ? () => setShowHealthW(true) : undefined}>
                     {(() => {
                       const v = s.stats[m.key];
                       const d = s.prevStats ? v - (s.prevStats[m.key] ?? v) : 0;
@@ -402,7 +443,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
                 ))}
               </View>
               {/* 資產：點一下打開投資 */}
-              <Pressable onPress={() => setShowInvest(true)} style={styles.assets}>
+              <Pressable onPress={() => setShowInvestW(true)} style={styles.assets}>
                 <Asset label={s.money < 0 ? '現金（透支）' : '現金'} value={Math.max(0, s.money)} bad={s.money < 0} />
                 <Asset label="投資" value={invest} />
                 <Asset label={bizs ? (houses ? '房產+公司' : '公司') : '房產'} value={bizs + houses} />
@@ -435,7 +476,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               ) : null}
               {marketCount ? (
                 // 股票、投資和新聞改放在投資頁
-                <Pressable onPress={() => { setInvestTab(0); setShowInvest(true); }} hitSlop={6}>
+                <Pressable onPress={() => { setInvestTab(0); setShowInvestW(true); }} hitSlop={6}>
                   <Text style={[styles.link, { marginTop: happened.length ? 8 : 2 }]}>📈 今年有 {marketCount} 則市場消息，到投資頁看 ›</Text>
                 </Pressable>
               ) : null}
@@ -444,7 +485,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           ) : null}
 
           {hint ? (
-            <Pressable onPress={hintInfo.key !== 'hp' ? () => { setInvestTab(4); setShowInvest(true); } : undefined}>
+            <Pressable onPress={hintInfo.key !== 'hp' ? () => { setInvestTab(4); setShowInvestW(true); } : undefined}>
               <Card style={[styles.hint, { flexDirection: 'row', alignItems: 'flex-start', gap: 8 }]}>
                 <Text style={[styles.hintText, { flex: 1 }]}>{hintInfo.key === 'hp' ? '❤️' : '💸'} {hint}{hintInfo.key !== 'hp' ? ' ›' : ''}</Text>
                 <Pressable onPress={closeHint} hitSlop={10}><Text style={{ color: C.muted, fontSize: 16, fontWeight: '700' }}>✕</Text></Pressable>
@@ -531,7 +572,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               ) : null}
               {s.world && s.age > 0 && rank ? <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: C.line, marginHorizontal: -2 }} /> : null}
               {rank ? (
-                <Pressable onPress={() => setShowMates(true)} style={{ paddingVertical: 12 }}>
+                <Pressable onPress={() => setShowMatesW(true)} style={{ paddingVertical: 12 }}>
                 <View style={styles.between}>
                   <Text style={styles.rankTitle}>
                     🏆 {rank.mode === 'grade' ? '班上排名' : '同屆排名'} <Text style={{ color: rank.rank === 1 ? C.goldInk : C.ink }}>{rank.rank}</Text> / {rank.total}
@@ -595,8 +636,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       {/* 底部固定操作列 */}
       <View style={[styles.actions, BLUR, { paddingBottom: insets.bottom + 6 }]}>
         <View ref={refs.bar} collapsable={false} style={styles.tabLeft}>
-          <TabItem icon="📈" label="投資" onPress={() => setShowInvest(true)} />
-          <TabItem icon="❤️" label="健康" alert={s.stats.hp < 30} onPress={() => setShowHealth(true)} />
+          <TabItem icon="📈" label="投資" active={wide && sidePanel === 'invest'} onPress={() => setShowInvestW(true)} />
+          <TabItem icon="❤️" label="健康" alert={s.stats.hp < 30} active={wide && sidePanel === 'health'} onPress={() => setShowHealthW(true)} />
         </View>
         <View ref={refs.next} collapsable={false} style={styles.nextWrap}>
           <Pressable
@@ -616,18 +657,26 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           </Pressable>
         </View>
         <View style={styles.tabLeft}>
-          <TabItem icon="👨‍👩‍👧" label="家庭" onPress={() => setShowFamily(true)} />
-          <TabItem icon="🏆" label={rank ? `第${rank.rank}名` : '排名'} onPress={() => rank && setShowMates(true)} />
+          <TabItem icon="👨‍👩‍👧" label="家庭" active={wide && sidePanel === 'family'} onPress={() => setShowFamilyW(true)} />
+          <TabItem icon="🏆" label={rank ? `第${rank.rank}名` : '排名'} active={wide && sidePanel === 'mates'} onPress={() => rank && setShowMatesW(true)} />
         </View>
       </View>
 
+      </View>
+      {sideColumn}
+
       <EventSheet pending={result ? null : s.pending} onChoose={choose} game={s} />
       <ResultSheet result={result} onContinue={() => setResult(null)} game={s} />
-      <InvestSheet visible={showInvest && !s.pending} onClose={() => { setShowInvest(false); setInvestTab(null); }} game={s} setGame={setGame} initialTab={investTab} />
-      <HealthSheet visible={showHealth && !s.pending} onClose={() => setShowHealth(false)} game={s} setGame={setGame} />
-      <FamilySheet visible={showFamily && !s.pending} onClose={() => setShowFamily(false)} game={s} setGame={setGame} />
-      <UpgradeSheet visible={showUpgrade && !s.pending} onClose={() => setShowUpgrade(false)} game={s} setGame={setGame} />
-      <MatesSheet visible={showMates && !s.pending} onClose={() => setShowMates(false)} game={s} />
+      {/* 窄螢幕：面板是從下面滑出來的 Modal；寬螢幕時這些都搬到右欄了 */}
+      {!wide ? (
+        <>
+          <InvestSheet visible={showInvest && !s.pending} onClose={() => { setShowInvest(false); setInvestTab(null); }} game={s} setGame={setGame} initialTab={investTab} />
+          <HealthSheet visible={showHealth && !s.pending} onClose={() => setShowHealth(false)} game={s} setGame={setGame} />
+          <FamilySheet visible={showFamily && !s.pending} onClose={() => setShowFamily(false)} game={s} setGame={setGame} />
+          <UpgradeSheet visible={showUpgrade && !s.pending} onClose={() => setShowUpgrade(false)} game={s} setGame={setGame} />
+          <MatesSheet visible={showMates && !s.pending} onClose={() => setShowMates(false)} game={s} />
+        </>
+      ) : null}
 
       <Sheet visible={showMenu} onClose={() => setShowMenu(false)} title="選單">
         <Text style={[styles.small, { marginBottom: 12 }]}>{E.genderById(s.gender).name}．{E.diffOf(s).name}</Text>
@@ -743,7 +792,7 @@ const styles = StyleSheet.create({
   menu: { fontSize: 16, color: C.muted },
   subText: { fontSize: 12, color: C.muted, marginTop: 1 },
 
-  hero: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginTop: 10, overflow: 'hidden' },
+  hero: { backgroundColor: C.card, borderRadius: 22, padding: 16, marginTop: 10, overflow: 'hidden', borderWidth: 1, borderColor: C.cardLine },
   heroRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   heroDelta: { fontSize: 13, fontWeight: '600', marginTop: 4, fontVariant: ['tabular-nums'] },
   moreBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: C.page, alignItems: 'center', justifyContent: 'center' },
@@ -751,10 +800,11 @@ const styles = StyleSheet.create({
   tabLeft: { flexDirection: 'row', flex: 1 },
   nextWrap: { paddingHorizontal: 6, marginTop: -18 },
   nextBtn: {
-    backgroundColor: C.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 22, alignItems: 'center',
-    shadowColor: '#2b2160', shadowOpacity: 0.25, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    backgroundColor: C.primary, borderRadius: 999, paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+    shadowColor: '#6a5cff', shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 5 }, elevation: 6,
   },
-  nextText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  nextText: { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: 0.5 },
   nextSub: { color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontWeight: '500', marginTop: 1 },
   heroTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   ageBox: {
@@ -793,7 +843,7 @@ const styles = StyleSheet.create({
   stat: { width: '46%', flexGrow: 1, gap: 6 },
   statHead: { flexDirection: 'row', alignItems: 'baseline', gap: 8 },
   statLabel: { fontSize: 15, color: C.ink, fontWeight: '700' },
-  statVal: { fontSize: 19, fontWeight: '800', color: C.ink, fontVariant: ['tabular-nums'] },
+  statVal: { fontSize: 20, fontWeight: '900', color: C.ink, fontVariant: ['tabular-nums'], letterSpacing: -0.3 },
   statDelta: { fontSize: 14, fontWeight: '800', fontVariant: ['tabular-nums'] },
 
   assets: { flexDirection: 'row', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: C.line },
@@ -843,6 +893,19 @@ const styles = StyleSheet.create({
   retRowTight: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 2, marginTop: 6 },
   retTight: { fontSize: 11.5, color: C.muted },
 
+  // 寬螢幕：左欄遊戲（最寬 480）、右欄面板
+  mainCol: { width: 480, maxWidth: '55%', borderRightWidth: 1, borderRightColor: C.accentLine },
+  sideCol: { flex: 1, backgroundColor: C.bg },
+  sidePane: {
+    flex: 1, margin: 14, marginBottom: 10, borderRadius: 26, overflow: 'hidden',
+    backgroundColor: C.glass, borderWidth: 1, borderColor: C.cardLine,
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+  },
+  sideTabs: { flexDirection: 'row', gap: 4, margin: 10, padding: 4, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: C.cardLine },
+  sideTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14 },
+  sideTabOn: { backgroundColor: C.primary, shadowColor: C.primary, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  sideTabIcon: { fontSize: 18 },
+  sideTabText: { color: C.muted, fontSize: 12.5, fontWeight: '800', marginTop: 2 },
   actions: {
     flexDirection: 'row', paddingHorizontal: 8, paddingTop: 4,
     backgroundColor: C.tabBar, borderTopWidth: 1, borderTopColor: C.cardLine,

@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
   tabIcon: { fontSize: 22, lineHeight: 26 },
   tabLabel: { fontSize: 10, fontWeight: '500', color: C.muted, marginTop: 1 },
   groupHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 22, marginBottom: 6, paddingHorizontal: 4 },
-  groupTitle: { fontSize: 13, color: C.muted, fontWeight: '500', letterSpacing: 0.2 },
+  groupTitle: { fontSize: 13, color: C.muted, fontWeight: '700', letterSpacing: 0.6 },
 });

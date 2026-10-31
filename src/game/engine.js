@@ -25,7 +25,7 @@ import { lifePoints } from './meta.js';
 import {
   addDebt, addPoints, bizTotal, debtTotal, endRelationship, jointInfo, houseTotal, housePrice, investTotal, netWorth,
   removeBiz, spouseInfo, spouseTitle, startBiz, heProposes, addPet, alivePets, petExpense, diffOf, marry, underIdolContract, idolJobId, bizLevel, canOpenSecondBiz,
-  promoteChance,
+  promoteChance, proposeChecks,
 } from './actions.js';
 
 export { formatMoneyFine } from './utils.js';
@@ -1182,7 +1182,6 @@ function romanceYear(s, rng) {
     const p = s.partner;
     // 約會改成每年一次的事件（date_year）：去年那次有選約會就不會變淡
     if (s.flags.datedAt !== s.age - 1 && !hasFocus(s, 'date')) p.love = Math.max(0, p.love - rint(rng, 1, 3));
-    if (s.lastYear && s.lastYear.dating === 0) p.love = Math.max(0, p.love - 6);
     if (p.love < 12 && chance(rng, 0.35)) {
       const split = endRelationship(s);
       log(s, `你和「${p.name}」越來越少見面，最後分手了。${split}${addStats(s, { happy: split ? -16 : -10 })}`, 'bad');
@@ -2163,17 +2162,16 @@ function advanceRoute(s) {
 const fail = (s, error) => ({ state: s, error });
 
 // ───────── 求婚（家庭頁隨時可以按）─────────
-export const PROPOSE_MIN_LOVE = 40;
-export const PROPOSE_MIN_YEARS = 1;
+export { PROPOSE_MIN_LOVE, PROPOSE_MIN_YEARS, proposeChecks, canMarry } from './actions.js';
 
 
 export function proposeInfo(s) {
   if (!s.partner || s.married) return { ok: false, reason: '你現在沒有交往的對象' };
-  const years = s.age - s.partner.since;
-  if (s.studying) return { ok: false, reason: '還在讀書，出社會以後再說' };
-  if (years < PROPOSE_MIN_YEARS) return { ok: false, reason: `交往滿 ${PROPOSE_MIN_YEARS} 年才好開口（目前 ${years} 年）` };
-  if (s.partner.love < PROPOSE_MIN_LOVE) return { ok: false, reason: `感情要 ${PROPOSE_MIN_LOVE} 以上（目前 ${s.partner.love}）．選「約會」可以加很多` };
-  return { ok: true, cost: Math.round(60 * WAN * s.priceIndex) };
+  if (s.studying) return { ok: false, reason: '還在讀書，出社會以後再說', checks: [] };
+  const checks = proposeChecks(s);
+  const miss = checks.filter((c) => !c.ok);
+  if (miss.length) return { ok: false, reason: miss.map((c) => c.label).join('、'), checks };
+  return { ok: true, cost: Math.round(60 * WAN * s.priceIndex), checks };
 }
 
 // wedding = true 辦婚禮（花錢、快樂多）；false 登記就好

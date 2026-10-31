@@ -118,7 +118,20 @@ export default function FamilySheet({ visible, onClose, game, setGame }) {
               {pMsg ? <Text style={[styles.muted, { marginTop: 8, color: C.red, fontWeight: '700' }]}>{pMsg}</Text> : null}
             </>
           ) : (
-            <Text style={[styles.muted, { marginTop: 8, color: C.goldInk, fontWeight: '700' }]}>💍 {he ? '結婚' : '求婚'}條件：{pInfo.reason}</Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={[styles.muted, { color: C.goldInk, fontWeight: '800' }]}>
+                💍 {he ? '他和他家裡會看這些' : `${ptype ? '她' : '對方'}和對方家裡會看這些`}{pInfo.checks && pInfo.checks.length ? `（${pInfo.checks.filter((c) => c.ok).length}/${pInfo.checks.length}）` : ''}
+              </Text>
+              {pInfo.checks && pInfo.checks.length ? pInfo.checks.map((c) => (
+                <View key={c.id} style={styles.checkRow}>
+                  <Text style={[styles.checkMark, { color: c.ok ? C.green : C.red }]}>{c.ok ? '✓' : '✗'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.checkLabel, !c.ok && { color: C.ink }]}>{c.icon} {c.label}<Text style={styles.muted}>　目前 {c.now}</Text></Text>
+                    {!c.ok && c.tip ? <Text style={styles.checkTip}>{c.tip}</Text> : null}
+                  </View>
+                </View>
+              )) : <Text style={[styles.muted, { marginTop: 4 }]}>{pInfo.reason}</Text>}
+            </View>
           )}
         </Card>
       ) : null}
@@ -390,6 +403,10 @@ const styles = StyleSheet.create({
   totalBox: { alignItems: 'center', marginVertical: 12, paddingVertical: 10, borderRadius: 12, backgroundColor: C.page },
   total: { fontSize: 28, fontWeight: '700', color: C.ink },
   kidTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6 },
+  checkMark: { width: 16, fontSize: 15, fontWeight: '900', lineHeight: 20 },
+  checkLabel: { color: C.muted, fontSize: 13.5, fontWeight: '700', lineHeight: 20 },
+  checkTip: { color: C.muted, fontSize: 12, marginTop: 1, opacity: 0.85 },
   investBox: { marginTop: 10, padding: 10, borderRadius: 14, backgroundColor: 'rgba(255,215,106,0.12)', borderWidth: 1, borderColor: 'rgba(255,215,106,0.45)' },
   investTitle: { color: C.ink, fontSize: 15, fontWeight: '800', marginBottom: 2 },
   avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: C.goldSoft, alignItems: 'center', justifyContent: 'center' },

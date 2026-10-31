@@ -4,6 +4,7 @@ import { PHOTO } from './art/photos';
 import { Emo } from './Character';
 import { WORLD_EVENTS } from '../game/world';
 import Sheet from './Sheet';
+import Fade from './Fade';
 import LineChart from './LineChart';
 import { Button, Card, Chip, Tag } from './components';
 import AmountSlider from './AmountSlider';
@@ -82,9 +83,6 @@ const TABS = ['金融', '房地產', '公司', '收購', '貸款'];
 const TRADE_NAME = { buy: '買進', sell: '賣出', dca: '定期定額', forced: '被迫賣出' };
 const INV_DESC = { etf: '一籃子佈局\n掌握全球機會', deposit: '穩健累積\n安心增值', stock: '精選企業\n創造超越', gold: '價值永恆\n對抗風險', crypto: '擁抱創新\n探索未來' };
 const RISK = (r) => (r <= 1 ? ['低風險', '#7db4ff'] : r <= 2 ? ['中風險', '#3ddc97'] : r <= 4 ? ['中高風險', '#ffb547'] : ['高風險', '#d58bff']);
-const FADE = (dir) => (Platform.OS === 'web'
-  ? { backgroundImage: `linear-gradient(${dir}, rgba(10,14,45,0.92) 0%, rgba(10,14,45,0.55) 45%, rgba(10,14,45,0) 75%)` }
-  : { backgroundColor: 'rgba(10,14,45,0.35)' });
 
 // 投資中心的圖片卡
 function InvestTile({ img, name, risk, desc, held, ret, big, onPress }) {
@@ -92,7 +90,7 @@ function InvestTile({ img, name, risk, desc, held, ret, big, onPress }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, big ? styles.tileBig : styles.tileSmall, { borderColor: `${color}88` }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.92 }]}>
       <Image source={PHOTO[img]} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      <View style={[StyleSheet.absoluteFill, FADE(big ? 'to right' : 'to top')]} />
+      <Fade dir={big ? 'to right' : 'to top'} />
       <View style={[styles.tileBody, !big && { justifyContent: 'flex-end' }]}>
         <Text style={[styles.tileName, big && { fontSize: 34 }]}>{name}</Text>
         <View style={[styles.riskPill, { borderColor: color }]}><Text style={[styles.riskText, { color }]}>{label}</Text></View>
@@ -127,7 +125,7 @@ function Banner({ img, title, sub, right, height = 96, onPress, style }) {
   const inner = (
     <>
       <Image source={PHOTO[img]} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      <View style={[StyleSheet.absoluteFill, FADE('to right')]} />
+      <Fade dir="to right" />
       <View style={styles.bannerBody}>
         <View style={{ flex: 1 }}>
           <Text style={styles.bannerTitle} numberOfLines={1}>{title}</Text>

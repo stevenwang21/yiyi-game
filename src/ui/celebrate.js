@@ -225,6 +225,23 @@ function Firework({ x, y, color, delay, size, fromY }) {
 }
 
 // 金幣：mode 'fountain' 從下面噴上來，'rain' 從上面掉下來
+// 從卡片中心往外擴散的光環（大事件用，兩三圈接著放）
+function Ring({ x, y, size, color, delay }) {
+  const v = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const t = setTimeout(() => Animated.timing(v, { toValue: 1, duration: 1100, easing: Easing.out(Easing.cubic), useNativeDriver: ND }).start(), delay);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <Animated.View pointerEvents="none" style={{
+      position: 'absolute', left: x - size / 2, top: y - size / 2, width: size, height: size, borderRadius: size / 2,
+      borderWidth: 3, borderColor: color,
+      opacity: v.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0, 0.7, 0] }),
+      transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.2, 1.6] }) }],
+    }} />
+  );
+}
+
 function Coin({ W, H, mode, delay }) {
   const v = useRef(new Animated.Value(0)).current;
   const cfg = useMemo(() => {
@@ -569,6 +586,12 @@ export default function Celebration({ data, onDone }) {
       <Pressable style={[StyleSheet.absoluteFill, tier !== 'small' && styles.dark]} onPress={onDone}>
         <View style={{ position: 'absolute', left, top: 0, width: W, height }} pointerEvents="none">
           {shots.map((f) => <Firework key={f.id} {...f} fromY={height} />)}
+          {!flash && tier !== 'small' ? [0, 220, 440].map((d, i) => (
+            <Ring key={`r${data.key}-${i}`} x={W / 2} y={height / 2} size={W * 0.9} color={tier === 'mega' ? '#ffd76a' : '#9d8cff'} delay={d} />
+          )) : null}
+          {tier === 'small' ? [0, 180].map((d, i) => (
+            <Ring key={`r${data.key}-${i}`} x={W / 2} y={54 + 36} size={W * 0.7} color="#ffd76a" delay={d} />
+          )) : null}
           {screenFlashes.map(([d, pk], i) => <ScreenFlash key={`s${data.key}-${i}`} delay={d} peak={pk} />)}
           {flashes.map((f) => <CamFlash key={`l${data.key}-${f.id}`} {...f} />)}
           {Array.from({ length: confetti }, (_, i) => <Confetti key={`f${i}`} W={W} H={height} delay={i * 45 + 200} />)}
@@ -586,10 +609,10 @@ export default function Celebration({ data, onDone }) {
             style={[styles.toast, {
               left: left + 16, width: W - 32,
               opacity: card,
-              transform: [{ translateY: card.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) }],
+              transform: [{ translateY: card.interpolate({ inputRange: [0, 1], outputRange: [-80, 0] }) }, { scale: card.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }],
             }]}
           >
-            <Text style={styles.toastIcon}>{data.icon}</Text>
+            <Animated.Text style={[styles.toastIcon, { transform: [{ scale: card.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.4, 1.35, 1] }) }] }]}>{data.icon}</Animated.Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.toastTitle}>{data.title}</Text>
               {data.sub ? <Text style={styles.toastSub} numberOfLines={1}>{data.sub}</Text> : null}
@@ -603,7 +626,7 @@ export default function Celebration({ data, onDone }) {
                 transform: [{ scale: card.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
               }]}
             >
-              <Text style={tier === 'mega' ? styles.megaIcon : styles.bigIcon}>{data.icon}</Text>
+              <Animated.Text style={[tier === 'mega' ? styles.megaIcon : styles.bigIcon, { transform: [{ scale: card.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.3, 1.25, 1] }) }] }]}>{data.icon}</Animated.Text>
               {tier === 'mega' ? <Text style={styles.megaNum}>{formatMoney(YI).replace(' ', '')}</Text> : null}
               <Text style={tier === 'mega' ? styles.megaTitle : styles.bigTitle}>{data.title}</Text>
               {data.sub ? <Text style={styles.bigSub}>{data.sub}</Text> : null}
