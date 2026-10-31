@@ -8,6 +8,7 @@ import { PHOTO } from './art/photos';
 import Sheet from './Sheet';
 import { Button } from './components';
 import { tap } from './tap';
+import { useWide, SideCtx } from './wide';
 import { C } from './theme';
 import { formatMoney, netWorth, DIFFICULTIES, GENDERS, LEGENDS, META_UPGRADES, stageOf, rollDifficulty, RANDOM_WEIGHTS } from '../game/engine';
 import { APP_VERSION } from '../version';
@@ -96,6 +97,9 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
   const [confirmNew, setConfirmNew] = useState(false);
   const [rolling, setRolling] = useState(null); // 隨機難度抽到什麼，先給玩家看一下再進遊戲
   const [boardTab, setBoardTab] = useState('daily');
+  // 寬螢幕（折疊機展開、平板橫向）：左邊固定是「人生」（主視覺＋開新人生），右邊一張面板切挑戰／成就／排行榜／設定
+  const wide = useWide();
+  const [rtab, setRtab] = useState('challenge');
   const m = meta || { points: 0, earned: 0, lives: 0, slots: 0, retire: 0 };
   const got = book || {};
   const gotCount = LEGENDS.filter((l) => got[l.id]).length;
@@ -118,10 +122,91 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
     onNew(name.trim(), diff, gender);
   };
 
+  const boardBody = (
+    <>
+
+        <View style={styles.bTabs}>
+          {[['daily', '🌏 每日挑戰'], ['mine', '📜 我的歷代']].map(([k, l]) => (
+            <Pressable key={k} onPress={() => setBoardTab(k)} style={[styles.bTab, boardTab === k && styles.bTabOn]}>
+              <Text style={[styles.bTabText, boardTab === k && { color: C.primaryInk }]}>{l}</Text>
+            </Pressable>
+          ))}
+        </View>
+        {boardTab === 'daily' ? <DailyBoard daily={daily} /> : (board || []).length === 0 ? (
+          <View style={styles.ptsBox}><Text style={styles.ptsLabel}>還沒有人上榜，玩完一輩子就會出現。</Text></View>
+        ) : (
+          <View style={styles.card}>
+            {(board || []).map((x, i) => {
+              const d = DIFFICULTIES.find((q) => q.id === x.diff);
+              const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+              return (
+                <View key={x.id || i} style={[styles.metaRow, i > 0 && styles.rowLine]}>
+                  <Text style={[styles.rowIcon, i > 2 && { fontSize: 15, color: C.muted, fontWeight: '700' }]}>{medal}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle} numberOfLines={1}>{x.name}{x.achievedAge ? '　🏆' : ''}</Text>
+                    <Text style={styles.metaNow} numberOfLines={1}>
+                      {d ? d.name : '普通'}．{x.title}．活到 {x.age} 歲{x.achievedAge ? `．${x.achievedAge} 歲破億` : ''}
+                    </Text>
+                  </View>
+                  <Text style={[styles.boardNw, x.nw < 0 && { color: C.red }]}>{formatMoney(x.nw)}</Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
+    </>
+  );
+  const howBody = (
+    <>
+
+        <View style={styles.card}>
+          {HOW.map((h, i) => (
+            <View key={h.title} style={[styles.metaRow, i > 0 && styles.rowLine, { alignItems: 'flex-start' }]}>
+              <Text style={styles.rowIcon}>{h.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowTitle}>{h.title}</Text>
+                <Text style={styles.howText}>{h.text}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+        {!wide ? <Button title="知道了" style={{ marginTop: 14, marginBottom: 6 }} onPress={() => setShowHow(false)} /> : null}
+    </>
+  );
+  const RTABS = [['challenge', '📅', '挑戰'], ['ach', '🏆', '成就'], ['board', '📊', '排行榜'], ['how', '⚙', '設定']];
+  const sidePane = wide ? (
+    <View style={styles.sideCol}>
+      <DarkBackdrop width={Math.max(320, width - 480)} height={height} />
+      <View style={[styles.sidePane, { marginBottom: insets.bottom + 10 }]}>
+        <View style={styles.sideTabs}>
+          {RTABS.map(([id, icon, label]) => {
+            const on = rtab === id;
+            const dot = id === 'challenge' && !(daily && daily.runs && daily.runs[todayKey()]);
+            return (
+              <Pressable key={id} onPress={() => { tap(); setRtab(id); }} style={[styles.sideTab, on && styles.sideTabOn]}>
+                <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{icon}{dot ? <Text style={{ color: '#ff5d52' }}> ●</Text> : null}</Text>
+                <Text style={[styles.sideTabText, on && { color: '#fff' }]}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <SideCtx.Provider value>
+          <Sheet visible={rtab === 'challenge'} onClose={() => {}}>
+            <ChallengeTab daily={daily} dsave={dsave} onDaily={onDaily} onDailyContinue={onDailyContinue} defaultName={name.trim() || (save && save.name) || ''} />
+          </Sheet>
+          <Sheet visible={rtab === 'ach'} onClose={() => {}}><BadgeWall badges={badges} /></Sheet>
+          <Sheet visible={rtab === 'board'} onClose={() => {}} title="排行榜">{boardBody}</Sheet>
+          <Sheet visible={rtab === 'how'} onClose={() => {}} title="怎麼玩">{howBody}</Sheet>
+        </SideCtx.Provider>
+      </View>
+    </View>
+  ) : null;
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#0f1636' }}>
+    <View style={{ flex: 1, backgroundColor: '#0f1636', flexDirection: wide ? 'row' : 'column' }}>
+    <View style={wide ? styles.mainCol : { flex: 1 }}>
       <DarkBackdrop width={W} height={height} />
-      <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: 110 + insets.bottom }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.wrap, { paddingBottom: (wide ? 24 : 110) + insets.bottom }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* 頂列 */}
         <View style={styles.topBar}>
           <View style={[styles.lvPill, GLASS]}><Text style={styles.lvText}>第 {m.lives + 1} 世</Text></View>
@@ -131,9 +216,9 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
           </Pressable>
         </View>
 
-        {tab === 'ach' ? (
+        {tab === 'ach' && !wide ? (
           <BadgeWall badges={badges} />
-        ) : tab === 'challenge' ? (
+        ) : tab === 'challenge' && !wide ? (
           <ChallengeTab daily={daily} dsave={dsave} onDaily={onDaily} onDailyContinue={onDailyContinue} defaultName={name.trim() || (save && save.name) || ''} />
         ) : (
         <>
@@ -262,14 +347,16 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
         </View>
       ) : null}
 
-      {/* 底部 Tab Bar */}
-      <View style={[styles.tabBar, GLASS, { paddingBottom: insets.bottom + 6, width: W }]}>
+      {/* 底部 Tab Bar（寬螢幕時右欄有分頁，不需要） */}
+      {!wide ? <View style={[styles.tabBar, GLASS, { paddingBottom: insets.bottom + 6, width: W }]}>
         <TabBtn icon="🏠" label="人生" active={tab === 'home'} onPress={() => onTab && onTab('home')} />
         <TabBtn icon="📅" label="挑戰" active={tab === 'challenge'} onPress={() => onTab && onTab('challenge')} badge={!(daily && daily.runs && daily.runs[todayKey()])} />
         <TabBtn icon="🏆" label="成就" active={tab === 'ach'} onPress={() => onTab && onTab('ach')} />
         <TabBtn icon="📊" label="排行榜" onPress={() => setShowBoard(true)} />
         <TabBtn icon="⚙" label="設定" onPress={() => setShowHow(true)} />
-      </View>
+      </View> : null}
+    </View>
+    {sidePane}
 
       {/* 永久升級 */}
       <Sheet visible={showMeta} onClose={() => setShowMeta(false)} title="永久升級">
@@ -344,53 +431,10 @@ export default function StartScreen({ save, best, board, book, meta, onBuyMeta, 
       </Sheet>
 
       {/* 排行榜：歷代人生 */}
-      <Sheet visible={showBoard} onClose={() => setShowBoard(false)} title="排行榜" tall>
-        <View style={styles.bTabs}>
-          {[['daily', '🌏 每日挑戰'], ['mine', '📜 我的歷代']].map(([k, l]) => (
-            <Pressable key={k} onPress={() => setBoardTab(k)} style={[styles.bTab, boardTab === k && styles.bTabOn]}>
-              <Text style={[styles.bTabText, boardTab === k && { color: C.primaryInk }]}>{l}</Text>
-            </Pressable>
-          ))}
-        </View>
-        {boardTab === 'daily' ? <DailyBoard daily={daily} /> : (board || []).length === 0 ? (
-          <View style={styles.ptsBox}><Text style={styles.ptsLabel}>還沒有人上榜，玩完一輩子就會出現。</Text></View>
-        ) : (
-          <View style={styles.card}>
-            {(board || []).map((x, i) => {
-              const d = DIFFICULTIES.find((q) => q.id === x.diff);
-              const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
-              return (
-                <View key={x.id || i} style={[styles.metaRow, i > 0 && styles.rowLine]}>
-                  <Text style={[styles.rowIcon, i > 2 && { fontSize: 15, color: C.muted, fontWeight: '700' }]}>{medal}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowTitle} numberOfLines={1}>{x.name}{x.achievedAge ? '　🏆' : ''}</Text>
-                    <Text style={styles.metaNow} numberOfLines={1}>
-                      {d ? d.name : '普通'}．{x.title}．活到 {x.age} 歲{x.achievedAge ? `．${x.achievedAge} 歲破億` : ''}
-                    </Text>
-                  </View>
-                  <Text style={[styles.boardNw, x.nw < 0 && { color: C.red }]}>{formatMoney(x.nw)}</Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
-      </Sheet>
+      <Sheet visible={showBoard && !wide} onClose={() => setShowBoard(false)} title="排行榜" tall>{boardBody}</Sheet>
 
       {/* 怎麼玩 */}
-      <Sheet visible={showHow} onClose={() => setShowHow(false)} title="怎麼玩" tall>
-        <View style={styles.card}>
-          {HOW.map((h, i) => (
-            <View key={h.title} style={[styles.metaRow, i > 0 && styles.rowLine, { alignItems: 'flex-start' }]}>
-              <Text style={styles.rowIcon}>{h.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowTitle}>{h.title}</Text>
-                <Text style={styles.howText}>{h.text}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-        <Button title="知道了" style={{ marginTop: 14, marginBottom: 6 }} onPress={() => setShowHow(false)} />
-      </Sheet>
+      <Sheet visible={showHow && !wide} onClose={() => setShowHow(false)} title="怎麼玩" tall>{howBody}</Sheet>
     </View>
   );
 }
@@ -400,6 +444,18 @@ const GLASS_LINE = 'rgba(140,170,255,0.35)';
 
 const styles = StyleSheet.create({
   wrap: { paddingTop: 6 },
+  mainCol: { width: 480, maxWidth: '55%', borderRightWidth: 1, borderRightColor: 'rgba(157,140,255,0.45)' },
+  sideCol: { flex: 1, backgroundColor: '#0f1636' },
+  sidePane: {
+    flex: 1, margin: 14, marginBottom: 10, borderRadius: 26, overflow: 'hidden',
+    backgroundColor: 'rgba(15,22,54,0.85)', borderWidth: 1, borderColor: 'rgba(140,170,255,0.22)',
+    shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
+  },
+  sideTabs: { flexDirection: 'row', gap: 4, margin: 10, padding: 4, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: 'rgba(140,170,255,0.22)' },
+  sideTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14 },
+  sideTabOn: { backgroundColor: '#6a5cff', shadowColor: '#6a5cff', shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
+  sideTabIcon: { fontSize: 18 },
+  sideTabText: { color: 'rgba(255,255,255,0.6)', fontSize: 12.5, fontWeight: '800', marginTop: 2 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingBottom: 6 },
   lvPill: { backgroundColor: GLASS_BG, borderWidth: 1, borderColor: GLASS_LINE, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   lvText: { color: '#ffd76a', fontSize: 12, fontWeight: '700' },
