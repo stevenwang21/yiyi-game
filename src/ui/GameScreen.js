@@ -274,7 +274,38 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   };
 
 
-  // 右欄（寬螢幕才有）：上面一排分頁，下面是嵌進來的面板
+  // 底部操作列（投資／健康／過一年／家庭／排名）
+  const actionBar = (
+      <View style={[styles.actions, BLUR, wide && styles.actionsWide, { paddingBottom: insets.bottom + (wide ? 12 : 6) }]}>
+        <View ref={refs.bar} collapsable={false} style={styles.tabLeft}>
+          <TabItem icon="📈" label="投資" active={wide && sidePanel === 'invest'} onPress={() => setShowInvestW(true)} />
+          <TabItem icon="❤️" label="健康" alert={s.stats.hp < 30} active={wide && sidePanel === 'health'} onPress={() => setShowHealthW(true)} />
+        </View>
+        <View ref={refs.next} collapsable={false} style={styles.nextWrap}>
+          <Pressable
+            onPress={() => {
+              setFocusMsg(null);
+              setShowAllHappened(false);
+              setShowAllLog(false);
+              scrollRef.current?.scrollTo({ y: 0, animated: false });
+              haptic('tap');
+              playSfx('year');
+              setGame(E.nextYear(s));
+            }}
+            style={({ pressed }) => [styles.nextBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
+          >
+            <Text style={styles.nextText}>過一年</Text>
+            <Text style={styles.nextSub}>{s.age + 1} 歲 ›</Text>
+          </Pressable>
+        </View>
+        <View style={styles.tabLeft}>
+          <TabItem icon="👨‍👩‍👧" label="家庭" active={wide && sidePanel === 'family'} onPress={() => setShowFamilyW(true)} />
+          <TabItem icon="🏆" label={rank ? `第${rank.rank}名` : '排名'} active={wide && sidePanel === 'mates'} onPress={() => rank && setShowMatesW(true)} />
+        </View>
+      </View>
+  );
+
+  // 右欄（寬螢幕才有）：上面一排分頁，下面是嵌進來的面板，最下面是操作列
   const sideColumn = wide ? (
     <View style={styles.sideCol}>
       {!isLight ? <DarkBackdrop width={Math.max(320, win.width - 480)} height={win.height} /> : null}
@@ -300,6 +331,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         <UpgradeSheet visible={sidePanel === 'upgrade'} onClose={() => {}} game={s} setGame={setGame} />
       </SideCtx.Provider>
       </View>
+      {actionBar}
     </View>
   ) : null;
 
@@ -339,7 +371,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
 
       </View>
 
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.body, wide && { paddingBottom: 24 + insets.bottom }]} showsVerticalScrollIndicator={false}>
           {/* 主卡：年齡＋淨資產＋進度 */}
           <View ref={refs.hero} collapsable={false} style={[styles.hero, SHADOW]}>
             <View style={styles.heroRow}>
@@ -633,35 +665,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
           </View>
       </ScrollView>
 
-      {/* 底部固定操作列 */}
-      <View style={[styles.actions, BLUR, { paddingBottom: insets.bottom + 6 }]}>
-        <View ref={refs.bar} collapsable={false} style={styles.tabLeft}>
-          <TabItem icon="📈" label="投資" active={wide && sidePanel === 'invest'} onPress={() => setShowInvestW(true)} />
-          <TabItem icon="❤️" label="健康" alert={s.stats.hp < 30} active={wide && sidePanel === 'health'} onPress={() => setShowHealthW(true)} />
-        </View>
-        <View ref={refs.next} collapsable={false} style={styles.nextWrap}>
-          <Pressable
-            onPress={() => {
-              setFocusMsg(null);
-              setShowAllHappened(false);
-              setShowAllLog(false);
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
-              haptic('tap');
-              playSfx('year');
-              setGame(E.nextYear(s));
-            }}
-            style={({ pressed }) => [styles.nextBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
-          >
-            <Text style={styles.nextText}>過一年</Text>
-            <Text style={styles.nextSub}>{s.age + 1} 歲 ›</Text>
-          </Pressable>
-        </View>
-        <View style={styles.tabLeft}>
-          <TabItem icon="👨‍👩‍👧" label="家庭" active={wide && sidePanel === 'family'} onPress={() => setShowFamilyW(true)} />
-          <TabItem icon="🏆" label={rank ? `第${rank.rank}名` : '排名'} active={wide && sidePanel === 'mates'} onPress={() => rank && setShowMatesW(true)} />
-        </View>
-      </View>
-
+      {/* 底部操作列：窄螢幕在左欄下面；展開模式搬到右欄下面（右欄下半本來是空的） */}
+      {!wide ? actionBar : null}
       </View>
       {sideColumn}
 
@@ -911,6 +916,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.tabBar, borderTopWidth: 1, borderTopColor: C.cardLine,
     alignItems: 'center',
   },
+  // 展開模式：操作列在右欄下面，做成一張圓角卡，跟上面的面板卡對齊
+  actionsWide: { marginHorizontal: 14, marginBottom: 14, borderRadius: 24, borderWidth: 1, borderColor: C.cardLine, paddingTop: 10, paddingHorizontal: 14 },
   iconRow: { flexDirection: 'row', gap: 6, flex: 1.7 },
   happened: { backgroundColor: C.card, paddingVertical: 8, marginTop: 0 },
   happenedItem: { fontSize: 14, lineHeight: 20, paddingVertical: 5, fontWeight: '400' },
