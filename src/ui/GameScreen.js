@@ -307,41 +307,12 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       </View>
   );
 
-  // 右欄（寬螢幕才有）：最上面一排分頁＋過一年，下面是嵌進來的面板
+  // 右欄（寬螢幕才有）：中間是嵌進來的面板，最右邊一條直的分頁列＋過一年
   const sideColumn = wide ? (
     <View style={styles.sideCol}>
       {!isLight ? <DarkBackdrop width={Math.max(320, win.width - 480)} height={win.height} /> : null}
-      {/* 右欄：一張大面板卡，上面是分段式的分頁 */}
+      {/* 右欄：一張大面板卡（沒有分頁列，分頁在最右邊那條直的） */}
       <View style={styles.sidePane}>
-        {/* 最上面那排（跟左邊名字列同一條線）：投資／健康 ｜ 過一年 ｜ 家庭／排名／成就 */}
-        <View style={styles.sideTabs}>
-          {PANELS.map((pn, i) => {
-            const on = sidePanel === pn.id;
-            const off = pn.id === 'mates' && !rank;
-            const tab = (
-              <Pressable key={pn.id} disabled={off} onPress={() => { haptic('tap'); setSidePanel(pn.id); }} style={({ pressed }) => [styles.sideTab, on && styles.sideTabOn, off && { opacity: 0.35 }, pressed && !on && { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-                <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
-                <Text style={[styles.sideTabText, on && { color: '#fff' }]}>{pn.id === 'mates' && rank ? `第${rank.rank}名` : pn.label}</Text>
-              </Pressable>
-            );
-            if (i === 1) {
-              // 健康後面插「過一年」
-              return (
-                <Fragment key="g">
-                  {tab}
-                  <View ref={refs.next} collapsable={false} style={styles.nextWrapWide}>
-                    <Pressable onPress={goNextYear} style={({ pressed }) => [styles.nextBtn, styles.nextBtnWide, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}>
-                      <Text style={styles.nextText}>過一年</Text>
-                      <Text style={styles.nextSub}>{s.age + 1} 歲 ›</Text>
-                    </Pressable>
-                  </View>
-                </Fragment>
-              );
-            }
-            if (i === 0) return <View key="b" ref={refs.bar} collapsable={false} style={{ flex: 1 }}>{tab}</View>;
-            return tab;
-          })}
-        </View>
       <SideCtx.Provider value>
         <InvestSheet visible={sidePanel === 'invest'} onClose={() => setInvestTab(null)} game={s} setGame={setGame} initialTab={investTab} />
         <HealthSheet visible={sidePanel === 'health'} onClose={() => {}} game={s} setGame={setGame} />
@@ -349,6 +320,35 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         <MatesSheet visible={sidePanel === 'mates' && !!rank} onClose={() => {}} game={s} />
         <UpgradeSheet visible={sidePanel === 'upgrade'} onClose={() => {}} game={s} setGame={setGame} />
       </SideCtx.Provider>
+      </View>
+      {/* 最右邊一條直的（跟手機時間那條同一邊）：投資、健康、過一年、家庭、排名、成就 由上往下排 */}
+      <View style={[styles.rail, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }]}>
+        {PANELS.map((pn, i) => {
+          const on = sidePanel === pn.id;
+          const off = pn.id === 'mates' && !rank;
+          const tab = (
+            <Pressable key={pn.id} disabled={off} onPress={() => { haptic('tap'); setSidePanel(pn.id); }} style={({ pressed }) => [styles.railTab, on && styles.sideTabOn, off && { opacity: 0.35 }, pressed && !on && { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+              <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
+              <Text style={[styles.railText, on && { color: '#fff' }]}>{pn.id === 'mates' && rank ? `第${rank.rank}名` : pn.label}</Text>
+            </Pressable>
+          );
+          if (i === 1) {
+            // 健康下面插「過一年」
+            return (
+              <Fragment key="g">
+                {tab}
+                <View ref={refs.next} collapsable={false} style={styles.railNextWrap}>
+                  <Pressable onPress={goNextYear} style={({ pressed }) => [styles.nextBtn, styles.railNext, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}>
+                    <Text style={styles.nextText}>過一年</Text>
+                    <Text style={styles.nextSub}>{s.age + 1} 歲 ›</Text>
+                  </Pressable>
+                </View>
+              </Fragment>
+            );
+          }
+          if (i === 0) return <View key="b" ref={refs.bar} collapsable={false}>{tab}</View>;
+          return tab;
+        })}
       </View>
     </View>
   ) : null;
@@ -918,9 +918,9 @@ const styles = StyleSheet.create({
 
   // 寬螢幕：左欄遊戲（最寬 480）、右欄面板
   mainCol: { width: 480, maxWidth: '55%', borderRightWidth: 1, borderRightColor: C.accentLine },
-  sideCol: { flex: 1, backgroundColor: C.bg },
+  sideCol: { flex: 1, backgroundColor: C.bg, flexDirection: 'row' },
   sidePane: {
-    flex: 1, margin: 14, marginBottom: 14, borderRadius: 26, overflow: 'hidden',
+    flex: 1, margin: 14, marginRight: 10, borderRadius: 26, overflow: 'hidden',
     backgroundColor: C.glass, borderWidth: 1, borderColor: C.cardLine,
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
   },
@@ -934,9 +934,12 @@ const styles = StyleSheet.create({
     backgroundColor: C.tabBar, borderTopWidth: 1, borderTopColor: C.cardLine,
     alignItems: 'center',
   },
-  // 展開模式：過一年放在右欄最上面那排的正中間
-  nextWrapWide: { paddingHorizontal: 6, alignSelf: 'center' },
-  nextBtnWide: { paddingVertical: 8, paddingHorizontal: 22 },
+  // 展開模式：最右邊一條直的分頁列
+  rail: { width: 84, paddingHorizontal: 6, alignItems: 'stretch', justifyContent: 'flex-start', gap: 6, borderLeftWidth: 1, borderLeftColor: C.cardLine, backgroundColor: 'rgba(0,0,0,0.18)' },
+  railTab: { alignItems: 'center', paddingVertical: 9, borderRadius: 14 },
+  railText: { color: C.muted, fontSize: 11.5, fontWeight: '800', marginTop: 2 },
+  railNextWrap: { marginVertical: 8, alignItems: 'center' },
+  railNext: { paddingVertical: 10, paddingHorizontal: 8, width: 72, borderRadius: 20 },
   iconRow: { flexDirection: 'row', gap: 6, flex: 1.7 },
   happened: { backgroundColor: C.card, paddingVertical: 8, marginTop: 0 },
   happenedItem: { fontSize: 14, lineHeight: 20, paddingVertical: 5, fontWeight: '400' },
