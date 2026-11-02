@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Bar, Button, Card, Chip } from './components';
@@ -274,24 +274,26 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   };
 
 
-  // 底部操作列（投資／健康／過一年／家庭／排名）
+  const goNextYear = () => {
+    setFocusMsg(null);
+    setShowAllHappened(false);
+    setShowAllLog(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    haptic('tap');
+    playSfx('year');
+    setGame(E.nextYear(s));
+  };
+
+  // 底部操作列（投資／健康／過一年／家庭／排名）：只有窄螢幕用；展開模式併進右欄最上面那排
   const actionBar = (
-      <View style={[styles.actions, BLUR, wide && styles.actionsWide, { paddingBottom: insets.bottom + (wide ? 12 : 6) }]}>
+      <View style={[styles.actions, BLUR, { paddingBottom: insets.bottom + 6 }]}>
         <View ref={refs.bar} collapsable={false} style={styles.tabLeft}>
           <TabItem icon="📈" label="投資" active={wide && sidePanel === 'invest'} onPress={() => setShowInvestW(true)} />
           <TabItem icon="❤️" label="健康" alert={s.stats.hp < 30} active={wide && sidePanel === 'health'} onPress={() => setShowHealthW(true)} />
         </View>
         <View ref={refs.next} collapsable={false} style={styles.nextWrap}>
           <Pressable
-            onPress={() => {
-              setFocusMsg(null);
-              setShowAllHappened(false);
-              setShowAllLog(false);
-              scrollRef.current?.scrollTo({ y: 0, animated: false });
-              haptic('tap');
-              playSfx('year');
-              setGame(E.nextYear(s));
-            }}
+            onPress={goNextYear}
             style={({ pressed }) => [styles.nextBtn, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}
           >
             <Text style={styles.nextText}>過一年</Text>
@@ -305,22 +307,39 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       </View>
   );
 
-  // 右欄（寬螢幕才有）：上面一排分頁，下面是嵌進來的面板，最下面是操作列
+  // 右欄（寬螢幕才有）：最上面一排分頁＋過一年，下面是嵌進來的面板
   const sideColumn = wide ? (
     <View style={styles.sideCol}>
       {!isLight ? <DarkBackdrop width={Math.max(320, win.width - 480)} height={win.height} /> : null}
       {/* 右欄：一張大面板卡，上面是分段式的分頁 */}
       <View style={styles.sidePane}>
+        {/* 最上面那排（跟左邊名字列同一條線）：投資／健康 ｜ 過一年 ｜ 家庭／排名／成就 */}
         <View style={styles.sideTabs}>
-          {PANELS.map((pn) => {
+          {PANELS.map((pn, i) => {
             const on = sidePanel === pn.id;
             const off = pn.id === 'mates' && !rank;
-            return (
+            const tab = (
               <Pressable key={pn.id} disabled={off} onPress={() => { haptic('tap'); setSidePanel(pn.id); }} style={({ pressed }) => [styles.sideTab, on && styles.sideTabOn, off && { opacity: 0.35 }, pressed && !on && { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
                 <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
-                <Text style={[styles.sideTabText, on && { color: '#fff' }]}>{pn.label}</Text>
+                <Text style={[styles.sideTabText, on && { color: '#fff' }]}>{pn.id === 'mates' && rank ? `第${rank.rank}名` : pn.label}</Text>
               </Pressable>
             );
+            if (i === 1) {
+              // 健康後面插「過一年」
+              return (
+                <Fragment key="g">
+                  {tab}
+                  <View ref={refs.next} collapsable={false} style={styles.nextWrapWide}>
+                    <Pressable onPress={goNextYear} style={({ pressed }) => [styles.nextBtn, styles.nextBtnWide, pressed && { transform: [{ scale: 0.96 }], opacity: 0.9 }]}>
+                      <Text style={styles.nextText}>過一年</Text>
+                      <Text style={styles.nextSub}>{s.age + 1} 歲 ›</Text>
+                    </Pressable>
+                  </View>
+                </Fragment>
+              );
+            }
+            if (i === 0) return <View key="b" ref={refs.bar} collapsable={false} style={{ flex: 1 }}>{tab}</View>;
+            return tab;
           })}
         </View>
       <SideCtx.Provider value>
@@ -331,7 +350,6 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
         <UpgradeSheet visible={sidePanel === 'upgrade'} onClose={() => {}} game={s} setGame={setGame} />
       </SideCtx.Provider>
       </View>
-      {actionBar}
     </View>
   ) : null;
 
@@ -902,11 +920,11 @@ const styles = StyleSheet.create({
   mainCol: { width: 480, maxWidth: '55%', borderRightWidth: 1, borderRightColor: C.accentLine },
   sideCol: { flex: 1, backgroundColor: C.bg },
   sidePane: {
-    flex: 1, margin: 14, marginBottom: 10, borderRadius: 26, overflow: 'hidden',
+    flex: 1, margin: 14, marginBottom: 14, borderRadius: 26, overflow: 'hidden',
     backgroundColor: C.glass, borderWidth: 1, borderColor: C.cardLine,
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 },
   },
-  sideTabs: { flexDirection: 'row', gap: 4, margin: 10, padding: 4, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: C.cardLine },
+  sideTabs: { flexDirection: 'row', alignItems: 'center', gap: 4, margin: 10, padding: 4, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.22)', borderWidth: 1, borderColor: C.cardLine },
   sideTab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14 },
   sideTabOn: { backgroundColor: C.primary, shadowColor: C.primary, shadowOpacity: 0.5, shadowRadius: 10, shadowOffset: { width: 0, height: 3 } },
   sideTabIcon: { fontSize: 18 },
@@ -916,8 +934,9 @@ const styles = StyleSheet.create({
     backgroundColor: C.tabBar, borderTopWidth: 1, borderTopColor: C.cardLine,
     alignItems: 'center',
   },
-  // 展開模式：操作列在右欄下面，做成一張圓角卡，跟上面的面板卡對齊
-  actionsWide: { marginHorizontal: 14, marginBottom: 14, borderRadius: 24, borderWidth: 1, borderColor: C.cardLine, paddingTop: 10, paddingHorizontal: 14 },
+  // 展開模式：過一年放在右欄最上面那排的正中間
+  nextWrapWide: { paddingHorizontal: 6, alignSelf: 'center' },
+  nextBtnWide: { paddingVertical: 8, paddingHorizontal: 22 },
   iconRow: { flexDirection: 'row', gap: 6, flex: 1.7 },
   happened: { backgroundColor: C.card, paddingVertical: 8, marginTop: 0 },
   happenedItem: { fontSize: 14, lineHeight: 20, paddingVertical: 5, fontWeight: '400' },
