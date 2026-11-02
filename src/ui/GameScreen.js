@@ -308,6 +308,8 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
   );
 
   // 右欄（寬螢幕才有）：中間是嵌進來的面板，最右邊一條直的分頁列＋過一年
+  // 折疊機展開時右邊有一條放時間／電量的安全區（insets.right 很寬）：直列就直接貼進那條，時間底下開始排
+  const railStrip = insets.right >= 60;
   const sideColumn = wide ? (
     <View style={styles.sideCol}>
       {!isLight ? <DarkBackdrop width={Math.max(320, win.width - 480)} height={win.height} /> : null}
@@ -322,13 +324,15 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
       </SideCtx.Provider>
       </View>
       {/* 最右邊一條直的（跟手機時間那條同一邊）：投資、健康、過一年、家庭、排名、成就 由上往下排 */}
-      <View style={[styles.rail, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }]}>
+      <View style={[styles.rail, railStrip
+        ? { position: 'absolute', top: 0, bottom: 0, right: -insets.right, width: insets.right, paddingTop: 128, paddingBottom: insets.bottom + 10 }
+        : { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 10 }]}>
         {PANELS.map((pn, i) => {
           const on = sidePanel === pn.id;
           const off = pn.id === 'mates' && !rank;
           const tab = (
             <Pressable key={pn.id} disabled={off} onPress={() => { haptic('tap'); setSidePanel(pn.id); }} style={({ pressed }) => [styles.railTab, on && styles.sideTabOn, off && { opacity: 0.35 }, pressed && !on && { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-              <Text style={[styles.sideTabIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
+              <Text style={[styles.railIcon, !on && { opacity: 0.7 }]}>{pn.icon}</Text>
               <Text style={[styles.railText, on && { color: '#fff' }]}>{pn.id === 'mates' && rank ? `第${rank.rank}名` : pn.label}</Text>
             </Pressable>
           );
@@ -346,7 +350,7 @@ export default function GameScreen({ game, setGame, onHome, onRestart }) {
               </Fragment>
             );
           }
-          if (i === 0) return <View key="b" ref={refs.bar} collapsable={false}>{tab}</View>;
+          if (i === 0) return <View key="b" ref={refs.bar} collapsable={false} style={{ flex: 1 }}>{tab}</View>;
           return tab;
         })}
       </View>
@@ -935,10 +939,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   // 展開模式：最右邊一條直的分頁列
-  rail: { width: 84, paddingHorizontal: 6, alignItems: 'stretch', justifyContent: 'flex-start', gap: 6, borderLeftWidth: 1, borderLeftColor: C.cardLine, backgroundColor: 'rgba(0,0,0,0.18)' },
-  railTab: { alignItems: 'center', paddingVertical: 9, borderRadius: 14 },
-  railText: { color: C.muted, fontSize: 11.5, fontWeight: '800', marginTop: 2 },
-  railNextWrap: { marginVertical: 8, alignItems: 'center' },
+  // 六格等分整條高度（每格 flex: 1），有多高就撐多高
+  rail: { width: 84, paddingHorizontal: 6, alignItems: 'stretch', justifyContent: 'space-evenly', gap: 6, borderLeftWidth: 1, borderLeftColor: C.cardLine, backgroundColor: 'rgba(0,0,0,0.18)' },
+  railTab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 16 },
+  railIcon: { fontSize: 24 },
+  railText: { color: C.muted, fontSize: 12.5, fontWeight: '800', marginTop: 3 },
+  railNextWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', marginVertical: 4 },
   railNext: { paddingVertical: 10, paddingHorizontal: 8, width: 72, borderRadius: 20 },
   iconRow: { flexDirection: 'row', gap: 6, flex: 1.7 },
   happened: { backgroundColor: C.card, paddingVertical: 8, marginTop: 0 },
